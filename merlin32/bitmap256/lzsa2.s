@@ -34,20 +34,15 @@
 ; Data usage is last 11 bytes of zero-page.
 ;
 
-lzsa_cmdbuf     =       $F5                     ; 1 byte.
-lzsa_nibflg     =       $F6                     ; 1 byte.
-lzsa_nibble     =       $F7                     ; 1 byte.
-lzsa_offset     =       $F8                     ; 1 word.
-lzsa_winptr     =       $FA                     ; 1 word.
-lzsa_srcptr     =       $FC                     ; 1 word.
-lzsa_dstptr     =       $FE                     ; 1 word.
+lzsa_cmdbuf     =       $F0                     ; 1 byte.
+lzsa_nibflg     =       $F1                     ; 1 byte.
+lzsa_nibble     =       $F2                     ; 1 byte.
+lzsa_offset     =       $F3                     ; 1 word.
+lzsa_winptr     =       $F4                     ; 3 byte
+lzsa_srcptr     =       $F7                     ; 3 byte
+lzsa_dstptr     =       $FA                     ; 3 byte
 
 lzsa_length     =       lzsa_winptr             ; 1 word.
-
-LZSA_SRC_LO     =       $FC
-LZSA_SRC_HI     =       $FD
-LZSA_DST_LO     =       $FE
-LZSA_DST_HI     =       $FF
 
 
 ; ***************************************************************************
@@ -55,8 +50,9 @@ LZSA_DST_HI     =       $FF
 ;
 ; lzsa2_unpack - Decompress data stored in Emmanuel Marty's LZSA2 format.
 ;
-; Args: lzsa_srcptr = ptr to compressed data
-; Args: lzsa_dstptr = ptr to output buffer
+; args - set_read_address
+; args - set_write_address
+;
 ; Uses: lots!
 ;
 
@@ -72,7 +68,7 @@ lzsa2_unpack    ldx     #$00                    ; Hi-byte of length or offset.
                 ;
 
 :cp_length
-                jsr     :get_byte
+                jsr     readbyte
 
 :cp_skip0       sta     <lzsa_cmdbuf            ; Preserve this for later.
                 and     #$18                    ; Extract literal length.
@@ -95,16 +91,8 @@ lzsa2_unpack    ldx     #$00                    ; Hi-byte of length or offset.
 :put_cp_len     stx     <lzsa_length
                 tax
 
-:cp_page        lda     (lzsa_srcptr),y         ; CC throughout the execution of
-                sta     (lzsa_dstptr),y         ; of this .cp_page loop.
-
-                inc     <lzsa_srcptr + 0
-                bne     :cp_skip1
-                inc     <lzsa_srcptr + 1
-
-:cp_skip1       inc     <lzsa_dstptr + 0
-                bne     :cp_skip2
-                inc     <lzsa_dstptr + 1
+:cp_page        jsr	readbyte
+				jsr writebyte
 
 :cp_skip2       dex
                 bne     :cp_page
@@ -154,12 +142,12 @@ lzsa2_unpack    ldx     #$00                    ; Hi-byte of length or offset.
 
 :get_16_rep     bmi     :lz_length              ; Repeat previous offset.
 
-:get_16_bits    jsr     :get_byte               ; Get hi-byte of offset.
+:get_16_bits    jsr     readbyte                ; Get hi-byte of offset.
 
 :set_hi_8       tax
 
 :get_lo_8 
-                jsr     :get_byte               ; Get lo-byte of offset.
+                jsr     readbyte                ; Get lo-byte of offset.
 
 :set_offset     stx     <lzsa_offset + 1        ; Save new offset.
                 sta     <lzsa_offset + 0
@@ -242,13 +230,13 @@ lzsa2_unpack    ldx     #$00                    ; Hi-byte of length or offset.
                 clc                             ; MUST return CC!
                 rts
 
-:get_byte       lda     (lzsa_srcptr),y         ; Subroutine version for when
-                inc     <lzsa_srcptr + 0        ; inlining isn't advantageous.
-                beq     :next_page
-                rts
-
-:next_page      inc     <lzsa_srcptr + 1
-                rts
+;:get_byte       lda     (lzsa_srcptr),y         ; Subroutine version for when
+;                inc     <lzsa_srcptr + 0        ; inlining isn't advantageous.
+;                beq     :next_page
+;                rts
+;
+;:next_page      inc     <lzsa_srcptr + 1
+;                rts
 
 :finished       pla                             ; Decompression completed, pop
                 pla                             ; return address.
@@ -264,7 +252,7 @@ lzsa2_unpack    ldx     #$00                    ; Hi-byte of length or offset.
 
                 inc     <lzsa_nibflg            ; Reset the flag.
 
-                jsr     :get_byte
+                jsr     readbyte
 
 :set_nibble     sta     <lzsa_nibble            ; Preserve for next time.
                 lsr                             ; Extract the hi-nibble.
