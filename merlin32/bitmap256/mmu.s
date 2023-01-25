@@ -86,6 +86,59 @@ set_read_address
 
 		rts
 
+;------------------------------------------------------------------------------
+; Return the current system bus reading address
+;  A = LOW
+;  X = MED
+;  Y = HIGH
+;
+get_read_address
+		stz temp0   	; convert from block+offset, to master bus address
+		lda READ_MMU
+		lsr
+		ror temp0
+		lsr
+		ror temp0
+		lsr
+		ror temp0
+		tay
+		
+		lda pSource+1
+		and #$1F
+		ora temp0
+		
+		tax
+		
+		lda pSource
+		rts
+		
+;------------------------------------------------------------------------------
+; Return the current system bus writing address
+;  A = LOW
+;  X = MED
+;  Y = HIGH
+;
+get_write_address
+		stz temp0		; convert from block+offset, to master bus address
+		lda WRITE_MMU
+		lsr
+		ror temp0
+		lsr
+		ror temp0
+		lsr
+		ror temp0
+		tay
+		
+		lda pDest+1
+		and #$1F
+		ora temp0
+		
+		tax
+		
+		lda pSource
+		rts
+		
+
 ; Set system bus address for writing
 ;
 ;  A = LOW
