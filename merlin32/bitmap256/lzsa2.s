@@ -149,8 +149,8 @@ lzsa2_unpack    ldx     #$00                    ; Hi-byte of length or offset.
 :get_lo_8 
                 jsr     readbyte                ; Get lo-byte of offset.
 
-:set_offset     stx     <lzsa_offset + 1        ; Save new offset.
-                sta     <lzsa_offset + 0
+:set_offset     stx     <lzsa_offset+1        ; Save new offset.
+                sta     <lzsa_offset+0
 
 :lz_length      ldx     #$00                    ; Hi-byte of length.
 
@@ -167,31 +167,54 @@ lzsa2_unpack    ldx     #$00                    ; Hi-byte of length or offset.
                 tay                             ; and check for zero.
                 iny
                 beq     :get_lz_win
-                eor     #$FF
-
                 inx                             ; Increment # of pages to copy.
+:get_lz_win     
+				phx
+				phy
+				jsr 	get_write_address
+				sta     lzsa_dstptr
+				stx     lzsa_dstptr+1
+				sty     lzsa_dstptr+2
+				; saved the read address
+				jsr     get_read_address
+				sta     lzsa_srcptr
+				stx     lzsa_srcptr+1
+				sty     lzsa_srcptr+2
 
-:get_lz_dst     adc     <lzsa_dstptr + 0        ; Calc address of partial page.
-                sta     <lzsa_dstptr + 0        ; Always CC from previous CMP.
-                bcs     :get_lz_win
-                dec     <lzsa_dstptr + 1
+				clc                          ; Calc address of match.
+                lda     lzsa_dstptr+0        ; N.B. Offset is negative!
+                adc     lzsa_offset+0
+                sta     lzsa_winptr+0
+                lda     lzsa_dstptr+1
+                adc     lzsa_offset+1
+                sta     lzsa_winptr+1
+				lda		lzsa_dstptr+2
+				adc     #$FF				 ; assuming negative offset
+				sta     lzsa_winptr+2
 
-:get_lz_win     clc                             ; Calc address of match.
-                lda     <lzsa_dstptr + 0        ; N.B. Offset is negative!
-                adc     <lzsa_offset + 0
-                sta     <lzsa_winptr + 0
-                lda     <lzsa_dstptr + 1
-                adc     <lzsa_offset + 1
-                sta     <lzsa_winptr + 1
+				ply
+				plx
+				; read address is now the window pointer
+				lda     lzsa_winptr
+				ldx     lzsa_winptr+1
+				ldy     lzsa_winptr+2
+				jsr     set_read_address
 
-:lz_page        lda     (lzsa_winptr),y
-                sta     (lzsa_dstptr),y
+:lz_page        
+				jsr 	readbyte
+				jsr		writebyte
                 iny
                 bne     :lz_page
-                inc     <lzsa_winptr + 1
-                inc     <lzsa_dstptr + 1
                 dex                             ; Any full pages left to copy?
                 bne     :lz_page
+
+				lda lzsa_srcptr
+				ldx lzsa_srcptr+1
+				ldy lzsa_srcptr+2
+				jsr set_read_address
+
+				ldx #0
+				txy
 
                 jmp     :cp_length              ; Loop around to the beginning.
 
@@ -217,26 +240,18 @@ lzsa2_unpack    ldx     #$00                    ; Hi-byte of length or offset.
 :got_length     ldx     #$00                    ; Set hi-byte of 4 & 8 bit
                 rts                             ; lengths.
 
-:byte_length    jsr     :get_byte               ; So rare, this can be slow!
+:byte_length    jsr     readbyte                ; So rare, this can be slow!
                 adc     :byte_len_tbl,x         ; Always CS from previous CMP.
                 bcc     :got_length
                 beq     :finished
 
-:word_length    jsr     :get_byte               ; So rare, this can be slow!
+:word_length    jsr     readbyte                ; So rare, this can be slow!
                 pha
-                jsr     :get_byte               ; So rare, this can be slow!
+                jsr     readbyte                ; So rare, this can be slow!
                 tax
                 pla
                 clc                             ; MUST return CC!
                 rts
-
-;:get_byte       lda     (lzsa_srcptr),y         ; Subroutine version for when
-;                inc     <lzsa_srcptr + 0        ; inlining isn't advantageous.
-;                beq     :next_page
-;                rts
-;
-;:next_page      inc     <lzsa_srcptr + 1
-;                rts
 
 :finished       pla                             ; Decompression completed, pop
                 pla                             ; return address.
