@@ -179,7 +179,7 @@ readbyte
 		ldx pSource+1
 		inx
 		cpx #>READ_BLOCK+2
-		bcs :no_wrap
+		bcc :no_wrap
 		inc READ_MMU		; next mmu 8k block
 		ldx #>READ_BLOCK	; next read needs to wrap to next block
 :no_wrap
@@ -199,8 +199,8 @@ writebyte
 		phx
 		ldx pDest+1
 		inx
-		cmp #>WRITE_BLOCK+2
-		bcs :no_wrap
+		cpx #>WRITE_BLOCK+2
+		bcc :no_wrap
 		inc WRITE_MMU  		; next mmu 8k block
 		ldx #>WRITE_BLOCK   ; next write needs to wrap to next block
 :no_wrap
