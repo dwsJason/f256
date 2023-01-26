@@ -31,7 +31,7 @@ TermInit
 		stz term_y
 		lda #80
 		sta term_width
-		lda #30
+		lda #60
 		sta term_height
 
 		lda #<TextBuffer
@@ -184,22 +184,22 @@ TermClearTextBuffer
 ;------------------------------------------------------------------------------
 
 Term80Table_lo
-]var = $C000
-		lup 30
+]var = TextBuffer
+		lup 60
 		db #<]var
 ]var = ]var+80
 		--^
 
 Term80Table_hi
-]var = $C000
-		lup 30
+]var = TextBuffer
+		lup 60
 		db #>]var
 ]var = ]var+80
 		--^
 
 ;------------------------------------------------------------------------------
 TermPUTS
-:pString = temp1
+:pString = term_temp0
 		sta :pString
 		stx :pString+1
 
@@ -215,7 +215,7 @@ TermPUTS
 
 ;------------------------------------------------------------------------------
 ;TermPrintAH    - print value in A, as HEX
-TermPRINTAH
+TermPrintAH
 		pha
 		lsr
 		lsr
@@ -233,7 +233,7 @@ TermPRINTAH
 Term_chars  ASC '0123456789ABCDEF'
 
 ;TermPrintAN    - print nybble value in A
-TermPRINTAN
+TermPrintAN
 		and #$0F
 		tax
 		lda Term_chars,x
@@ -244,9 +244,9 @@ TermPRINTAN
 TermPrintAXH
 		pha
 		txa
-		jsr TermPRINTAH
+		jsr TermPrintAH
 		pla
-		bra TermPRINTAH
+		bra TermPrintAH
 
 ;------------------------------------------------------------------------------
 ;TermPrintAI    - print value in A, as DEC
@@ -256,18 +256,18 @@ TermPrintAI
 		lda :bcd+1
 		and #$0F
 		beq :skip
-		jsr TermPRINTAN
-		bra TermPRINTAH
+		jsr TermPrintAN
+		bra TermPrintAH
 :skip
 		lda :bcd
 		and #$F0
 		beq :single_digit
 		lda :bcd
-		bra TermPRINTAH
+		bra TermPrintAH
 
 :single_digit
 		lda :bcd
-		bra TermPRINTAN
+		bra TermPrintAN
 		rts
 ;------------------------------------------------------------------------------
 ;TermPrintAXI   - print value in AX, as DEC
@@ -280,11 +280,11 @@ TermPrintAXI
 		beq :skip1
 
 		; 5 digits
-		jsr TermPRINTAN
+		jsr TermPrintAN
 :digit4
 		lda :bcd
 		ldx :bcd+1
-		bra TermPRINTAXH
+		bra TermPrintAXH
 :skip1
 		lda :bcd+1
 		beq :skip2
@@ -293,23 +293,20 @@ TermPrintAXI
 		bne :digit4
 
 		lda :bcd+1
-		jsr TermPrintN  ; just the nybble
+		jsr TermPrintAN  ; just the nybble
 		lda :bcd
-		bra TermPRINTAH
+		bra TermPrintAH
 
 :skip2
 		lda :bcd
 		and #$F0
 		beq :single_digit
 		lda :bcd
-		bra TermPRINTAH
+		jmp TermPrintAH
 
 :single_digit
 		lda :bcd
-		bra TermPRINTAN
-		rts
-
-
+		bra TermPrintAN
 		rts
 ;------------------------------------------------------------------------------
 ; Andrew Jacobs, 28-Feb-2004
