@@ -58,6 +58,8 @@ TermSetXY
 		rts
 
 ;------------------------------------------------------------------------------
+TermCR  lda #13
+;------------------------------------------------------------------------------
 TermCOUT
 		cmp #13
 		beq :cr
@@ -99,8 +101,8 @@ TermCOUT
 		phy
 		phx
 :scroll
-:pSrc = temp0
-:pDst = temp0+2
+:pSrc = term_temp0
+:pDst = term_temp0+2
 
 		stz :pDst
 		lda #80
