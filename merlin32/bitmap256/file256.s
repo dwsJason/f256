@@ -19,6 +19,7 @@ i256_FileLength ds 0
 i256_pChunk     ds 0
 i256_temp0      ds 4
 
+i256_blobCount  ds 0
 i256_colorCount ds 0
 i256_temp1      ds 2
 
@@ -110,7 +111,7 @@ decompress_clut
 		lda #0
 		rts
 
-
+;------------------------------------------------------------------------------
 ;
 ; This works with the mmu utils, and the lzsa2 decompressor
 ; Addresses are in System Memory BUS space
@@ -122,6 +123,77 @@ decompress_clut
 ; if c=1, then operation fail, error code in A
 ;
 decompress_pixels
+		jsr c256init
+		bcs :error
+:error
+		lda #<CHNK_PIXL
+		ldx #>CHNK_PIXL
+		jsr FindChunk
+
+		sta i256_pChunk
+		stx i256_pChunk+1
+		sty i256_pChunk+2
+
+		ora i256_pChunk+1
+		ora i256_pChunk+2
+		bne :hasPixel
+
+		lda #i256_error_nopixels
+		sec
+:error
+		rts
+:hasPixel
+		; add 8 bytes, to skip up to color count
+		clc
+		lda i256_pChunk
+		adc #8
+		sta i256_pChunk
+		lda i256_pChunk+1
+		adc #0
+		sta i256_pChunk+1
+		lda i256_pChunk+2
+		adc #0
+		sta i256_pChunk+2
+
+		lda i256_pChunk
+		ldx i256_pChunk+1
+		ldy i256_pChunk+2
+		jsr set_read_address
+
+		; realistically, blob count can't be bigger than 255
+		jsr readbyte
+		sta i256_blobCount
+		jsr readbyte+1  	 ; really don't care about the high byte, it's there for 816
+		sta i256_blobCount+1
+
+:size = i256_temp0
+]loop
+		jsr readbyte
+		sta :size
+		jsr readbyte
+		sta :size+1
+		ora :size
+		bne :compressed
+
+		; Raw 64k Blob
+		ldx #0
+		ldy #0
+]lp
+		jsr readbyte
+		jsr writebyte
+		dex
+		bne ]lp
+		dey
+		bne ]lp
+		bra :blob
+
+:compressed
+		jsr lzsa2_unpack
+
+:blob
+		dec i256_blobCount
+		bne ]loop
+
 		rts
 
 ;

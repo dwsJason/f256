@@ -33,7 +33,7 @@ temp3 = $FC
 VKY_GR_CLUT_0 = $D000
 
 PIXEL_DATA = $010000
-CLUT_DATA  = $030000
+CLUT_DATA  = $008000
 
 ;
 ; This will copy the color table into memory, then set the video registers
@@ -45,15 +45,59 @@ start
 
 ; We're going to load compressed picture data at $04/0000, since currently
 ; Jr Vicky can't see above this
+		jsr init320x240
 
+		jsr mmu_unlock
 
+		lda #<CLUT_DATA
+		ldx #>CLUT_DATA
+		ldy #^CLUT_DATA
+		jsr set_write_address
+
+		ldx #0 ; picture #
+		jsr set_pic_address
+
+		jsr decompress_clut
+
+		; set access to vicky CLUTs
+		lda #1
+		sta io_ctrl
+		; copy the clut up there
+		ldx #0
+]lp		lda CLUT_DATA,x
+		sta VKY_GR_CLUT_0,x
+		lda CLUT_DATA+$100,x
+		sta VKY_GR_CLUT_0+$100,x
+		lda CLUT_DATA+$200,x
+		sta VKY_GR_CLUT_0+$200,x
+		lda CLUT_DATA+$300,x
+		sta VKY_GR_CLUT_0+$300,x
+		dex
+		bne ]lp
+
+		ldx #0
+		jsr set_pic_address
+		jsr decompress_pixels
 
 ; Going to image at $01/0000
 ; Going to put palette at $03/0000 
 ]wait bra ]wait
 
+;
+; X = offset to picture to set
+; 
+set_pic_address
+		lda :pic_table_h,x
+		tay
+		lda :pic_table_m,x
+		pha
+		lda :pic_table_l,x
+		plx
+
+		jmp set_read_address
+
 ; memory bus addresses
-:pic_table_low
+:pic_table_l
 		db <pic0
 		db <pic1
 		db <pic2
@@ -73,7 +117,7 @@ start
 		db >pic6
 		db >pic7
 		db >pic8
-:pic_Table_h
+:pic_table_h
 		db ^pic0
 		db ^pic1
 		db ^pic2
@@ -106,51 +150,6 @@ start
 		sta mmu+1
 
 ;-----------------------------------------------------------------------------
-		; copy CLUT
-		do 0
-		ldy #0  ; 256 total colors to copy
-]lp
-		ldx #2    ; copy 1 color
-
-src		lda $2000,x
-dst		sta VKY_GR_CLUT_0,x
-		dex
-		bpl src
-
-		clc
-		lda src+1
-		adc #3
-		sta src+1
-		bcc :next
-		inc src+2
-		clc
-:next
-		lda dst+1
-		adc #4
-		sta dst+1
-		bcc :next2
-		inc dst+2
-:next2  
-		dey
-		bne ]lp
-		fin
-
-		lda #<$2000
-		sta temp0
-		lda #>$2000
-		sta temp0+1
-
-		lda #<VKY_GR_CLUT_0
-		sta temp0+2
-		lda #>VKY_GR_CLUT_0
-		sta temp0+3
-
-		ldx #0
-]lp
-		jsr ReadColor
-		jsr WriteColor
-		dex
-		bne ]lp
 
 ;---------------------------------------------
 ; zero out a section of the bitmap
@@ -179,6 +178,7 @@ dst		sta VKY_GR_CLUT_0,x
 		sta mmu_ctrl
 ;-----------------------------------------------------------------------------
 
+init320x240
 		; Access to vicky generate registers
 		stz io_ctrl
 
@@ -197,11 +197,11 @@ dst		sta VKY_GR_CLUT_0,x
 
 		; set address of image, since image uncompressed, we just display it
 		; where we loaded it.
-		lda #<image_start
+		lda #<PIXEL_DATA
 		sta $D101
-		lda #>image_start
+		lda #>PIXEL_DATA
 		sta $D102
-		lda #^image_start
+		lda #^PIXEL_DATA
 		sta $D103
 
 		lda #1
@@ -209,101 +209,5 @@ dst		sta VKY_GR_CLUT_0,x
 		stz $D108  ; disable
 		stz $D110  ; disable
 
-
-
-; this stops the program from exiting back into DOS or SuperBASIC 
-; so we can see
-:wait   bra :wait  
 		rts
-; Read a color
-ReadColor
-:pSrc = temp0
-:pDst = temp0+2
-
-:r = temp1
-:g = temp1+1
-:b = temp1+2
-
-:p = temp2
-
-		clc
-		lda <:pSrc
-		adc :x3table_lo,x
-		sta <:p
-		lda <:pSrc+1
-		adc :x3table_hi,x
-		sta <:p+1
-
-		ldy #0
-		lda (:p),y
-		sta <:r
-		iny
-		lda (:p),y
-		sta <:g
-		iny
-		lda (:p),y
-		sta <:b
-
-		rts
-
-:x3table_lo
-]v = 0
-	lup 256
-	db ]v
-]v = ]v+3
-	--^
-:x3table_hi
-]v = 0
-	lup 256
-	db ]v/256
-]v = ]v+3
-	--^
-
-WriteColor
-:b = temp1+2
-:g = temp1+1
-:r = temp1
-
-:pSrc = temp0
-:pDst = temp0+2
-
-:p = temp2
-
-		clc
-		lda <:pDst
-		adc :x4table_lo,x
-		sta <:p
-		lda <:pDst+1
-		adc :x4table_hi,x
-		sta <:p+1
-
-		ldy #0
-		lda :b
-		sta (:p),y
-		iny
-		lda :g
-		sta (:p),y
-		iny
-		lda :r
-		sta (:p),y
-		iny
-		lda #$FF
-		sta (:p),y ; A
-
-		rts
-
-
-:x4table_lo
-]v = 0
-	lup 256
-	db ]v
-]v = ]v+4
-	--^
-
-:x4table_hi
-]v = 0
-	lup 256
-	db ]v/256
-]v = ]v+4
-	--^
 

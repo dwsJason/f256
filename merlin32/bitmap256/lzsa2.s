@@ -31,16 +31,15 @@
 ; ***************************************************************************
 ; ***************************************************************************
 ;
-; Data usage is last 11 bytes of zero-page.
 ;
 
-lzsa_cmdbuf     =       $F0                     ; 1 byte.
-lzsa_nibflg     =       $F1                     ; 1 byte.
-lzsa_nibble     =       $F2                     ; 1 byte.
-lzsa_offset     =       $F3                     ; 1 word.
-lzsa_winptr     =       $F4                     ; 3 byte
-lzsa_srcptr     =       $F7                     ; 3 byte
-lzsa_dstptr     =       $FA                     ; 3 byte
+lzsa_cmdbuf     =       $E0                     ; 1 byte.
+lzsa_nibflg     =       $E1                     ; 1 byte.
+lzsa_nibble     =       $E2                     ; 1 byte.
+lzsa_offset     =       $E3                     ; 1 word.
+lzsa_winptr     =       $E4                     ; 3 byte
+lzsa_srcptr     =       $E7                     ; 3 byte
+lzsa_dstptr     =       $EA                     ; 3 byte
 
 lzsa_length     =       lzsa_winptr             ; 1 word.
 
