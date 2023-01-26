@@ -22,6 +22,7 @@
 main_code_start
 		put mmu.s
 		put lzsa2.s
+		put file256.s
 		put bitmap.s
 main_code_end
 
