@@ -25,15 +25,15 @@ io_ctrl  equ 1
 
 
 
-temp0 = $F0
-temp1 = $F4
-temp2 = $F8
-temp3 = $FC
+temp0 = $D0
+temp1 = $D4
+temp2 = $D8
+temp3 = $DC
 
 VKY_GR_CLUT_0 = $D000
 
 PIXEL_DATA = $010000
-CLUT_DATA  = $008000
+CLUT_DATA  = $007C00
 
 ;
 ; This will copy the color table into memory, then set the video registers
@@ -47,17 +47,106 @@ start
 ; Jr Vicky can't see above this
 		jsr init320x240
 
+		jsr TermInit
+
+		do 0
+		ldy #0
+]lp		lda :bleck,y
+		beq :dne
+		jsr TermCOUT
+		iny
+		bra ]lp
+
+:bleck  asc 'Hello'
+		db 13
+		asc 'Moto'
+		db 13,0
+:dne
+
+		lda #<txt_test
+		ldx #>txt_test
+		jsr TermPUTS
+
+		ldx #0
+		lda #0
+]lp		pha
+		phx
+		jsr TermPrintAXI
+
+		lda #13
+		jsr TermCOUT
+
+		plx
+		pla
+		inc
+		bne ]lp
+		inx
+		bne ]lp
+
+]wait bra ]wait
+
+txt_test asc '01234567890123456789012345678901234567890123456789012345678901234567890123456789Wrapped?'
+		db 13,0
+		fin
+
 		jsr mmu_unlock
+
+		lda #<txt_unlock
+		ldx #>txt_unlock
+		jsr TermPUTS
 
 		lda #<CLUT_DATA
 		ldx #>CLUT_DATA
 		ldy #^CLUT_DATA
 		jsr set_write_address
 
+		lda #<txt_setaddr
+		ldx #>txt_setaddr
+		jsr TermPUTS
+
 		ldx #0 ; picture #
 		jsr set_pic_address
 
+		lda #<txt_setpicaddr
+		ldx #>txt_setpicaddr
+		jsr TermPUTS
+
+		jsr get_read_address
+		phx
+		pha
+		tya
+		jsr TermPrintAH
+		pla
+		plx
+		jsr TermPrintAXH
+		lda #13
+		jsr TermCOUT
+
+		jsr get_write_address
+		phx
+		pha
+		tya
+		jsr TermPrintAH
+		pla
+		plx
+		jsr TermPrintAXH
+		lda #13
+		jsr TermCOUT
+
 		jsr decompress_clut
+		bcc :good
+
+		jsr TermPrintAI
+		lda #13
+		jsr TermCOUT
+
+:good
+		lda #<txt_decompress_clut
+		ldx #>txt_decompress_clut
+		jsr TermPUTS
+
+		php
+		sei
 
 		; set access to vicky CLUTs
 		lda #1
@@ -75,9 +164,53 @@ start
 		dex
 		bne ]lp
 
+		; set access back to text buffer, for the text stuff
+		lda #2
+		sta io_ctrl
+
+		plp
+
+		lda #<txt_copy_clut
+		ldx #>txt_copy_clut
+		jsr TermPUTS
+
+		lda #<PIXEL_DATA
+		ldx #>PIXEL_DATA
+		ldy #^PIXEL_DATA
+		jsr set_write_address
+
 		ldx #0
 		jsr set_pic_address
+
+		; read + write address for pixels
+		jsr get_read_address
+		phx
+		pha
+		tya
+		jsr TermPrintAH
+		pla
+		plx
+		jsr TermPrintAXH
+		lda #13
+		jsr TermCOUT
+
+		jsr get_write_address
+		phx
+		pha
+		tya
+		jsr TermPrintAH
+		pla
+		plx
+		jsr TermPrintAXH
+		lda #13
+		jsr TermCOUT
+
+
 		jsr decompress_pixels
+
+		lda #<txt_decompress
+		ldx #>txt_decompress
+		jsr TermPUTS
 
 ; Going to image at $01/0000
 ; Going to put palette at $03/0000 
@@ -98,7 +231,7 @@ set_pic_address
 
 ; memory bus addresses
 :pic_table_l
-		db <pic0
+;		db <pic0
 		db <pic1
 		db <pic2
 		db <pic3
@@ -108,7 +241,7 @@ set_pic_address
 		db <pic7
 		db <pic8
 :pic_table_m
-		db >pic0
+;		db >pic0
 		db >pic1
 		db >pic2
 		db >pic3
@@ -118,7 +251,7 @@ set_pic_address
 		db >pic7
 		db >pic8
 :pic_table_h
-		db ^pic0
+;		db ^pic0
 		db ^pic1
 		db ^pic2
 		db ^pic3
@@ -179,17 +312,19 @@ set_pic_address
 ;-----------------------------------------------------------------------------
 
 init320x240
+		php
+		sei
+
 		; Access to vicky generate registers
 		stz io_ctrl
 
 		; enable the graphics mode
-		;lda #%01001110	; gamma + bitmap + graphics + overlay, text disabled
-		lda #%00001100	; bitmap + graphics 
+		lda #%00001111	; gamma + bitmap + graphics + overlay + text
+;		lda #%00000001	; text
 		sta $D000
 		;lda #%110       ; text in 40 column when it's enabled
 		;sta $D001
 		stz $D001
-
 
 		; layer stuff - take from Jr manual
 		stz $D002  ; layer ctrl 0
@@ -209,5 +344,27 @@ init320x240
 		stz $D108  ; disable
 		stz $D110  ; disable
 
+		lda #2
+		sta io_ctrl
+		plp
+
 		rts
+;------------------------------------------------------------------------------
+txt_unlock asc 'mmu_unlock'
+		db 13,0
+
+txt_setaddr asc 'set_write_address'
+		db 13,0
+
+txt_setpicaddr asc 'set_pic_address'
+		db 13,0
+
+txt_decompress_clut asc 'decompress_clut'
+		db 13,0
+
+txt_copy_clut asc 'copy_clut'
+		db 13,0
+
+txt_decompress asc 'decompress_pixels'
+		db 13,0
 

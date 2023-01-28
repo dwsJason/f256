@@ -1,7 +1,7 @@
 ;
 ; mmu helper module
 ;
-		mx %00
+		mx %11
 
 ; Don't try to use $E000, or $0000
 ; for either of these block ranges
@@ -68,11 +68,12 @@ mmu_lock
 ;
 set_read_address
 		sta pSource		; System Bus Address
-		stx pSource+1
+		;stx pSource+1
 		sty READ_MMU
 
 		; Convert BUS Address, into an 8k block number
-		lda pSource+1
+		;lda pSource+1
+		txa
 		asl
 		rol READ_MMU
 		asl
@@ -80,9 +81,11 @@ set_read_address
 		asl
 		rol READ_MMU   	; READ_MMU contains the 8k block #
 
-		lda pSource+1     ; Adjust pSource, so it's pointing to CPU mapped
+		;lda pSource+1     ; Adjust pSource, so it's pointing to CPU mapped
+		txa
 		and #$1F		  ; memory
 		ora #>READ_BLOCK
+		sta pSource+1
 
 		rts
 
@@ -135,7 +138,7 @@ get_write_address
 		
 		tax
 		
-		lda pSource
+		lda pDest
 		rts
 		
 
@@ -147,11 +150,12 @@ get_write_address
 ;
 set_write_address
 		sta pDest		; System Bus Address
-		stx pDest+1
+		;stx pDest+1
 		sty WRITE_MMU
 
 		; Convert BUS Address, into an 8k block number
-		lda pDest+1
+		;lda pDest+1
+		txa
 		asl
 		rol WRITE_MMU
 		asl
@@ -159,10 +163,11 @@ set_write_address
 		asl
 		rol WRITE_MMU
 
-		lda pDest+1    ; Adjust pDest, so it's pointing to CPU mapped memory
+		;lda pDest+1    ; Adjust pDest, so it's pointing to CPU mapped memory
+		txa
 		and #$1F
 		ora #>WRITE_BLOCK
-
+		sta pDest+1
 		rts
 
 ;
@@ -178,7 +183,7 @@ readbyte
 		phx
 		ldx pSource+1
 		inx
-		cpx #>READ_BLOCK+2
+		cpx #>READ_BLOCK+$2000
 		bcc :no_wrap
 		inc READ_MMU		; next mmu 8k block
 		ldx #>READ_BLOCK	; next read needs to wrap to next block
@@ -199,7 +204,7 @@ writebyte
 		phx
 		ldx pDest+1
 		inx
-		cpx #>WRITE_BLOCK+2
+		cpx #>WRITE_BLOCK+$2000
 		bcc :no_wrap
 		inc WRITE_MMU  		; next mmu 8k block
 		ldx #>WRITE_BLOCK   ; next write needs to wrap to next block

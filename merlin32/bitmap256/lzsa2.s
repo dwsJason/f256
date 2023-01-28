@@ -37,9 +37,9 @@ lzsa_cmdbuf     =       $E0                     ; 1 byte.
 lzsa_nibflg     =       $E1                     ; 1 byte.
 lzsa_nibble     =       $E2                     ; 1 byte.
 lzsa_offset     =       $E3                     ; 1 word.
-lzsa_winptr     =       $E4                     ; 3 byte
-lzsa_srcptr     =       $E7                     ; 3 byte
-lzsa_dstptr     =       $EA                     ; 3 byte
+lzsa_winptr     =       $E5                     ; 3 byte
+lzsa_srcptr     =       $E8                     ; 3 byte
+lzsa_dstptr     =       $EB                     ; 3 byte
 
 lzsa_length     =       lzsa_winptr             ; 1 word.
 
@@ -188,17 +188,17 @@ lzsa2_unpack    ldx     #$00                    ; Hi-byte of length or offset.
                 adc     lzsa_offset+1
                 sta     lzsa_winptr+1
 				lda		lzsa_dstptr+2
-				adc     #$FF				 ; assuming negative offset
+				adc     #$FF 			     ; assuming negative offset
 				sta     lzsa_winptr+2
 
-				ply
-				plx
 				; read address is now the window pointer
 				lda     lzsa_winptr
 				ldx     lzsa_winptr+1
 				ldy     lzsa_winptr+2
 				jsr     set_read_address
 
+				ply
+				plx
 :lz_page        
 				jsr 	readbyte
 				jsr		writebyte
@@ -212,8 +212,8 @@ lzsa2_unpack    ldx     #$00                    ; Hi-byte of length or offset.
 				ldy lzsa_srcptr+2
 				jsr set_read_address
 
+				ldy #0
 				ldx #0
-				txy
 
                 jmp     :cp_length              ; Loop around to the beginning.
 
@@ -239,7 +239,9 @@ lzsa2_unpack    ldx     #$00                    ; Hi-byte of length or offset.
 :got_length     ldx     #$00                    ; Set hi-byte of 4 & 8 bit
                 rts                             ; lengths.
 
-:byte_length    jsr     readbyte                ; So rare, this can be slow!
+:byte_length    php
+				jsr     readbyte                ; So rare, this can be slow!
+				plp
                 adc     :byte_len_tbl,x         ; Always CS from previous CMP.
                 bcc     :got_length
                 beq     :finished

@@ -6,6 +6,9 @@
 ;
 		mx %11
 
+
+DEBUG_F256 = 0
+
 ; error codes
 		dum $0
 i256_no_error         ds 1   ; 0 = no error
@@ -40,9 +43,26 @@ i256_EOF        ds 3
 ; if c=1, then operation fail, error code in A
 ;
 decompress_clut
-
 		jsr c256init
 		bcs :error
+
+		do DEBUG_F256
+		lda #<decompress_clut
+		ldx #>decompress_clut
+		jsr FindChunk
+
+		sta i256_pChunk
+		stx i256_pChunk+1
+		sty i256_pChunk+2
+
+		ora i256_pChunk+1
+		ora i256_pChunk+2
+		beq :pass
+		lda #4
+		sec
+		rts
+:pass
+		fin
 
 		lda #<CHNK_CLUT
 		ldx #>CHNK_CLUT
@@ -105,6 +125,9 @@ decompress_clut
 :lo 	dex
 		bra ]raw
 :compressed
+		and #$7F
+		sta i256_colorCount+1
+
 		jsr lzsa2_unpack
 :done
 		clc
@@ -163,7 +186,7 @@ decompress_pixels
 		; realistically, blob count can't be bigger than 255
 		jsr readbyte
 		sta i256_blobCount
-		jsr readbyte+1  	 ; really don't care about the high byte, it's there for 816
+		jsr readbyte  	 		; really don't care about the high byte, it's there for 816
 		sta i256_blobCount+1
 
 :size = i256_temp0
@@ -218,7 +241,7 @@ image_info
 ; c=1 not good, error code in A
 ;
 c256init
-		jsr get_read_address
+		;jsr get_read_address
 
 		jsr c256ParseHeader
 		bcc :isGood
@@ -228,7 +251,6 @@ c256init
 		rts
 
 :isGood
-
 		lda #<CHNK_CLUT
 		ldx #>CHNK_CLUT
 		jsr FindChunk
@@ -281,13 +303,22 @@ FindChunk
 :temp = i256_temp0
 		sta :pTag
 		stx :pTag+1
-
+		do DEBUG_F256
+		lda #<txt_FindChunk
+		ldx #>txt_FindChunk
+		jsr TermPUTS
+		fin
 		jsr get_read_address
 
 		phy
 		phx
 		pha
 ]loop
+		do DEBUG_F256
+		jsr DebugTag
+		jsr DebugAXY
+		fin
+
 		phy
 		phx
 		pha
@@ -302,6 +333,8 @@ FindChunk
 		bcs :nullptr
 
 :continue
+		jsr set_read_address
+
 		jsr readbyte
 		sta :temp
 		jsr readbyte
@@ -398,7 +431,6 @@ FindChunk
 ;   short           reserved;
 ;
 c256ParseHeader
-
 		jsr get_read_address
 		sta i256_FileStart
 		stx i256_FileStart+1
@@ -448,12 +480,12 @@ c256ParseHeader
 		jsr readbyte
 		sta i256_Width
 		jsr readbyte
-		sta i256_Width+2
+		sta i256_Width+1
 
 		jsr readbyte
 		sta i256_Height
 		jsr readbyte
-		sta i256_Height+2
+		sta i256_Height+1
 
         ; Reserved
         jsr readbyte
@@ -481,7 +513,7 @@ IFF_Verify
 :pIFF = i256_temp1
 		ldy #0
 		sta :pIFF
-		stx :pIFF+2
+		stx :pIFF+1
 ]lp		jsr readbyte
 		cmp (:pIFF),y
 		bne :fail
@@ -491,9 +523,63 @@ IFF_Verify
 		clc
 		rts
 
-:fail	sec
+:fail	
+		sec
 		rts
 
+;------------------------------------------------------------------------------
+		do DEBUG_F256
+DebugAXY
+		pha
+		phx
+		phy
+
+		phx
+		pha
+		tya
+		jsr TermPrintAH
+		pla
+		plx
+		jsr TermPrintAXH
+		jsr TermCR
+
+		ply
+		plx
+		pla
+
+		rts
+		fin
+;------------------------------------------------------------------------------
+		do DEBUG_F256
+DebugTag
+:pTag = i256_temp1
+		pha
+		phx
+		phy
+		lda #<txt_tag
+		ldx #>txt_tag
+		jsr TermPUTS
+		lda :pTag
+		ldx :pTag+1
+		jsr TermPrintAXH
+		jsr TermCR
+
+		lda #<txt_eof
+		ldx #>txt_eof
+		jsr TermPUTS
+
+		lda i256_EOF+2
+		jsr TermPrintAH
+		lda i256_EOF
+		ldx i256_EOF+1
+		jsr TermPrintAXH
+		jsr TermCR
+
+		ply
+		plx
+		pla
+		rts
+		fin
 
 ;------------------------------------------------------------------------------
 
@@ -502,3 +588,14 @@ CHNK_CLUT asc 'CLUT'
 CHNK_PIXL asc 'PIXL'
 CHNK_I256 asc 'I256'
 
+
+		do DEBUG_F256
+
+txt_tag asc 'tag='
+			db 0
+txt_FindChunk asc 'FindChunk - '
+			db 0
+
+txt_eof asc 'EOF='
+			db 0
+		fin

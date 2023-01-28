@@ -20,26 +20,27 @@
 
 		org $200
 main_code_start
+		put bitmap.s
+		put term.s
 		put mmu.s
 		put lzsa2.s
 		put file256.s
-		put bitmap.s
 main_code_end
 
-		org $0
-		adr image_start
-		adr image_end-image_start  ; labels only work here, if data below is less than 64K
+;		org $0
+;		adr image_start
+;		adr image_end-image_start  ; labels only work here, if data below is less than 64K
 
-		org $040000
-image_start
-pic0
-		putbin data\phoenix-rising.256
-image_end
+;		org $040000
+;image_start
+;pic0
+;		putbin data\phoenix-rising.256
+;image_end
 
 		org $0
 		adr image2_start
 		adr image2_end-image2_start  ; labels only work here, if data below is less than 64K
-		org $050000
+		org $070000
 
 image2_start
 pic1	putbin data\timefont.256
