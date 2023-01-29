@@ -44,6 +44,31 @@ lbm_EOF        ds 3
 ; if c=1, then operation fail, error code in A
 ;
 lbm_decompress_clut
+		jsr lbm_init
+		bcc :good
+		rts				; error, error code in A
+:good
+		lda #<CHNK_CMAP
+		ldx #>CHNK_CMAP
+		jsr lbm_FindChunk
+
+		sta lbm_pChunk
+		stx lbm_pChunk+1
+		sty lbm_pChunk+2
+
+		ora lbm_pChunk+1
+		ora lbm_pChunk+2
+		bne :got_pal
+
+		sec
+		lda #lbm_error_noclut
+		rts
+
+:got_pal
+
+
+		clc
+		lda #lbm_no_error
 		rts
 
 
@@ -154,7 +179,7 @@ lbm_init
 lbm_CheckTag
 		sta lbm_pTag
 		stx lbm_pTag+1
-
+lbm_CheckTag2
 		jsr readbyte
 		sta lbm_temp0
 		jsr readbyte
@@ -201,6 +226,58 @@ lbm_nextchunk_address
 		tya
 		adc lbm_pChunk+2
 		sta lbm_pChunk+2
+		rts
+;------------------------------------------------------------------------------
+lbm_FindChunk
+		sta lbm_pTag
+		stx lbm_pTag+1
+
+]loop
+		jsr get_read_address
+
+		cpy lbm_EOF+2
+		bcc :continue
+		bne :nullptr
+        cpx lbm_EOF+1
+		bcc :continue
+		bne :nullptr
+        cmp lbm_EOF
+		bcs :nullptr
+:continue
+		jsr lbm_CheckTag2
+		php
+		jsr lbm_chunklength
+		plp
+		bcs :not_found
+
+		jsr get_read_address
+		rts				 ; found it
+:not_found
+		jsr get_read_address
+		clc
+		adc lbm_ChunkLength
+		sta lbm_ChunkLength
+
+		txa
+		adc lbm_ChunkLength+1
+		sta lbm_ChunkLength+1
+
+		tya
+		adc lbm_ChunkLength+2
+		sta lbm_ChunkLength+2
+
+		lda lbm_ChunkLength
+		ldx lbm_ChunkLength+1
+		ldy lbm_ChunkLength+2
+
+		jsr set_read_address
+
+		bra ]loop
+
+:nullptr
+		lda #0
+		tax
+		tay
 		rts
 ;------------------------------------------------------------------------------
 
