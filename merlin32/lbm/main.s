@@ -191,7 +191,7 @@ set_pic_address
 
 ; memory bus addresses
 :pic_table_l
-;		db <pic0
+		db <pic0
 		db <pic1
 		db <pic2
 		db <pic3
@@ -201,7 +201,7 @@ set_pic_address
 		db <pic7
 		db <pic8
 :pic_table_m
-;		db >pic0
+		db >pic0
 		db >pic1
 		db >pic2
 		db >pic3
@@ -211,7 +211,7 @@ set_pic_address
 		db >pic7
 		db >pic8
 :pic_table_h
-;		db ^pic0
+		db ^pic0
 		db ^pic1
 		db ^pic2
 		db ^pic3

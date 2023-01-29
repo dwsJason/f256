@@ -21,7 +21,6 @@ lbm_pChunk     ds 0
 lbm_temp0      ds 4
 
 lbm_pTag       ds 0
-lbm_colorCount ds 0
 lbm_temp1      ds 2
 
 lbm_FileStart  ds 3
@@ -56,6 +55,7 @@ lbm_decompress_clut
 		stx lbm_pChunk+1
 		sty lbm_pChunk+2
 
+		; Check for nullptr
 		ora lbm_pChunk+1
 		ora lbm_pChunk+2
 		bne :got_pal
@@ -104,7 +104,90 @@ lbm_decompress_pixels
 		bcc :good
 		rts				; error, error code in A
 :good
+		lda #<CHNK_BODY
+		ldx #>CHNK_BODY
+		jsr lbm_FindChunk
+
+		sta lbm_pChunk
+		stx lbm_pChunk+1
+		sty lbm_pChunk+2
+
+		; Check for nullptr
+		ora lbm_pChunk+1
+		ora lbm_pChunk+2
+		bne :got_body
+
+		sec
+		lda #lbm_error_nopixels
 		rts
+
+:got_body
+
+:width = lbm_temp0
+:height = lbm_temp0+2
+
+		stz :height
+		stz :height+1
+
+]height_loop
+		stz :width
+		stz :width+1
+
+]width_loop
+
+		jsr readbyte
+		tax
+		bpl :copy
+		; rle
+		eor #$FF
+		inc
+		tax
+		jsr readbyte
+]rle	jsr writebyte
+		inc :width
+		bne :nx
+		inc :width+1
+:nx
+		dex
+		bpl ]rle
+
+:wid_height
+		lda :width+1
+		cmp lbm_Width+1
+		bne ]width_loop
+		lda :width
+		cmp lbm_Width
+		bne ]width_loop
+
+		inc :height
+		bne :nh
+		inc :height+1
+:nh
+
+
+		lda :height+1
+		cmp lbm_Height+1
+		bne ]height_loop
+		lda :height
+		cmp lbm_Height
+		bne ]height_loop
+
+		clc
+		lda #0
+		rts
+
+:copy
+		jsr readbyte
+		jsr writebyte
+
+		inc :width
+		bne :nx2
+		inc :width+1
+:nx2
+		dex
+		bpl :copy
+
+		bra :wid_height
 
 ;------------------------------------------------------------------------------
 
@@ -132,7 +215,7 @@ lbm_init
 		lda #lbm_error_notlbm
 		rts
 :good
-		jsr lbm_chunklength
+		jsr lbm_chnklen
 
 		jsr get_read_address
 
@@ -160,7 +243,7 @@ lbm_init
 		jsr lbm_CheckTag
 		bcs :not_pbm
 
-		jsr lbm_chunklength
+		jsr lbm_chnklen
 		jsr lbm_nextchunk_address ; pChunk will hold next chunk address
 
 
@@ -198,12 +281,24 @@ lbm_CheckTag
 lbm_CheckTag2
 		jsr readbyte
 		sta lbm_temp0
+
+;		jsr TermCOUT
+
 		jsr readbyte
 		sta lbm_temp0+1
+
+;		jsr TermCOUT
+
 		jsr readbyte
 		sta lbm_temp0+2
+
+;		jsr TermCOUT
+
 		jsr readbyte
 		sta lbm_temp0+3
+
+;		jsr TermCOUT
+;		jsr TermCR
 
 		ldy #3
 ]lp		lda (lbm_pTag),y
@@ -219,7 +314,7 @@ lbm_CheckTag2
 		rts
 
 ;------------------------------------------------------------------------------
-lbm_chunklength
+lbm_chnklen
 		jsr readbyte
 		sta lbm_ChunkLength+3
 		jsr readbyte
@@ -228,6 +323,18 @@ lbm_chunklength
 		sta lbm_ChunkLength+1
 		jsr readbyte
 		sta lbm_ChunkLength+0
+
+		bit #1
+		beq :even
+
+		; EA I hate you
+		inc lbm_ChunkLength+0
+		bne :done
+		inc lbm_ChunkLength+1
+		bne :done
+		inc lbm_ChunkLength+2
+:even
+:done
 		rts
 
 ;------------------------------------------------------------------------------
@@ -242,6 +349,13 @@ lbm_nextchunk_address
 		tya
 		adc lbm_pChunk+2
 		sta lbm_pChunk+2
+
+;		jsr TermPrintAH
+;		lda lbm_pChunk+0
+;		ldx lbm_pChunk+1
+;		jsr TermPrintAXH
+;		jsr TermCR
+
 		rts
 ;------------------------------------------------------------------------------
 lbm_FindChunk
@@ -262,25 +376,27 @@ lbm_FindChunk
 :continue
 		jsr lbm_CheckTag2
 		php
-		jsr lbm_chunklength
+		jsr lbm_chnklen
 		plp
 		bcs :not_found
 
 		jsr get_read_address
 		rts				 ; found it
 :not_found
-		jsr get_read_address
-		clc
-		adc lbm_ChunkLength
-		sta lbm_ChunkLength
+		jsr lbm_nextchunk_address
 
-		txa
-		adc lbm_ChunkLength+1
-		sta lbm_ChunkLength+1
+		;jsr get_read_address
+		;clc
+		;adc lbm_ChunkLength
+		;sta lbm_ChunkLength
 
-		tya
-		adc lbm_ChunkLength+2
-		sta lbm_ChunkLength+2
+		;txa
+		;adc lbm_ChunkLength+1
+		;sta lbm_ChunkLength+1
+
+		;tya
+		;adc lbm_ChunkLength+2
+		;sta lbm_ChunkLength+2
 
 		lda lbm_ChunkLength
 		ldx lbm_ChunkLength+1
