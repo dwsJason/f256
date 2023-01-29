@@ -66,11 +66,27 @@ lbm_decompress_clut
 
 :got_pal
 
+		ldx #0
+]lp		jsr readbyte  ; r
+		sta lbm_temp0
+		jsr readbyte  ; g
+		sta lbm_temp0+1
+		jsr readbyte  ; b
+		sta lbm_temp0+2
+
+		jsr writebyte  ; b
+		lda lbm_temp0+1
+		jsr writebyte  ; g
+		lda lbm_temp0
+		jsr writebyte  ; r
+		lda #$FF
+		jsr writebyte  ; a
+		dex
+		bne ]lp
 
 		clc
 		lda #lbm_no_error
 		rts
-
 
 ;------------------------------------------------------------------------------
 ;
