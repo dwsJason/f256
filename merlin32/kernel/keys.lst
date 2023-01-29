@@ -1,0 +1,76 @@
+
+; 64tass Turbo Assembler Macro V1.54.1900 listing file
+; 64tass -L keys.lst keys.asm
+; Sun Jan 29 09:39:21 2023
+
+;Offset	;Hex		;Monitor	;Source
+
+;******  Processing input file: keys.asm
+
+>0000					LSHIFT  .byte   ?
+>0001					RSHIFT  .byte   ?
+>0002					LCTRL   .byte   ?
+>0003					RCTRL   .byte   ?
+>0004					LALT    .byte   ?
+>0005					RALT    .byte   ?
+>0006					LMETA   .byte   ?
+>0007					RMETA   .byte   ?
+>0008					CAPS    .byte   ?
+>0080					POWER   .byte   ?
+>0081					F1      .byte   ?
+>0082					F2      .byte   ?
+>0083					F3      .byte   ?
+>0084					F4      .byte   ?
+>0085					F5      .byte   ?
+>0086					F6      .byte   ?
+>0087					F7      .byte   ?
+>0088					F8      .byte   ?
+>0089					F9      .byte   ?
+>008a					F10     .byte   ?
+>008b					F11     .byte   ?
+>008c					F12     .byte   ?
+>008d					F13     .byte   ?
+>008e					F14     .byte   ?
+>008f					F15     .byte   ?
+>0090					F16     .byte   ?
+>0091					DEL     .byte   ?
+>0092					BKSP    .byte   ?
+>0093					TAB     .byte   ?
+>0094					ENTER   .byte   ?
+>0095					ESC     .byte   ?
+>00a0					K0      .byte   ?
+>00a1					K1      .byte   ?
+>00a2					K2      .byte   ?
+>00a3					K3      .byte   ?
+>00a4					K4      .byte   ?
+>00a5					K5      .byte   ?
+>00a6					K6      .byte   ?
+>00a7					K7      .byte   ?
+>00a8					K8      .byte   ?
+>00a9					K9      .byte   ?
+>00aa					KPLUS   .byte   ?
+>00ab					KMINUS  .byte   ?
+>00ac					KTIMES  .byte   ?
+>00ad					KDIV    .byte   ?
+>00ae					KPOINT  .byte   ?
+>00af					KENTER  .byte   ?
+>00b0					NUM     .byte   ?
+>00b1					PUP     .byte   ?
+>00b2					PDN     .byte   ?
+>00b3					HOME    .byte   ?
+>00b4					END     .byte   ?
+>00b5					INS     .byte   ?
+>00b6					UP      .byte   ?
+>00b7					DOWN    .byte   ?
+>00b8					LEFT    .byte   ?
+>00b9					RIGHT   .byte   ?
+>00ba					SCROLL  .byte   ?
+>00bb					SYSREQ  .byte   ?
+>00bc					BREAK   .byte   ?
+>00bd					SLEEP   .byte   ?
+>00be					WAKE    .byte   ?
+>00bf					PRTSCR  .byte   ?
+>00c0					MENU    .byte   ?
+>00c1					PAUSE   .byte   ?
+
+;******  End of listing
