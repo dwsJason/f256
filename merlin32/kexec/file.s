@@ -34,8 +34,8 @@ fopen
 		iny
 		bne ]len
 :got_len
+		iny ; try including the nil
 		sty kernel_args_file_open_fname_len
-
 
 		; Set the mode, and open
 		lda #kernel_args_file_open_READ
