@@ -63,7 +63,12 @@ start
 		jsr TermPUTS
 		jsr TermCR
 ;------------------------------------------------------------------------------
-
+		; muy importante
+		lda #<event_type
+		sta kernel_args_events
+		lda #>event_type
+		sta kernel_args_events+1
+				 
 		; Set the drive
 		; currently hard-coded to drive 0, since drive not passed
 		;stz kernel_args_file_open_drive
