@@ -32,7 +32,8 @@ mmu7     equ 15
 pSource  equ $10
 pDest    equ pSource+2
 old_mmu_ctrl = pDest+2
-
+old_io_ctrl = old_mmu_ctrl+1
+old_mmu0 = old_io_ctrl+1
 
 
 ;
@@ -42,6 +43,16 @@ mmu_unlock
 		lda mmu_ctrl
 		sta old_mmu_ctrl
 
+		lda io_ctrl
+		sta old_io_ctrl
+
+		ldx #7
+]save	lda mmu0,x
+		sta old_mmu0,x
+		dex
+		bpl ]save
+
+		lda mmu_ctrl
 		and #$3
 		sta temp0     ; active MLUT
 		asl
@@ -58,6 +69,15 @@ mmu_unlock
 ; Restore mmu to it's previous state (prior to calling unlock)
 ;
 mmu_lock
+		ldx #7
+]fix	lda old_mmu0,x
+		sta mmu0,x
+		dex
+		bpl ]fix
+
+		lda old_io_ctrl
+		sta io_ctrl
+
 		lda old_mmu_ctrl
 		sta mmu_ctrl
 		rts
