@@ -34,7 +34,7 @@ fopen
 		iny
 		bne ]len
 :got_len
-		iny ; try including the nil
+;		iny ; try including the nil
 		sty kernel_args_file_open_fname_len
 
 		; Set the mode, and open
@@ -44,7 +44,12 @@ fopen
 		jsr kernel_File_Open
 		sta file_handle
 		bcc :it_opened
+
+;		lda #<txt_error
+;		ldx #>txt_error
+;		jsr TermPUTS
 :error
+		sec
 		rts
 
 :it_opened
@@ -57,7 +62,7 @@ fopen
 		cmp #kernel_event_file_CLOSED
 		beq :error
         cmp #kernel_event_file_NOT_FOUND
-        bne :error
+        beq :error
 		cmp #kernel_event_file_OPENED
 		beq :success
 		cmp #kernel_event_file_ERROR
