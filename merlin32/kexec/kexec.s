@@ -23,9 +23,13 @@ temp3 ds 4
 event_type = $30
 event_buf  = $31
 event_ext  = $32
+;event_file_stream = $33
+event_file_data_read = $33
 
 args = $300
 
+
+; File uses $B0-$BF
 ; Term uses $C0-$CF
 ; LZSA uses $E0-$EF
 ; Kernel uses $F0-FF
@@ -48,6 +52,8 @@ sig		db $f2,$56		; signature
 start
 		jsr TermInit
 
+		jsr mmu_unlock
+
 		lda #<txt_test
 		ldx #>txt_test
 		jsr TermPUTS
@@ -60,25 +66,16 @@ start
 
 		; Set the drive
 		; currently hard-coded to drive 0, since drive not passed
-		stz kernel_args_file_open_drive
+		;stz kernel_args_file_open_drive
 		; Set the Filename
 		lda #<args+2
 		ldx #>args+2
-		sta kernel_args_file_open_fname
-		stx kernel_args_file_open_fname+1
+		jsr fopen
+		bcc :opened
+		; failed
 
-		; Set the Filename length (why?)
-		ldx #-1
-]len    inx
-		lda args+2,x
-		bne ]len
-		stx kernel_args_file_open_fname_len
-
-		; Set the mode, and open
-		lda #kernel_args_file_open_READ
-		sta kernel_args_file_open_mode
-		jsr kernel_File_Open
-		bcc :it_opened
+		jsr TermPrintAH
+		jsr TermCR
 
 		lda #<txt_error_open
 		ldx #>txt_error_open
@@ -89,38 +86,42 @@ start
 		jsr TermPUTS
 		jsr TermCR
 		bra wait_for_key
-:it_opened
-]loop
-        jsr kernel_Yield    ; Not required; but good while waiting.
-        jsr kernel_NextEvent
-        bcs ]loop
+:opened
+		lda #<temp0
+		ldx #>temp0
+		ldy #0
+		jsr set_write_address
 
-		lda event_type
-		cmp #kernel_event_file_CLOSED
-		beq :done
-        cmp #kernel_event_file_NOT_FOUND
-        beq :not_found
+		lda #4
+		ldx #0
+		ldy #0
+		jsr fread
 
-		jsr :dispatch
-		bra ]loop
+		pha
 
-:not_found
-		lda #<txt_error_notfound
-		ldx #>txt_error_notfound
+		jsr fclose
+
+		pla
+
+		cmp #4
+		beq :got4
+
+		stz temp1
+
+		; at least for pics, this will tell me something
+		lda #<temp0
+		ldx #>temp0
+		jsr TermPUTS
+		jsr TermCR
+
+
+		lda #<txt_error_reading
+		ldx #>txt_error_reading
 		bra :err
+:got4
 
-:dispatch
-		cmp #kernel_event_file_OPENED
-		beq :read
-		cmp #kernel_event_file_DATA
-		beq :data
-		cmp #kernel_event_file_ERROR
-		beq :eof
-		cmp #kernel_event_file_EOF
-		beq :eof
-		rts
 
-:done
+
 		; $$DO SOMETHING
 
 wait_for_key
@@ -140,12 +141,15 @@ wait_for_key
 		jsr TermPrintAH
 		bra ]loop
 :done
+		jmp mmu_lock
 		rts
 txt_test asc 'KernelExec 0.0'
 		db 13,0
-txt_error_open asc 'ERROR: file open: "
+txt_error_open asc 'ERROR: file open: '
 		db 0
-txt_error_notfound asc 'ERROR: file not found: "
+txt_error_notfound asc 'ERROR: file not found: '
+		db 0
+txt_error_reading asc 'ERROR: reading: '
 		db 0
 
 		put mmu.s
@@ -153,6 +157,7 @@ txt_error_notfound asc 'ERROR: file not found: "
 		put lbm.s
 		put i256.s
 		put lzsa2.s
+		put file.s
 
 ; pad to the end
 		ds $C000-*,$EA
