@@ -24,7 +24,7 @@ event_type = $30
 event_buf  = $31
 event_ext  = $32
 ;event_file_stream = $33
-event_file_data_read = $33
+event_file_data_read = $36
 
 args = $300
 
@@ -92,11 +92,18 @@ start
 		jsr TermCR
 		bra wait_for_key
 :opened
+;		jsr fclose
+;		lda #<txt_open
+;		ldx #>txt_open
+;		bra :err
+
+		; set address, system memory, to read
 		lda #<temp0
 		ldx #>temp0
 		ldy #0
 		jsr set_write_address
 
+		; request 4 bytes
 		lda #4
 		ldx #0
 		ldy #0
@@ -111,21 +118,19 @@ start
 		cmp #4
 		beq :got4
 
-		stz temp1
-
-		; at least for pics, this will tell me something
-		lda #<temp0
-		ldx #>temp0
-		jsr TermPUTS
+		jsr TermPrintAH
 		jsr TermCR
-
 
 		lda #<txt_error_reading
 		ldx #>txt_error_reading
 		bra :err
 :got4
-
-
+		stz temp1
+		; at least for pics, this will tell me something
+		lda #<temp0
+		ldx #>temp0
+		jsr TermPUTS
+		jsr TermCR
 
 		; $$DO SOMETHING
 
@@ -148,13 +153,19 @@ wait_for_key
 :done
 		jmp mmu_lock
 		rts
-txt_test asc 'KernelExec 0.0'
+txt_test asc 'KernelExec 0.01'
 		db 13,0
 txt_error_open asc 'ERROR: file open: '
 		db 0
 txt_error_notfound asc 'ERROR: file not found: '
 		db 0
 txt_error_reading asc 'ERROR: reading: '
+		db 0
+txt_error asc 'ERROR!'
+		db 13
+		db 0
+txt_open asc 'Open Success!'
+		db 13
 		db 0
 
 		put mmu.s
