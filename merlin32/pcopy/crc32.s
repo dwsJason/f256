@@ -4,8 +4,8 @@
 
 		dum $f2
 crc      ds 4
-crc_addr ds 2
-crc_num  ds 2
+crc_num  ds 3
+crc_count ds 3
 		dend
 
 ; Calculate a ZIP 32-bit CRC from data in memory. This code is as
@@ -27,9 +27,13 @@ crc_num  ds 2
 ; Total 63 bytes.
 ;
 calc_crc32
+		stz crc_count
+		stz crc_count+1
+		stz crc_count+2
 ]bytelp
 		LDX #8                       ; Prepare to rotate CRC 8 bits
-		LDA (crc_addr-8,x)       ; Fetch byte from memory
+		;LDA (crc_addr-8,x)       ; Fetch byte from memory
+		jsr readbyte
 
 ; The following code updates the CRC with the byte in A ---------+
 ; If used in isolation, requires LDX #8 here                     |
@@ -58,20 +62,36 @@ calc_crc32
 ; If used in isolation, requires STA crc+0 here                  |
 ; ---------------------------------------------------------------+
 ;
-		INC crc_addr
-		BNE :next
-		INC crc_addr+1      ; Step to next byte
-:next
-		STA crc+0           ; Store CRC low byte
-                            ; Now do a 16-bit decrement
-		LDA crc_num+0
-		BNE :skip           ; num.lo<>0, not wrapping from 00 to FF
-		DEC crc_num+1       ; Wrapping from 00 to FF, dec. high byte
-:skip
-		DEC crc_num+0
-		BNE ]bytelp         ; Dec. low byte, loop until num.lo=0
-		LDA crc_num+1
-		BNE ]bytelp         ; Loop until num=0
+;		INC crc_addr
+;		BNE :next
+;		INC crc_addr+1      ; Step to next byte
+;:next
+;		STA crc+0           ; Store CRC low byte
+                            ; Now do a 24-bit decrement
+;		LDA crc_num+0
+;		BNE :skip           ; num.lo<>0, not wrapping from 00 to FF
+;		DEC crc_num+1       ; Wrapping from 00 to FF, dec. high byte
+;:skip
+;		DEC crc_num+0
+;		BNE ]bytelp         ; Dec. low byte, loop until num.lo=0
+;		LDA crc_num+1
+;		BNE ]bytelp         ; Loop until num=0
+
+		inc crc_count
+		bne :check
+		inc crc_count+1
+		bne :check
+		inc crc_count+2
+:check
+		lda crc_count
+		cmp crc_num
+		bne ]bytelp
+		lda crc_count+1
+		cmp crc_num+1
+		bne ]bytelp
+		lda crc_count+2
+		cmp crc_num+2
+		bne ]bytelp
 		RTS
 
 ;------------------------------------------------------------------------------

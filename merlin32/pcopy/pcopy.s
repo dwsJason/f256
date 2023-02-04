@@ -150,6 +150,7 @@ start
 :start  = temp1
 :length = temp2
 
+
 		; save data start for the write later, if we decide to write
 		jsr get_read_address
 		sta :start
@@ -157,11 +158,128 @@ start
 		sty :start+2
 
 
+		lda len24
+		sta :length
+		sta crc_num
+		lda len24+1
+		sta :length+1
+		sta crc_num+1
+		lda len24+2
+		sta :length+2
+		sta crc_num+2
+
+; salt crc
+		stz crc
+		stz crc+1
+		stz crc+2
+		stz crc+3
+
+; calc crc
+		jsr calc_crc32
+
+; display crc
+		lda #<txt_calc32
+		ldx #>txt_calc32+1
+		jsr TermPUTS
+
+		lda crc+2
+		ldx crc+3
+		jsr TermPrintAXH
+		lda crc
+		ldx crc+1
+		jsr TermPrintAXH
+		jsr TermCR
+
+; match
+		lda #<txt_match
+		ldx #>txt_match
+		jsr TermPUTS
+
+		lda crc32
+		cmp crc
+		bne :no
+		lda crc32+1
+		cmp crc+1
+		bne :no
+		lda crc32+2
+		cmp crc+2
+		bne :no
+		lda crc32+3
+		cmp crc+3
+		bne :no
+
+		lda #<txt_yes
+		ldx #>txt_yes
+		jsr TermPUTS
+		jsr TermCR
+		bra :save_that_file
+:no
+		lda #<txt_no
+		ldx #>txt_no
+		jsr TermPUTS
+
+; crc did not match
+]fuckno bra ]fuckno
+
+:save_that_file
+
+		lda #<txt_create
+		ldx #>txt_create
+		jsr TermPUTS
+
+		lda #<filename
+		ldx #>filename
+		jsr TermPUTS
+		jsr TermCR
+; Create the file
+
+		lda #<filename
+		ldx #>filename
+		jsr fcreate
+		bcc :good
+
+		pha
+		lda #<txt_fail
+		ldx #>txt_fail
+		jsr TermPUTS
+
+		pla
+		jsr TermPrintAH
+		jsr TermCR
+]failed bra ]failed
+
+:good
+		lda #<txt_write
+		ldx #>txt_write
+		jsr txt_write
+
+		lda :length
+		ldx :length+1
+		ldy :length+2
+		jsr TermPrintAXYH
+		jsr TermCR
+
+		lda :start
+		ldx :start+1
+		ldy :start+2
+		jsr set_read_address
+
+		lda :length
+		ldx :length+1
+		ldy :length+2
+		jsr fwrite
+
+		jsr fclose
 
 
+		jsr TermPrintCR
+		jsr TermPrintCR
 
+		lda #<txt_Complete
+		ldx #>txt_Complete
+		jsr TermPUTS
 
-
+]done   bra ]done
 
 
 ;-----------------------------------------------
@@ -188,6 +306,14 @@ txt_calc32		  asc '  Calculated CRC32: $'
 		db 0
 txt_match		  asc '         CRC Match: '
 		db 0
+txt_create        asc '            Create: '
+		db 0
+txt_write		  asc '             Write: $'
+		db 0
+txt_fail          asc '            Failed: $'
+		db 0
+txt_Complete      asc ' Copy Completed'
+		db 0
 txt_yes asc 'yes'
 		db 13,0
 txt_no  asc 'fuck off'
@@ -196,4 +322,5 @@ txt_no  asc 'fuck off'
 txt_done db 13
 		asc 'pcopy is done.'
 		db 13,0
+		
 		
