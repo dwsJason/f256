@@ -1,6 +1,6 @@
 ; Calculating ZIP CRC-32 in 6502
 ; ==============================
-		mx %00
+		mx %11
 
 		dum $f2
 crc      ds 4
@@ -26,7 +26,7 @@ crc_num  ds 2
 ; Extra CRC optimisation by Mike Cook, extra loop optimisation by JGH.
 ; Total 63 bytes.
 ;
-crc32
+calc_crc32
 ]bytelp
 		LDX #8                       ; Prepare to rotate CRC 8 bits
 		LDA (crc_addr-8,x)       ; Fetch byte from memory
@@ -73,4 +73,6 @@ crc32
 		LDA crc_num+1
 		BNE ]bytelp         ; Loop until num=0
 		RTS
+
+;------------------------------------------------------------------------------
 
