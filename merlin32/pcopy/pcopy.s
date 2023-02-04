@@ -18,6 +18,10 @@ PGX_CPU_65C02 = $03
 		db PGX_CPU_65C02    ; CPU - 65c02
 		adrl start
 
+; pretty much all the contiguous memory
+; about 447K 
+MAX_LENGTH = $6FC00
+
 ;------------------------------------------------------------------------------
 ; Some Global Direct page stuff
 
@@ -145,6 +149,28 @@ start
 		jsr TermPrintAXYH
 		jsr TermCR
 
+		lda len24+2
+		cmp #^MAX_LENGTH
+		bcc :length_good
+		bne :length_bad
+		lda len24+1
+		cmp #>MAX_LENGTH
+		bcc :length_good
+		bne :length_bad
+		lda len24
+		cmp #<MAX_LENGTH
+		bcc :length_good
+		beq :length_good
+:length_bad
+
+		jsr TermCR
+		lda #<txt_bad_len
+		ldx #>txt_bad_len
+		jsr TermPUTS
+]bad_len bra ]bad_len
+
+:length_good
+
 ;--------------------------------------------------
 
 :start  = temp1
@@ -271,7 +297,6 @@ start
 
 		jsr fclose
 
-
 		jsr TermCR
 		jsr TermCR
 
@@ -312,6 +337,9 @@ txt_write		  asc '             Write: $'
 		db 0
 txt_fail          asc '            Failed: $'
 		db 0
+txt_bad_len       asc ' Invalid Length'
+		db
+
 txt_Complete      asc ' Copy Completed'
 		db 0
 txt_yes asc 'yes'
