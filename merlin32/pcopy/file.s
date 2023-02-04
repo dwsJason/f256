@@ -25,53 +25,8 @@ file_buffer ds 128
 ; c = 1 - error
 ;		A = error #
 fcreate
-		stz kernel_args_file_open_drive
-
-		sta kernel_args_file_open_fname
-		stx kernel_args_file_open_fname+1
-
-		; Set the Filename length (why?)
-		ldy #0
-]len    lda (kernel_args_file_open_fname),y
-		beq :got_len
-		iny
-		bne ]len
-:got_len
-		sty kernel_args_file_open_fname_len
-
-		; Set the mode, and open
-		lda #kernel_args_file_open_WRITE
-		sta kernel_args_file_open_mode
-:try_again
-		jsr kernel_File_Open
-		sta file_handle
-		bcc :it_opened
-
-:error
-		sec
-		rts
-
-:it_opened
-]loop
-        jsr kernel_Yield    ; Not required; but good while waiting.
-        jsr kernel_NextEvent
-        bcs ]loop
-
-		lda event_type
-		cmp #kernel_event_file_CLOSED
-		beq :error
-        cmp #kernel_event_file_NOT_FOUND
-        beq :error
-		cmp #kernel_event_file_OPENED
-		beq :success
-		cmp #kernel_event_file_ERROR
-		bne :error
-		bra ]loop
-
-:success
-		lda file_handle
-		clc
-		rts
+		ldy #kernel_args_file_open_WRITE
+		bra fcreate_open
 
 ;
 ; AX = pFileName (CString)
@@ -82,6 +37,10 @@ fcreate
 ;		A = error #
 ;
 fopen
+		; Set the mode, and open
+		ldy #kernel_args_file_open_READ
+fcreate_open
+		sty kernel_args_file_open_mode
 		stz kernel_args_file_open_drive
 
 		sta kernel_args_file_open_fname
@@ -97,17 +56,10 @@ fopen
 ;		iny ; try including the nil
 		sty kernel_args_file_open_fname_len
 
-		; Set the mode, and open
-		lda #kernel_args_file_open_READ
-		sta kernel_args_file_open_mode
 :try_again
 		jsr kernel_File_Open
 		sta file_handle
 		bcc :it_opened
-
-;		lda #<txt_error
-;		ldx #>txt_error
-;		jsr TermPUTS
 :error
 		sec
 		rts
@@ -130,8 +82,6 @@ fopen
 		bra ]loop
 
 :success
-		;lda event_file_stream
-		;sta file_handle
 		lda file_handle
 		clc
 		rts
@@ -213,6 +163,10 @@ fread
 		lda file_bytes_req+2
 		sbc #0
 		sta file_bytes_req+2
+
+		; Set the stream
+		lda file_handle
+		sta kernel_args_file_read_stream
 
 		jsr kernel_File_Read
 
@@ -312,62 +266,6 @@ fclose
 txt_data_read asc 'Data Read:'
 		db 0
 
-fopen
-		stz kernel_args_file_open_drive
-
-		sta kernel_args_file_open_fname
-		stx kernel_args_file_open_fname+1
-
-		; Set the Filename length (why?)
-		ldy #0
-]len    lda (kernel_args_file_open_fname),y
-		beq :got_len
-		iny
-		bne ]len
-:got_len
-;		iny ; try including the nil
-		sty kernel_args_file_open_fname_len
-
-		; Set the mode, and open
-		lda #kernel_args_file_open_READ
-		sta kernel_args_file_open_mode
-:try_again
-		jsr kernel_File_Open
-		sta file_handle
-		bcc :it_opened
-
-;		lda #<txt_error
-;		ldx #>txt_error
-;		jsr TermPUTS
-:error
-		sec
-		rts
-
-:it_opened
-]loop
-        jsr kernel_Yield    ; Not required; but good while waiting.
-        jsr kernel_NextEvent
-        bcs ]loop
-
-		lda event_type
-		cmp #kernel_event_file_CLOSED
-		beq :error
-        cmp #kernel_event_file_NOT_FOUND
-        beq :error
-		cmp #kernel_event_file_OPENED
-		beq :success
-		cmp #kernel_event_file_ERROR
-		bne :error
-		bra ]loop
-
-:success
-		;lda event_file_stream
-		;sta file_handle
-		lda file_handle
-		clc
-		rts
-
-
 ;
 ; mmu read address is the address
 ; AXY - Num Bytes to write
@@ -384,10 +282,6 @@ fwrite
 		stz file_bytes_wrote+1
 		stz file_bytes_wrote+2
 
-		; Set the stream
-		lda file_handle
-		sta kernel_args_file_read_stream
-
 		; make sure event output is still set
 		lda #<event_type
 		sta kernel_args_events
@@ -396,7 +290,7 @@ fwrite
 
 ]loop
 		lda file_bytes_req+2
-		bne :do128  			  ; a lot of data left to read
+		bne :do128  			  ; a lot of data left to write
 		lda file_bytes_req+1      
 		bne :do128
 		lda file_bytes_req
@@ -406,22 +300,9 @@ fwrite
 		bra :try128
 :small_read
 		lda file_bytes_req
-		do DEBUG_FILE
-		bne :try128
-		jmp :done_done
-		else
 		beq :done_done  	   	; zero bytes left
-		fin
 :try128
-		sta kernel_args_file_read_buflen
-
-		do DEBUG_FILE
-		jsr TermCR
-		ldx #$EA
-		lda kernel_args_file_read_buflen
-		jsr TermPrintAXH
-		jsr TermCR
-		fin
+		sta kernel_args_file_write_buflen
 
 		; subtract request from the total request
 		sec
@@ -435,93 +316,60 @@ fwrite
 		sbc #0
 		sta file_bytes_req+2
 
-		jsr kernel_File_Read
+		jsr :bytes_to_buffer
+
+		; Set the stream
+		lda file_handle
+		sta kernel_args_file_write_stream
+
+		lda #<file_buffer
+		sta kernel_args_file_write_buf
+		lda #>file_buffer
+		sta kernel_args_file_write_buf+1
+
+		jsr kernel_File_Write
 
 	    ; wait for data to appear, or error, or EOF
 ]event_loop
-		do DEBUG_FILE
-		; make sure event output is still set
-		lda #<event_type
-		sta kernel_args_events
-		lda #>event_type
-		sta kernel_args_events+1
-		fin
-
         jsr kernel_Yield    ; Not required; but good while waiting.
         jsr kernel_NextEvent
         bcs ]event_loop
 
 		lda event_type
 
-		do DEBUG_FILE
-		pha
-		jsr TermPrintAH
-		lda #'x'
-		jsr TermCOUT
-		pla
-		fin
-
         cmp #kernel_event_file_EOF
 		beq :done_done
         cmp #kernel_event_file_ERROR
 		beq :done_done
-		cmp #kernel_event_file_DATA
+		cmp #kernel_event_file_WROTE
 		bne ]event_loop
 
-		do DEBUG_FILE
-		jsr TermCR
-		lda event_file_data_read
-		jsr TermPrintAH
-		jsr TermCR
-		fin
-
 		clc
-		lda file_bytes_read
-		adc event_file_data_read
-		sta file_bytes_read
-		bcc :get_data
-		inc file_bytes_read+1
-		bne :get_data
-		inc file_bytes_read+2
-
-:get_data
-		lda event_file_data_read
-		sta kernel_args_recv_buflen
-
-		do DEBUG_FILE
-		lda #<txt_data_read
-		ldx #>txt_data_read
-		jsr TermPUTS
-		lda event_file_data_read
-		jsr TermPrintAH
-		jsr TermCR
-		fin
-
-		lda #<file_buffer
-		sta kernel_args_recv_buf
-		lda #>file_buffer
-		sta kernel_args_recv_buf+1
-
-		jsr kernel_ReadData
-
-		ldx #0
-]lp		lda file_buffer,x
-		jsr writebyte
-		inx
-		cpx event_file_data_read
-		bne ]lp
-		
-		do DEBUG_FILE				 
-		jmp ]loop
-		else
+		lda file_bytes_wrote
+		adc event_file_data_wrote
+		sta file_bytes_wrote
+		bcc ]loop
+		inc file_bytes_wrote+1
+		bne ]loop
+		inc file_bytes_wrote+2
 		bra ]loop
-		fin
 
 
 :done_done
-		lda file_bytes_read
-		ldx file_bytes_read+1
-		ldy file_bytes_read+2
+		lda file_bytes_wrote
+		ldx file_bytes_wrote+1
+		ldy file_bytes_wrote+2
 
+		rts
+;
+; Copy bytes from the file, into the io buffer
+; before they are written out to disk
+;
+:bytes_to_buffer
+		ldx kernel_args_file_write_buflen
+]lp     jsr readbyte
+		sta file_buffer,x
+		dex
+		bne ]lp
 		rts
 

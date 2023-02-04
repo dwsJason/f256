@@ -272,8 +272,8 @@ start
 		jsr fclose
 
 
-		jsr TermPrintCR
-		jsr TermPrintCR
+		jsr TermCR
+		jsr TermCR
 
 		lda #<txt_Complete
 		ldx #>txt_Complete
