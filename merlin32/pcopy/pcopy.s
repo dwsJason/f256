@@ -173,8 +173,8 @@ start
 
 ;--------------------------------------------------
 
-:start  = temp1
-:length = temp2
+:start   = temp1
+:length  = temp2
 
 
 		; save data start for the write later, if we decide to write
@@ -185,30 +185,24 @@ start
 
 ; stuff the length in a temp, and setup length for crc
 		lda len24
-		sta :length
-		sta crc_num
+		sta :length			; used for the read in
+;		sta crc_num
 		lda len24+1
 		sta :length+1
-		sta crc_num+1
-		lda len24+2
+;		sta crc_num+1
+		lda len24+2 		; used for CRC status
 		sta :length+2
-		sta crc_num+2
-
-; salt crc
-		stz crc
-		stz crc+1
-		stz crc+2
-		stz crc+3
-
-; calc crc
-		jsr calc_crc32
-
+;		sta crc_num+2
 
 ; display crc
 		lda #<txt_calc32
 		ldx #>txt_calc32+1
 		jsr TermPUTS
 
+; Do a CRC, but do it in hunks so program doesn't seem broken
+		jsr fancy_crc
+
+; Display the result CRC
 		lda crc+2
 		ldx crc+3
 		jsr TermPrintAXH
@@ -329,9 +323,109 @@ start
 
 
 ;-----------------------------------------------
+;
+; Do the CRC
+;
+fancy_crc
 
-		; Print out the length
+:crc_count = temp3
+CRC_BLOCK_SIZE = 64
 
+		; initialize the count down
+		lda :length
+		sta :crc_count
+		lda :length+1
+		sta :crc_count+1
+		lda :length+2
+		sta :crc_count+2
+		stz :crc_count+3
+
+		ldx term_x
+		ldy term_y
+		phx
+		phy
+
+; salt crc
+		stz crc
+		stz crc+1
+		stz crc+2
+		stz crc+3
+
+; crc_num = blocksize
+		lda #<CRC_BLOCK_SIZE
+		sta crc_num+0
+		lda #>CRC_BLOCK_SIZE
+		sta crc_num+1
+		lda #^CRC_BLOCK_SIZE
+		sta crc_num+2
+
+]loop
+		; Display length completed
+		lda :crc_count+2
+		ldx :crc_count+3
+		jsr TermPrintAXH
+		lda :crc_count
+		ldx :crc_count+1
+		jsr TermPrintAXH
+		ply
+		plx
+		phx
+		phy
+		; Reset Cursor
+		jsr TermSetXY
+
+		; if :crc_count < BLOCK_SIZE
+		;    crc_num = :crc_count
+
+		lda :crc_count+2
+		cmp crc_num+2
+		bcc :less
+		bne :go
+
+		lda :crc_count+1
+		cmp crc_num+1
+		bcc :less
+		bne :go
+
+		lda :crc_count+0
+		cmp crc_num+0
+		bcc :less
+		bne :go
+:less
+		; last bit, let's go!
+		lda :crc_count+0
+		sta crc_num+0
+
+		lda :crc_count+1
+		sta crc_num+1
+
+		lda :crc_count+2
+		sta crc_num+2
+
+:go
+; calc crc
+		jsr calc_crc32
+
+		sec
+		lda :crc_count+0
+		sbc crc_num+0
+		sta :crc_count+0
+		lda :crc_count+1
+		sbc crc_num+1
+		sta :crc_count+1
+		lda :crc_count+2
+		sbc crc_num+2
+		sta :crc_count+2
+
+		ora :crc_count+1
+		ora :crc_count+0
+
+		bne ]loop
+
+		ply
+		plx
+
+		rts
 
 
 		put mmu.s
