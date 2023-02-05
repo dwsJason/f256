@@ -183,7 +183,7 @@ start
 		stx :start+1
 		sty :start+2
 
-
+; stuff the length in a temp, and setup length for crc
 		lda len24
 		sta :length
 		sta crc_num
@@ -203,6 +203,7 @@ start
 ; calc crc
 		jsr calc_crc32
 
+
 ; display crc
 		lda #<txt_calc32
 		ldx #>txt_calc32+1
@@ -221,6 +222,7 @@ start
 		ldx #>txt_match
 		jsr TermPUTS
 
+		do 0
 		lda crc32
 		cmp crc
 		bne :no
@@ -233,6 +235,7 @@ start
 		lda crc32+3
 		cmp crc+3
 		bne :no
+		fin
 
 		lda #<txt_yes
 		ldx #>txt_yes
@@ -245,6 +248,7 @@ start
 		jsr TermPUTS
 
 ; crc did not match
+		jsr mmu_lock
 ]fuckno bra ]fuckno
 
 :save_that_file
@@ -257,7 +261,13 @@ start
 		ldx #>filename
 		jsr TermPUTS
 		jsr TermCR
+
 ; Create the file
+
+		lda #<event_type
+		sta kernel_args_events
+		lda #>event_type
+		sta kernel_args_events+1
 
 		lda #<filename
 		ldx #>filename
@@ -272,12 +282,13 @@ start
 		pla
 		jsr TermPrintAH
 		jsr TermCR
+		jsr mmu_lock
 ]failed bra ]failed
 
 :good
 		lda #<txt_write
 		ldx #>txt_write
-		jsr txt_write
+		jsr TermPUTS
 
 		lda :length
 		ldx :length+1
@@ -289,6 +300,14 @@ start
 		ldx :start+1
 		ldy :start+2
 		jsr set_read_address
+; Where we reading from in memory
+		lda :start+2
+		jsr TermPrintAH
+		lda :start+1
+		jsr TermPrintAH
+		lda :start+0
+		jsr TermPrintAH
+		jsr TermCR
 
 		lda :length
 		ldx :length+1
@@ -303,6 +322,8 @@ start
 		lda #<txt_Complete
 		ldx #>txt_Complete
 		jsr TermPUTS
+
+		jsr mmu_lock
 
 ]done   bra ]done
 
@@ -344,7 +365,7 @@ txt_Complete      asc ' Copy Completed'
 		db 0
 txt_yes asc 'yes'
 		db 13,0
-txt_no  asc 'fuck off'
+txt_no  asc 'no, data corrupt'
 		db 13,0
 
 txt_done db 13

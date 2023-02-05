@@ -66,7 +66,7 @@ calc_crc32
 ;		BNE :next
 ;		INC crc_addr+1      ; Step to next byte
 ;:next
-;		STA crc+0           ; Store CRC low byte
+		STA crc+0           ; Store CRC low byte
                             ; Now do a 24-bit decrement
 ;		LDA crc_num+0
 ;		BNE :skip           ; num.lo<>0, not wrapping from 00 to FF

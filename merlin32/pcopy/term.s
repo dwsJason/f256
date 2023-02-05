@@ -23,6 +23,7 @@ term_temp1  ds 4
 ;TermPrintAXH   - print value in AX, as HEX  (it will end up XA, because high, then low)
 ;TermPrintAXI   - print value in AX, as DEC
 ;TermPrintAXYH  - print values in AXY, as HEX
+;TermSetXY      - cursor position X in X, Y in Y
 
 ;------------------------------------------------------------------------------
 TermInit

@@ -41,6 +41,7 @@ fopen
 		ldy #kernel_args_file_open_READ
 fcreate_open
 		sty kernel_args_file_open_mode
+
 		stz kernel_args_file_open_drive
 
 		sta kernel_args_file_open_fname
@@ -59,16 +60,33 @@ fcreate_open
 :try_again
 		jsr kernel_File_Open
 		sta file_handle
+
+		;php
+		;lda #$1
+		;jsr TermPrintAH
+		;plp
 		bcc :it_opened
 :error
 		sec
 		rts
 
 :it_opened
+
+		;lda #$2
+		;jsr TermPrintAH
+
+		lda #<event_type
+		sta kernel_args_events
+		lda #>event_type
+		sta kernel_args_events+1
+
 ]loop
         jsr kernel_Yield    ; Not required; but good while waiting.
         jsr kernel_NextEvent
         bcs ]loop
+
+		;lda event_type
+		;jsr TermPrintAH
 
 		lda event_type
 		cmp #kernel_event_file_CLOSED
@@ -85,7 +103,6 @@ fcreate_open
 		lda file_handle
 		clc
 		rts
-
 
 ;
 ; mmu write address is the address
@@ -307,7 +324,7 @@ fwrite
 		; subtract request from the total request
 		sec
 		lda file_bytes_req
-		sbc kernel_args_file_read_buflen
+		sbc kernel_args_file_write_buflen
 		sta file_bytes_req
 		lda file_bytes_req+1
 		sbc #0
@@ -335,6 +352,11 @@ fwrite
         jsr kernel_NextEvent
         bcs ]event_loop
 
+		do 0
+		lda event_type
+		jsr TermPrintAH
+		fin
+
 		lda event_type
 
         cmp #kernel_event_file_EOF
@@ -344,14 +366,30 @@ fwrite
 		cmp #kernel_event_file_WROTE
 		bne ]event_loop
 
+		do 0
+		lda event_file_data_wrote
+		jsr TermPrintAH
+		fin
+
 		clc
 		lda file_bytes_wrote
 		adc event_file_data_wrote
 		sta file_bytes_wrote
-		bcc ]loop
+		bcc :show
 		inc file_bytes_wrote+1
-		bne ]loop
+		bne :show
 		inc file_bytes_wrote+2
+:show
+		ldx #0
+		ldy term_y
+		jsr TermSetXY
+
+		lda file_bytes_wrote+2
+		jsr TermPrintAH
+		lda file_bytes_wrote+0
+		ldx file_bytes_wrote+1
+		jsr TermPrintAXH
+
 		bra ]loop
 
 
@@ -366,10 +404,18 @@ fwrite
 ; before they are written out to disk
 ;
 :bytes_to_buffer
-		ldx kernel_args_file_write_buflen
-]lp     jsr readbyte
+		ldx #0
+]lp		jsr readbyte
+
+		;pha
+		;phx
+		;jsr TermPrintAH
+		;plx
+		;pla
+
 		sta file_buffer,x
-		dex
+		inx
+		cpx kernel_args_file_write_buflen
 		bne ]lp
 		rts
 
