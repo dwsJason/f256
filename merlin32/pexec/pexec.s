@@ -24,6 +24,17 @@
 ; and 0-BFFF mapped into 1:1
 ;
 
+; Picture Viewer Stuff
+PIXEL_DATA = $010000	; 320x240 pixels
+CLUT_DATA  = $005C00	; 1k color buffer
+IMAGE_FILE = $022C00	; try to allow for large files
+VKY_GR_CLUT_0 = $D000
+VKY_GR_CLUT_1 = $D400
+
+; PGX/PGZ Loaders restrict memory usage to the DirectPage, and Stack
+; It would be possible to stuff some code into text buffer, but unsure I need
+; that
+
 ; Some Global Direct page stuff
 
 ; MMU modules needs 0-1F
@@ -39,10 +50,13 @@ temp3 ds 4
 event_type = $30
 event_buf  = $31
 event_ext  = $32
-event_file_data_read = $36
+
+event_file_data_read  = event_type+kernel_event_event_t_file_data_read
+event_file_data_wrote = event_type+kernel_event_event_t_file_wrote_wrote 
 
 args = $300
 
+old_sp = $A0
 
 ; File uses $B0-$BF
 ; Term uses $C0-$CF
@@ -65,6 +79,11 @@ sig		db $f2,$56		; signature
 		db 0
 
 start
+		;tsx
+		;stx old_sp
+		;ldx #$FF
+		;txs
+
 		; Terminal Init
 		jsr TermInit
 
@@ -180,21 +199,22 @@ wait_for_key
 ;------------------------------------------------------------------------------
 ;
 execute_file
+
 ; we have the first 4 bytes, let's see if we can
 ; identify the file
 		lda temp0
-		cmp 'Z'
+		cmp #'Z'
 		beq :pgZ
-		cmp 'P'
+		cmp #'P'
 		beq :pgx
-		cmp 'I'
+		cmp #'I'
 		beq :256
-		cmp 'F'
+		cmp #'F'
 		beq :lbm
 :done
 		lda #<txt_unknown
 		ldx #>txt_unknown
-		jsr txt_unknown
+		jsr TermPUTS
 
 		rts
 
@@ -204,10 +224,10 @@ execute_file
 		rts
 :pgx
 		lda temp0+1
-		cmp 'G'
+		cmp #'G'
 		bne :done
 		lda temp0+2
-		cmp 'X'
+		cmp #'X'
 		bne :done
 		lda temp0+3
 		cmp #3
@@ -218,30 +238,183 @@ execute_file
 
 :256
 		lda temp0+1
-		cmp '2'
+		cmp #'2'
 		bne :done
 		lda temp0+2
-		cmp '5'
+		cmp #'5'
 		bne :done
 		lda temp0+3
+		cmp #'6'
 		bne :done
 ;------------------------------------------------------------------------------
 ; Load / Display 256 Image
+		jsr load_image
+		jsr set_srcdest_clut
+		jsr decompress_clut
+		jsr copy_clut
+		jsr init320x240
+		jsr set_srcdest_pixels
+		jsr decompress_pixels
+		rts
 ;
 :lbm
 		lda temp0+1
-		cmp 'O'
+		cmp #'O'
 		bne :done
 		lda temp0+2
-		cmp 'R'
+		cmp #'R'
 		bne :done
 		lda temp0+3
-		cmp 'M'
+		cmp #'M'
 		bne :done
 ;------------------------------------------------------------------------------
 ; Load / Display LBM Image
 
+		; get the compressed binary into memory
+		jsr load_image
+
+		; Now the LBM is in memory, let's try to decode and show it
+		; set src to loaded image file, and dest to clut
+		jsr set_srcdest_clut
+
+		jsr lbm_decompress_clut
+		jsr copy_clut
+
+		; turn on graphics mode, so we can see the glory
+		jsr init320x240
+
+		; get the pixels
+		; set src to loaded image file, dest to output pixels
+		jsr set_srcdest_pixels
+		jsr lbm_decompress_pixels
+
 		rts
+
+;-----------------------------------------------------------------------------
+load_image
+; $10000, for the bitmap
+
+		; Open the File again (seek back to 0)
+		lda #<args+2
+		ldx #>args+2
+		jsr TermPUTS
+
+		lda #<args+2
+		ldx #>args+2
+		jsr fopen
+
+		; Address where we're going to load the file
+		lda #<IMAGE_FILE
+		ldx #>IMAGE_FILE
+		ldy #^IMAGE_FILE
+		jsr set_write_address
+
+		; Request as many bytes as we can, and hope we hit the EOF
+READ_BUFFER_SIZE = $080000-IMAGE_FILE
+
+		lda #<READ_BUFFER_SIZE
+		ldx #>READ_BUFFER_SIZE
+		ldy #^READ_BUFFER_SIZE
+		jsr fread
+		; length read is in AXY, if we need it
+		jsr fclose
+
+		rts
+;-----------------------------------------------------------------------------
+set_srcdest_clut
+		; Address where we're going to load the file
+		lda #<IMAGE_FILE
+		ldx #>IMAGE_FILE
+		ldy #^IMAGE_FILE
+		jsr set_read_address
+
+		lda #<CLUT_DATA
+		ldx #>CLUT_DATA
+		ldy #^CLUT_DATA
+		jsr set_write_address
+		rts
+;-----------------------------------------------------------------------------
+set_srcdest_pixels
+		lda #<IMAGE_FILE
+		ldx #>IMAGE_FILE
+		ldy #^IMAGE_FILE
+		jsr set_read_address
+
+		lda #<PIXEL_DATA
+		ldx #>PIXEL_DATA
+		ldy #^PIXEL_DATA
+		jsr set_write_address
+		rts
+;-----------------------------------------------------------------------------
+
+copy_clut
+		php
+		sei
+
+		; set access to vicky CLUTs
+		lda #1
+		sta io_ctrl
+		; copy the clut up there
+		ldx #0
+]lp		lda CLUT_DATA,x
+		sta VKY_GR_CLUT_0,x
+		lda CLUT_DATA+$100,x
+		sta VKY_GR_CLUT_0+$100,x
+		lda CLUT_DATA+$200,x
+		sta VKY_GR_CLUT_0+$200,x
+		lda CLUT_DATA+$300,x
+		sta VKY_GR_CLUT_0+$300,x
+		dex
+		bne ]lp
+
+		; set access back to text buffer, for the text stuff
+		lda #2
+		sta io_ctrl
+
+		plp
+		rts
+
+;-----------------------------------------------------------------------------
+; Setup 320x240 mode
+init320x240
+		php
+		sei
+
+		; Access to vicky generate registers
+		stz io_ctrl
+
+		; enable the graphics mode
+		lda #%00001111	; gamma + bitmap + graphics + overlay + text
+;		lda #%00000001	; text
+		sta $D000
+		;lda #%110       ; text in 40 column when it's enabled
+		;sta $D001
+		stz $D001
+
+		; layer stuff - take from Jr manual
+		stz $D002  ; layer ctrl 0
+		stz $D003  ; layer ctrl 3
+
+		; set address of image, since image uncompressed, we just display it
+		; where we loaded it.
+		lda #<PIXEL_DATA
+		sta $D101
+		lda #>PIXEL_DATA
+		sta $D102
+		lda #^PIXEL_DATA
+		sta $D103
+
+		lda #1
+		sta $D100  ; bitmap enable, use clut 0
+		stz $D108  ; disable
+		stz $D110  ; disable
+
+		lda #2
+		sta io_ctrl
+		plp
+
+		rts
+
 
 
 ;------------------------------------------------------------------------------
@@ -258,7 +431,7 @@ txt_unknown
 		db 13,13,0		
 
 txt_launch asc 'launch: '
-		db
+		db 0
 
 txt_error_open asc 'ERROR: file open $'
 		db 0
