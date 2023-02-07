@@ -54,6 +54,7 @@ xfer_data = $10000
 ; File uses $B0-$BF
 ; Term uses $C0-$CF
 ; Kernel uses $F0-FF
+; crc32 uses  $F2-FF
 
 		dum $2000
 filename ds 256
