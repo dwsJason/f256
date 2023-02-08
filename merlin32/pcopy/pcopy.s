@@ -1,7 +1,7 @@
 ;
-; Merlin32 Hello.PGX program, for Jr
+; Merlin32 pcopy.PGX program, for Jr
 ;
-; To Assemble "merlin32 -v hello.s"
+; To Assemble "merlin32 -v pcopy.s"
 ;
 		mx %11
 
