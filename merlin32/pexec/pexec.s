@@ -221,7 +221,7 @@ execute_file
 ;------------------------------------------------------------------------------
 ; Load / run pgZ Program
 :pgZ
-		rts
+		jmp LoadPGZ
 :pgx
 		lda temp0+1
 		cmp #'G'
@@ -321,7 +321,54 @@ execute_file
 		jsr lbm_decompress_pixels
 
 		rts
+;-----------------------------------------------------------------------------
+LoadPGZ
+		; Open the File again (seek back to 0)
+		lda #<args+2
+		ldx #>args+2
+		jsr TermPUTS
 
+		lda #<args+2
+		ldx #>args+2
+		jsr fopen
+		
+		lda #<temp0
+		ldx #>temp0
+		ldy #^temp0
+		jsr set_write_address
+		
+		lda #7
+]loop
+		ldx #0
+		ldy #0
+		jsr fread
+		
+		lda temp1
+		ora temp1+1
+		ora temp1+2
+		beq :launch
+		
+		lda temp0+1
+		ldx temp0+2
+		ldy temp0+3
+		jsr set_write_address
+
+		lda temp1
+		ldx temp1+1
+		ldy temp1+2
+		jsr fread
+		
+		lda #<temp0+1
+		ldx #>temp0+1
+		ldy #^temp0+1
+		jsr set_write_address
+		lda #6
+		bra ]loop
+:launch
+		lda #$4c
+		sta temp0
+		jsr mmu_lock
+		jmp temp0
 ;-----------------------------------------------------------------------------
 load_image
 ; $10000, for the bitmap
