@@ -217,7 +217,7 @@ start
 		ldx #>txt_match
 		jsr TermPUTS
 
-		do 0
+		do 1
 		lda crc32
 		cmp crc
 		bne :no
