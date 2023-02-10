@@ -234,39 +234,7 @@ execute_file
 		bne :done
 ;------------------------------------------------------------------------------
 ; Load / Run PGX Program
-
-		lda #<temp0
-		ldx #>temp0
-		ldy #^temp0
-		jsr set_write_address
-		
-		lda #<args+2
-		ldx #>args+2
-		jsr fopen
-
-		lda #8
-		ldx #0
-		ldy #0
-		jsr fread
-		
-		lda temp1
-		ldx temp1+1
-		ldy temp1+2
-		jsr set_write_address
-		
-		; Try to read 64k, which should load the whole file
-		lda #0
-		tax
-		ldy #1
-		jsr fread
-		jsr fclose
-		
-		jsr mmu_lock
-
-		lda #$4c
-		sta temp1-1
-		
-		jmp temp1-1
+		jmp LoadPGX
 
 :256
 		lda temp0+1
@@ -321,6 +289,41 @@ execute_file
 		jsr lbm_decompress_pixels
 
 		rts
+;-----------------------------------------------------------------------------
+LoadPGX
+		lda #<temp0
+		ldx #>temp0
+		ldy #^temp0
+		jsr set_write_address
+		
+		lda #<args+2
+		ldx #>args+2
+		jsr fopen
+
+		lda #8
+		ldx #0
+		ldy #0
+		jsr fread
+		
+		lda temp1
+		ldx temp1+1
+		ldy temp1+2
+		jsr set_write_address
+		
+		; Try to read 64k, which should load the whole file
+		lda #0
+		tax
+		ldy #1
+		jsr fread
+		jsr fclose
+		
+		jsr mmu_lock
+
+		lda #$4c
+		sta temp1-1
+		
+		jmp temp1-1
+
 ;-----------------------------------------------------------------------------
 LoadPGZ
 		; Open the File again (seek back to 0)
