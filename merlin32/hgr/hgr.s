@@ -74,18 +74,40 @@ image_start = $010000
 
 ; experiment people
 
+		jsr clear_bitmap
+
+
+:count = temp1+3
+		stz :count
+
+]alter_loop
+
+		lda :count
+		cmp #0
+		bne :try1
+		inc
+		sta :count
 		lda #<hardhat_image
 		ldx #>hardhat_image
 		ldy #^hardhat_image
-
+		jmp :do_it
+:try1
+		cmp #1
+		bne :try2
+		inc
+		sta <:count
 		lda #<starblazer_image
 		ldx #>starblazer_image
 		ldy #^starblazer_image
+		jmp :do_it
+
+:try2
+		stz <:count
 
 		lda #<blitz_image
 		ldx #>blitz_image
 		ldy #^blitz_image
-
+:do_it
 		jsr set_read_address	; mmu is going to map this to $2000, woot
 
 		lda #<image_start
@@ -95,17 +117,6 @@ image_start = $010000
 		stx :write_address+1
 		sty :write_address+2
 		jsr set_write_address   ; mmu is going to map this to $6000
-
-		ldx #0
-		ldy #0
-		lda #0
-]clr	jsr writebyte
-		jsr writebyte 
-		dex
-		bne ]clr
-		dey
-		bne ]clr
-
 
 :y_pos = temp3
 :write_address = temp2
@@ -156,6 +167,7 @@ image_start = $010000
 		sta :y_pos
 		bcc ]lp
 
+		jmp ]alter_loop
 		jmp :wait
 
 :inc_write_address
@@ -335,4 +347,23 @@ pixelmap_addr_hi
 	db >]addr
 ]addr = ]addr+7
 	--^
+
+;------------------------------------------------------------------------------
+clear_bitmap
+		lda #<image_start
+		ldx #>image_start
+		ldy #^image_start
+		jsr set_write_address   ; mmu is going to map this to $6000
+
+		ldx #0
+		ldy #0
+		lda #0
+]clr	jsr writebyte
+		jsr writebyte 
+		dex
+		bne ]clr
+		dey
+		bne ]clr
+		rts
+;------------------------------------------------------------------------------
 
