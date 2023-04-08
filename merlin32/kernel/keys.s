@@ -1,5 +1,5 @@
 
-;TassFile keys.lst - 2033 bytes
+;TassFile keys.lst - 2512 bytes
 ;Reading keys.lst
 LSHIFT = $0
 RSHIFT = $1

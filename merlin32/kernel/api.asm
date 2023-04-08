@@ -17,7 +17,7 @@ ReadData    .fill   4   ; Copy primary bulk event data into user-space
 ReadExt     .fill   4   ; Copy secondary bolk event data into user-space
 Yield       .fill   4   ; Give unused time to the kernel.
 Putch       .fill   4   ; deprecated
-Basic       .fill   4   ; deprecated
+RunBlock    .fill   4   ; Chain to resident program by block ID.
 RunNamed    .fill   4   ; Chain to resident program by name.
             .fill   4   ; reserved
 
@@ -49,16 +49,44 @@ Write       .fill   4   ; Write bytes to a file opened for create or append.
 Close       .fill   4   ; Close an open file.
 Rename      .fill   4   ; Rename a closed file.
 Delete      .fill   4   ; Delete a closed file.
+Seek        .fill   4   ; Seek to a specific position in a file.
             .endn
 
 Directory   .namespace
 Open        .fill   4   ; Open a directory for reading.
 Read        .fill   4   ; Read a directory entry; may also return VOLUME and FREE events.
 Close       .fill   4   ; Close a directory once finished reading.
+MkDir       .fill   4   ; Create a directory
+RmDir       .fill   4   ; Delete a directory
             .endn
             
             .fill   4   ; call gate
 
+Net         .namespace  ; These are changing!
+GetIP       .fill   4   ; Get the local IP address.
+SetIP       .fill   4   ; Set the local IP address.
+GetDNS      .fill   4   ; Get the configured DNS IP address.
+SetDNS      .fill   4   ; Set the configured DNS IP address.
+SendICMP    .fill   4
+Match       .fill   4
+
+UDP         .namespace
+Init        .fill   4
+Send        .fill   4
+Recv        .fill   4
+            .endn
+
+TCP         .namespace
+Open        .fill   4
+Accept      .fill   4
+Reject      .fill   4
+Send        .fill   4
+Recv        .fill   4
+Close       .fill   4
+            .endn
+
+            .endn
+            
 Display     .namespace
 Reset       .fill   4   ; Re-init the display
 GetSize     .fill   4   ; Returns rows/cols in kernel args.
@@ -67,27 +95,12 @@ DrawColumn  .fill   4   ; Draw text/color buffers top-to-bottom
             .endn
 
 Config      .namespace
-GetIP       .fill   4   ; Get the local IP address.
-SetIP       .fill   4   ; Set the local IP address.
-GetDNS      .fill   4   ; Get the configured DNS IP address.
-SetDNS      .fill   4   ; Set the configured DNS IP address.
 GetTime     .fill   4
 SetTime     .fill   4
 GetSysInfo  .fill   4
 SetBPS      .fill   4   ; Set the serial BPS (should match the SLIP router's speed).
             .endn
 
-Net         .namespace  ; These are changing!
-InitUDP     .fill   4
-SendUDP     .fill   4
-RecvUDP     .fill   4
-InitTCP     .fill   4
-SendTCP     .fill   4
-RecvTCP     .fill   4
-SendICMP    .fill   4
-RecvICMP    .fill   4
-            .endn
-            
             .endv            
 
 ; Kernel Call Arguments
@@ -103,12 +116,14 @@ args_t      .struct
 events      .dstruct    event_t ; The GetNextEvent dest address is globally reserved.
 
             .union
+run         .dstruct    run_t
 recv        .dstruct    recv_t
 fs          .dstruct    fs_t
 file        .dstruct    file_t
 directory   .dstruct    dir_t
 display     .dstruct    display_t
 net         .dstruct    net_t
+config      .dstruct    config_t
             .endu
 
 ext         = $f8
@@ -128,6 +143,11 @@ end         .ends
 recv_t      .struct
 buf         = args.buf
 buflen      = args.buflen
+            .ends
+
+          ; Run Calls
+run_t       .struct
+block_id    .byte   ?
             .ends
 
           ; FileSystem Calls
@@ -150,6 +170,7 @@ file_t      .struct
 open        .dstruct    fs_open_t
 read        .dstruct    fs_read_t
 write       .dstruct    fs_write_t
+seek        .dstruct    fs_seek_t
 close       .dstruct    fs_close_t
 rename      .dstruct    fs_rename_t
 delete      .dstruct    fs_open_t
@@ -173,6 +194,10 @@ fs_write_t  .struct
 stream      .byte       ?
 buf         = args.buf
 buflen      = args.buflen
+            .ends
+fs_seek_t  .struct
+stream      .byte       ?
+position    .dword      ?
             .ends
 fs_close_t  .struct
 stream      .byte       ?
@@ -199,6 +224,8 @@ dir_t       .struct
 open        .dstruct    dir_open_t
 read        .dstruct    dir_read_t
 close       .dstruct    dir_close_t
+mkdir       .dstruct    dir_open_t
+rmdir       .dstruct    dir_open_t
             .endu
             .ends            
 dir_open_t  .struct
@@ -241,7 +268,7 @@ dest_port   .word       ?
 dest_ip     .fill       4            
             .ends            
             
-           ; Send
+           ; Send / Recv
             .struct
 accepted    .byte       ?            
 buf         = args.ext
@@ -250,6 +277,22 @@ buflen      = args.extlen
 
             .endu
             .ends
+
+config_t    .struct
+            .union
+            .endu
+            .ends
+                     
+time_t      .struct
+century     .byte       ?
+year        .byte       ?
+month       .byte       ?
+day         .byte       ?
+hours       .byte       ?
+minutes     .byte       ?
+seconds     .byte       ?
+millis      .byte       ?
+size        .ends
 
 ; Events
 ; The vast majority of kernel operations communicate with userland
@@ -302,6 +345,7 @@ CLOSED      .word   ?   ; The close request has completed.
 RENAMED     .word   ?   ; The rename request has completed.
 DELETED     .word   ?   ; The delete request has completed.
 ERROR       .word   ?   ; An error occured; close the file if opened.
+SEEK        .word   ?   ; The seek request has completed.
             .endn
 
 directory   .namespace
@@ -312,12 +356,19 @@ FREE        .word   ?   ; A file-system free-space record was found.
 EOF         .word   ?   ; All data has been read.
 CLOSED      .word   ?   ; The directory file has been closed.
 ERROR       .word   ?   ; An error occured; user should close.
+CREATED     .word   ?   ; The directory has been created.
+DELETED     .word   ?   ; The directory has been deleted.
             .endn
 
 net         .namespace            
 TCP         .word   ?
 UDP         .word   ?
             .endn
+
+clock       .namespace
+TICK        .word   ?
+            .endn
+
 
             .endv
 
@@ -330,6 +381,7 @@ key         .dstruct    kernel.event.key_t
 mouse       .dstruct    kernel.event.mouse_t
 joystick    .dstruct    kernel.event.joystick_t
 udp         .dstruct    kernel.event.udp_t
+tcp         .dstruct    kernel.event.tcp_t
 file        .dstruct    kernel.event.file_t
 directory   .dstruct    kernel.event.dir_t
             .endu
@@ -414,6 +466,10 @@ free        .fill   6   ; blocks used/free
           ; Data in net events (major changes coming)
 udp_t       .struct
 token       .byte   ?   ; TODO: break out into fields
+            .ends
+
+tcp_t       .struct
+len         .byte   ?   ; Raw packet length.
             .ends
 
             .endn

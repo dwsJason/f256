@@ -1,7 +1,7 @@
 
 ; 64tass Turbo Assembler Macro V1.54.1900 listing file
 ; 64tass --verbose-list -L api.lst api.asm
-; Sun Jan 29 10:04:37 2023
+; Sat Apr  8 10:34:58 2023
 
 ;Offset	;Hex		;Monitor	;Source
 
@@ -26,7 +26,7 @@
 >ff08					ReadExt     .fill   4   ; Copy secondary bolk event data into user-space
 >ff0c					Yield       .fill   4   ; Give unused time to the kernel.
 >ff10					Putch       .fill   4   ; deprecated
->ff14					Basic       .fill   4   ; deprecated
+>ff14					RunBlock    .fill   4   ; Chain to resident program by block ID.
 >ff18					RunNamed    .fill   4   ; Chain to resident program by name.
 >ff1c					            .fill   4   ; reserved
 
@@ -58,43 +58,56 @@
 >ff68					Close       .fill   4   ; Close an open file.
 >ff6c					Rename      .fill   4   ; Rename a closed file.
 >ff70					Delete      .fill   4   ; Delete a closed file.
+>ff74					Seek        .fill   4   ; Seek to a specific position in a file.
 					            .endn
 
 					Directory   .namespace
->ff74					Open        .fill   4   ; Open a directory for reading.
->ff78					Read        .fill   4   ; Read a directory entry; may also return VOLUME and FREE events.
->ff7c					Close       .fill   4   ; Close a directory once finished reading.
+>ff78					Open        .fill   4   ; Open a directory for reading.
+>ff7c					Read        .fill   4   ; Read a directory entry; may also return VOLUME and FREE events.
+>ff80					Close       .fill   4   ; Close a directory once finished reading.
+>ff84					MkDir       .fill   4   ; Create a directory
+>ff88					RmDir       .fill   4   ; Delete a directory
 					            .endn
 
->ff80					            .fill   4   ; call gate
+>ff8c					            .fill   4   ; call gate
+
+					Net         .namespace  ; These are changing!
+>ff90					GetIP       .fill   4   ; Get the local IP address.
+>ff94					SetIP       .fill   4   ; Set the local IP address.
+>ff98					GetDNS      .fill   4   ; Get the configured DNS IP address.
+>ff9c					SetDNS      .fill   4   ; Set the configured DNS IP address.
+>ffa0					SendICMP    .fill   4
+>ffa4					Match       .fill   4
+
+					UDP         .namespace
+>ffa8					Init        .fill   4
+>ffac					Send        .fill   4
+>ffb0					Recv        .fill   4
+					            .endn
+
+					TCP         .namespace
+>ffb4					Open        .fill   4
+>ffb8					Accept      .fill   4
+>ffbc					Reject      .fill   4
+>ffc0					Send        .fill   4
+>ffc4					Recv        .fill   4
+>ffc8					Close       .fill   4
+					            .endn
+
+					            .endn
 
 					Display     .namespace
->ff84					Reset       .fill   4   ; Re-init the display
->ff88					GetSize     .fill   4   ; Returns rows/cols in kernel args.
->ff8c					DrawRow     .fill   4   ; Draw text/color buffers left-to-right
->ff90					DrawColumn  .fill   4   ; Draw text/color buffers top-to-bottom
+>ffcc					Reset       .fill   4   ; Re-init the display
+>ffd0					GetSize     .fill   4   ; Returns rows/cols in kernel args.
+>ffd4					DrawRow     .fill   4   ; Draw text/color buffers left-to-right
+>ffd8					DrawColumn  .fill   4   ; Draw text/color buffers top-to-bottom
 					            .endn
 
 					Config      .namespace
->ff94					GetIP       .fill   4   ; Get the local IP address.
->ff98					SetIP       .fill   4   ; Set the local IP address.
->ff9c					GetDNS      .fill   4   ; Get the configured DNS IP address.
->ffa0					SetDNS      .fill   4   ; Set the configured DNS IP address.
->ffa4					GetTime     .fill   4
->ffa8					SetTime     .fill   4
->ffac					GetSysInfo  .fill   4
->ffb0					SetBPS      .fill   4   ; Set the serial BPS (should match the SLIP router's speed).
-					            .endn
-
-					Net         .namespace  ; These are changing!
->ffb4					InitUDP     .fill   4
->ffb8					SendUDP     .fill   4
->ffbc					RecvUDP     .fill   4
->ffc0					InitTCP     .fill   4
->ffc4					SendTCP     .fill   4
->ffc8					RecvTCP     .fill   4
->ffcc					SendICMP    .fill   4
->ffd0					RecvICMP    .fill   4
+>ffdc					GetTime     .fill   4
+>ffe0					SetTime     .fill   4
+>ffe4					GetSysInfo  .fill   4
+>ffe8					SetBPS      .fill   4   ; Set the serial BPS (should match the SLIP router's speed).
 					            .endn
 
 					            .endv
@@ -111,6 +124,9 @@
 .00f3					end         .ends
 
 					            .union
+.00f3					run         .dstruct    run_t
+>00f3					block_id    .byte   ?
+					            .ends
 .00f3					recv        .dstruct    recv_t
 =$fb					buf         = args.buf
 =$fd					buflen      = args.buflen
@@ -152,6 +168,10 @@
 =$fb					buf         = args.buf
 =$fd					buflen      = args.buflen
 					            .ends
+.00f3					seek        .dstruct    fs_seek_t
+>00f3					stream      .byte       ?
+>00f4					position    .dword      ?
+					            .ends
 .00f3					close       .dstruct    fs_close_t
 >00f3					stream      .byte       ?
 					            .ends
@@ -190,6 +210,18 @@
 .00f3					close       .dstruct    dir_close_t
 >00f3					stream      .byte       ?
 					            .ends
+.00f3					mkdir       .dstruct    dir_open_t
+>00f3					drive       .byte       ?
+>00f4					cookie      .byte       ?
+=$fb					path        = args.buf
+=$fd					path_len    = args.buflen
+					            .ends
+.00f3					rmdir       .dstruct    dir_open_t
+>00f3					drive       .byte       ?
+>00f4					cookie      .byte       ?
+=$fb					path        = args.buf
+=$fd					path_len    = args.buflen
+					            .ends
 					            .endu
 					            .ends
 .00f3					display     .dstruct    display_t
@@ -215,13 +247,17 @@
 >00f7					dest_ip     .fill       4
 					            .ends
 
-					           ; Send
+					           ; Send / Recv
 					            .struct
 >00f3					accepted    .byte       ?
 =$f8					buf         = args.ext
 =$fa					buflen      = args.extlen
 					            .ends
 
+					            .endu
+					            .ends
+.00f3					config      .dstruct    config_t
+					            .union
 					            .endu
 					            .ends
 					            .endu
@@ -243,6 +279,9 @@
 .0003					end         .ends
 
 					            .union
+.0003					run         .dstruct    run_t
+>0003					block_id    .byte   ?
+					            .ends
 .0003					recv        .dstruct    recv_t
 =$fb					buf         = args.buf
 =$fd					buflen      = args.buflen
@@ -284,6 +323,10 @@
 =$fb					buf         = args.buf
 =$fd					buflen      = args.buflen
 					            .ends
+.0003					seek        .dstruct    fs_seek_t
+>0003					stream      .byte       ?
+>0004					position    .dword      ?
+					            .ends
 .0003					close       .dstruct    fs_close_t
 >0003					stream      .byte       ?
 					            .ends
@@ -322,6 +365,18 @@
 .0003					close       .dstruct    dir_close_t
 >0003					stream      .byte       ?
 					            .ends
+.0003					mkdir       .dstruct    dir_open_t
+>0003					drive       .byte       ?
+>0004					cookie      .byte       ?
+=$fb					path        = args.buf
+=$fd					path_len    = args.buflen
+					            .ends
+.0003					rmdir       .dstruct    dir_open_t
+>0003					drive       .byte       ?
+>0004					cookie      .byte       ?
+=$fb					path        = args.buf
+=$fd					path_len    = args.buflen
+					            .ends
 					            .endu
 					            .ends
 .0003					display     .dstruct    display_t
@@ -347,13 +402,17 @@
 >0007					dest_ip     .fill       4
 					            .ends
 
-					           ; Send
+					           ; Send / Recv
 					            .struct
 >0003					accepted    .byte       ?
 =$f8					buf         = args.ext
 =$fa					buflen      = args.extlen
 					            .ends
 
+					            .endu
+					            .ends
+.0003					config      .dstruct    config_t
+					            .union
 					            .endu
 					            .ends
 					            .endu
@@ -375,6 +434,11 @@
 .0000					recv_t      .struct
 =$fb					buf         = args.buf
 =$fd					buflen      = args.buflen
+					            .ends
+
+					          ; Run Calls
+.0000					run_t       .struct
+>0000					block_id    .byte   ?
 					            .ends
 
 					          ; FileSystem Calls
@@ -423,6 +487,10 @@
 =$fb					buf         = args.buf
 =$fd					buflen      = args.buflen
 					            .ends
+.0000					seek        .dstruct    fs_seek_t
+>0000					stream      .byte       ?
+>0001					position    .dword      ?
+					            .ends
 .0000					close       .dstruct    fs_close_t
 >0000					stream      .byte       ?
 					            .ends
@@ -465,6 +533,10 @@
 =$fb					buf         = args.buf
 =$fd					buflen      = args.buflen
 					            .ends
+.0000					fs_seek_t  .struct
+>0000					stream      .byte       ?
+>0001					position    .dword      ?
+					            .ends
 .0000					fs_close_t  .struct
 >0000					stream      .byte       ?
 					            .ends
@@ -499,6 +571,18 @@
 					            .ends
 .0000					close       .dstruct    dir_close_t
 >0000					stream      .byte       ?
+					            .ends
+.0000					mkdir       .dstruct    dir_open_t
+>0000					drive       .byte       ?
+>0001					cookie      .byte       ?
+=$fb					path        = args.buf
+=$fd					path_len    = args.buflen
+					            .ends
+.0000					rmdir       .dstruct    dir_open_t
+>0000					drive       .byte       ?
+>0001					cookie      .byte       ?
+=$fb					path        = args.buf
+=$fd					path_len    = args.buflen
 					            .ends
 					            .endu
 					            .ends
@@ -542,7 +626,7 @@
 >0004					dest_ip     .fill       4
 					            .ends
 
-					           ; Send
+					           ; Send / Recv
 					            .struct
 >0000					accepted    .byte       ?
 =$f8					buf         = args.ext
@@ -551,6 +635,22 @@
 
 					            .endu
 					            .ends
+
+.0000					config_t    .struct
+					            .union
+					            .endu
+					            .ends
+
+.0000					time_t      .struct
+>0000					century     .byte       ?
+>0001					year        .byte       ?
+>0002					month       .byte       ?
+>0003					day         .byte       ?
+>0004					hours       .byte       ?
+>0005					minutes     .byte       ?
+>0006					seconds     .byte       ?
+>0007					millis      .byte       ?
+.0008					size        .ends
 
 					; Events
 					; The vast majority of kernel operations communicate with userland
@@ -603,22 +703,30 @@
 >0034					RENAMED     .word   ?   ; The rename request has completed.
 >0036					DELETED     .word   ?   ; The delete request has completed.
 >0038					ERROR       .word   ?   ; An error occured; close the file if opened.
+>003a					SEEK        .word   ?   ; The seek request has completed.
 					            .endn
 
 					directory   .namespace
->003a					OPENED      .word   ?   ; The directory open request succeeded.
->003c					VOLUME      .word   ?   ; A volume record was found.
->003e					FILE        .word   ?   ; A file record was found.
->0040					FREE        .word   ?   ; A file-system free-space record was found.
->0042					EOF         .word   ?   ; All data has been read.
->0044					CLOSED      .word   ?   ; The directory file has been closed.
->0046					ERROR       .word   ?   ; An error occured; user should close.
+>003c					OPENED      .word   ?   ; The directory open request succeeded.
+>003e					VOLUME      .word   ?   ; A volume record was found.
+>0040					FILE        .word   ?   ; A file record was found.
+>0042					FREE        .word   ?   ; A file-system free-space record was found.
+>0044					EOF         .word   ?   ; All data has been read.
+>0046					CLOSED      .word   ?   ; The directory file has been closed.
+>0048					ERROR       .word   ?   ; An error occured; user should close.
+>004a					CREATED     .word   ?   ; The directory has been created.
+>004c					DELETED     .word   ?   ; The directory has been deleted.
 					            .endn
 
 					net         .namespace
->0048					TCP         .word   ?
->004a					UDP         .word   ?
+>004e					TCP         .word   ?
+>0050					UDP         .word   ?
 					            .endn
+
+					clock       .namespace
+>0052					TICK        .word   ?
+					            .endn
+
 
 					            .endv
 
@@ -655,6 +763,9 @@
 					            .ends
 .0003					udp         .dstruct    kernel.event.udp_t
 >0003					token       .byte   ?   ; TODO: break out into fields
+					            .ends
+.0003					tcp         .dstruct    kernel.event.tcp_t
+>0003					len         .byte   ?   ; Raw packet length.
 					            .ends
 .0003					file        .dstruct    kernel.event.file_t
 >0003					stream      .byte   ?
@@ -792,6 +903,10 @@
 					          ; Data in net events (major changes coming)
 .0000					udp_t       .struct
 >0000					token       .byte   ?   ; TODO: break out into fields
+					            .ends
+
+.0000					tcp_t       .struct
+>0000					len         .byte   ?   ; Raw packet length.
 					            .ends
 
 					            .endn
