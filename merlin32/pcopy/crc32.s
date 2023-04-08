@@ -2,7 +2,7 @@
 ; ==============================
 		mx %11
 
-		dum $f2
+		dum $e0
 crc      ds 4
 crc_num  ds 3
 crc_count ds 3
