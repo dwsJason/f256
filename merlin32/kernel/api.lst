@@ -1,0 +1,918 @@
+
+; 64tass Turbo Assembler Macro V1.54.1900 listing file
+; 64tass --verbose-list -L api.lst api.asm
+; Sat Apr  8 10:34:58 2023
+
+;Offset	;Hex		;Monitor	;Source
+
+;******  Processing input file: api.asm
+
+					; This file is part of the TinyCore 6502 MicroKernel,
+					; Copyright 2022 Jessie Oberreuter <joberreu@moselle.com>.
+					; As with the Linux Kernel Exception to the GPL3, programs
+					; built to run on the MicroKernel are expected to include
+					; this file.  Doing so does not effect their license status.
+
+					; Kernel Calls
+					; Populate the kernel.arg.* variables appropriately, and
+					; then JSR to one of the velctors below:
+
+					kernel      .namespace
+
+					            .virtual    $ff00
+
+>ff00					NextEvent   .fill   4   ; Copy the next event into user-space.
+>ff04					ReadData    .fill   4   ; Copy primary bulk event data into user-space
+>ff08					ReadExt     .fill   4   ; Copy secondary bolk event data into user-space
+>ff0c					Yield       .fill   4   ; Give unused time to the kernel.
+>ff10					Putch       .fill   4   ; deprecated
+>ff14					RunBlock    .fill   4   ; Chain to resident program by block ID.
+>ff18					RunNamed    .fill   4   ; Chain to resident program by name.
+>ff1c					            .fill   4   ; reserved
+
+					BlockDevice .namespace
+>ff20					List        .fill   4   ; Returns a bit-set of available block-accessible devices.
+>ff24					GetName     .fill   4   ; Gets the hardware level name of the given block device or media.
+>ff28					GetSize     .fill   4   ; Get the number of raw sectors (48 bits) for the given device
+>ff2c					Read        .fill   4   ; Read a raw sector (48 bit LBA)
+>ff30					Write       .fill   4   ; Write a raw sector (48 bit LBA)
+>ff34					Format      .fill   4   ; Perform a low-level format if the media support it.
+>ff38					Export      .fill   4   ; Update the FileSystem table with the partition table (if present).
+					            .endn
+
+					FileSystem  .namespace
+>ff3c					List        .fill   4   ; Returns a bit-set of available logical devices.
+>ff40					GetSize     .fill   4   ; Get the size of the partition or logical device in sectors.
+>ff44					MkFS        .fill   4   ; Creates a new file-system on the logical device.
+>ff48					CheckFS     .fill   4   ; Checks the file-system for errors and corrects them.
+>ff4c					Mount       .fill   4   ; Mark the file-system as available for File and Directory operations.
+>ff50					Unmount     .fill   4   ; Mark the file-system as unavailable for File and Directory operations.
+>ff54					ReadBlock   .fill   4   ; Read a partition-local raw sector on an unmounted device.
+>ff58					WriteBlock  .fill   4   ; Write a partition-local raw sector on an unmounted device.
+					            .endn
+
+					File        .namespace
+>ff5c					Open        .fill   4   ; Open the given file for read, create, or append.
+>ff60					Read        .fill   4   ; Request bytes from a file opened for reading.
+>ff64					Write       .fill   4   ; Write bytes to a file opened for create or append.
+>ff68					Close       .fill   4   ; Close an open file.
+>ff6c					Rename      .fill   4   ; Rename a closed file.
+>ff70					Delete      .fill   4   ; Delete a closed file.
+>ff74					Seek        .fill   4   ; Seek to a specific position in a file.
+					            .endn
+
+					Directory   .namespace
+>ff78					Open        .fill   4   ; Open a directory for reading.
+>ff7c					Read        .fill   4   ; Read a directory entry; may also return VOLUME and FREE events.
+>ff80					Close       .fill   4   ; Close a directory once finished reading.
+>ff84					MkDir       .fill   4   ; Create a directory
+>ff88					RmDir       .fill   4   ; Delete a directory
+					            .endn
+
+>ff8c					            .fill   4   ; call gate
+
+					Net         .namespace  ; These are changing!
+>ff90					GetIP       .fill   4   ; Get the local IP address.
+>ff94					SetIP       .fill   4   ; Set the local IP address.
+>ff98					GetDNS      .fill   4   ; Get the configured DNS IP address.
+>ff9c					SetDNS      .fill   4   ; Set the configured DNS IP address.
+>ffa0					SendICMP    .fill   4
+>ffa4					Match       .fill   4
+
+					UDP         .namespace
+>ffa8					Init        .fill   4
+>ffac					Send        .fill   4
+>ffb0					Recv        .fill   4
+					            .endn
+
+					TCP         .namespace
+>ffb4					Open        .fill   4
+>ffb8					Accept      .fill   4
+>ffbc					Reject      .fill   4
+>ffc0					Send        .fill   4
+>ffc4					Recv        .fill   4
+>ffc8					Close       .fill   4
+					            .endn
+
+					            .endn
+
+					Display     .namespace
+>ffcc					Reset       .fill   4   ; Re-init the display
+>ffd0					GetSize     .fill   4   ; Returns rows/cols in kernel args.
+>ffd4					DrawRow     .fill   4   ; Draw text/color buffers left-to-right
+>ffd8					DrawColumn  .fill   4   ; Draw text/color buffers top-to-bottom
+					            .endn
+
+					Config      .namespace
+>ffdc					GetTime     .fill   4
+>ffe0					SetTime     .fill   4
+>ffe4					GetSysInfo  .fill   4
+>ffe8					SetBPS      .fill   4   ; Set the serial BPS (should match the SLIP router's speed).
+					            .endn
+
+					            .endv
+
+					; Kernel Call Arguments
+					; Populate the structure before JSRing to the associated vector.
+
+					            .virtual    $00f0   ; Arg block
+.00f0					args        .dstruct    args_t
+
+.00f0					events      .dstruct    event_t ; The GetNextEvent dest address is globally reserved.
+>00f0					dest        .word       ?   ; GetNextEvent copies event data here
+>00f2					pending     .byte       ?   ; Negative count of pending events
+.00f3					end         .ends
+
+					            .union
+.00f3					run         .dstruct    run_t
+>00f3					block_id    .byte   ?
+					            .ends
+.00f3					recv        .dstruct    recv_t
+=$fb					buf         = args.buf
+=$fd					buflen      = args.buflen
+					            .ends
+.00f3					fs          .dstruct    fs_t
+					            .union
+.00f3					format      .dstruct    fs_mkfs_t
+>00f3					drive       .byte       ?
+>00f4					cookie      .byte       ?
+=$fb					label       = args.buf
+=$fd					label_len   = args.buflen
+					            .ends
+.00f3					mkfs        .dstruct    fs_mkfs_t
+>00f3					drive       .byte       ?
+>00f4					cookie      .byte       ?
+=$fb					label       = args.buf
+=$fd					label_len   = args.buflen
+					            .ends
+					            .endu
+					            .ends
+.00f3					file        .dstruct    file_t
+					            .union
+.00f3					open        .dstruct    fs_open_t
+>00f3					drive       .byte       ?
+>00f4					cookie      .byte       ?
+=$fb					fname       = args.buf
+=$fd					fname_len   = args.buflen
+>00f5					mode        .byte       ?
+=0					READ        = 0
+=1					WRITE       = 1
+=2					END         = 2
+					            .ends
+.00f3					read        .dstruct    fs_read_t
+>00f3					stream      .byte       ?
+>00f4					buflen      .byte       ?
+					            .ends
+.00f3					write       .dstruct    fs_write_t
+>00f3					stream      .byte       ?
+=$fb					buf         = args.buf
+=$fd					buflen      = args.buflen
+					            .ends
+.00f3					seek        .dstruct    fs_seek_t
+>00f3					stream      .byte       ?
+>00f4					position    .dword      ?
+					            .ends
+.00f3					close       .dstruct    fs_close_t
+>00f3					stream      .byte       ?
+					            .ends
+.00f3					rename      .dstruct    fs_rename_t
+>00f3					drive       .byte       ?
+>00f4					cookie      .byte       ?
+=$fb					old         = args.buf
+=$fd					old_len     = args.buflen
+=$f8					new         = args.ext
+=$fa					new_len     = args.extlen
+					            .ends
+.00f3					delete      .dstruct    fs_open_t
+>00f3					drive       .byte       ?
+>00f4					cookie      .byte       ?
+=$fb					fname       = args.buf
+=$fd					fname_len   = args.buflen
+>00f5					mode        .byte       ?
+=0					READ        = 0
+=1					WRITE       = 1
+=2					END         = 2
+					            .ends
+					            .endu
+					            .ends
+.00f3					directory   .dstruct    dir_t
+					            .union
+.00f3					open        .dstruct    dir_open_t
+>00f3					drive       .byte       ?
+>00f4					cookie      .byte       ?
+=$fb					path        = args.buf
+=$fd					path_len    = args.buflen
+					            .ends
+.00f3					read        .dstruct    dir_read_t
+>00f3					stream      .byte       ?
+>00f4					buflen      .byte       ?
+					            .ends
+.00f3					close       .dstruct    dir_close_t
+>00f3					stream      .byte       ?
+					            .ends
+.00f3					mkdir       .dstruct    dir_open_t
+>00f3					drive       .byte       ?
+>00f4					cookie      .byte       ?
+=$fb					path        = args.buf
+=$fd					path_len    = args.buflen
+					            .ends
+.00f3					rmdir       .dstruct    dir_open_t
+>00f3					drive       .byte       ?
+>00f4					cookie      .byte       ?
+=$fb					path        = args.buf
+=$fd					path_len    = args.buflen
+					            .ends
+					            .endu
+					            .ends
+.00f3					display     .dstruct    display_t
+>00f3					x           .byte       ?   ; coordinate or size
+>00f4					y           .byte       ?   ; coordinate or size
+=$fb					text        = args.buf      ; text
+=$f8					color       = args.ext      ; color
+=$fb					buf         = args.buf      ; deprecated
+=$f8					buf2        = args.ext      ; deprecated
+=$fd					buflen      = args.buflen
+					            .ends
+.00f3					net         .dstruct    net_t
+
+=$fb					socket      = args.buf
+
+					            ; Arguments
+					            .union
+
+					           ; Init
+					            .struct
+>00f3					src_port    .word       ?
+>00f5					dest_port   .word       ?
+>00f7					dest_ip     .fill       4
+					            .ends
+
+					           ; Send / Recv
+					            .struct
+>00f3					accepted    .byte       ?
+=$f8					buf         = args.ext
+=$fa					buflen      = args.extlen
+					            .ends
+
+					            .endu
+					            .ends
+.00f3					config      .dstruct    config_t
+					            .union
+					            .endu
+					            .ends
+					            .endu
+
+=$f8					ext         = $f8
+=$fa					extlen      = $fa
+=$fb					buf         = $fb
+=$fd					buflen      = $fd
+=$fe					ptr         = $fe
+					            .ends
+					            .cerror     * > $00ff, "Out of kernel arg space."
+					            .endv
+
+.0000					args_t      .struct
+
+.0000					events      .dstruct    event_t ; The GetNextEvent dest address is globally reserved.
+>0000					dest        .word       ?   ; GetNextEvent copies event data here
+>0002					pending     .byte       ?   ; Negative count of pending events
+.0003					end         .ends
+
+					            .union
+.0003					run         .dstruct    run_t
+>0003					block_id    .byte   ?
+					            .ends
+.0003					recv        .dstruct    recv_t
+=$fb					buf         = args.buf
+=$fd					buflen      = args.buflen
+					            .ends
+.0003					fs          .dstruct    fs_t
+					            .union
+.0003					format      .dstruct    fs_mkfs_t
+>0003					drive       .byte       ?
+>0004					cookie      .byte       ?
+=$fb					label       = args.buf
+=$fd					label_len   = args.buflen
+					            .ends
+.0003					mkfs        .dstruct    fs_mkfs_t
+>0003					drive       .byte       ?
+>0004					cookie      .byte       ?
+=$fb					label       = args.buf
+=$fd					label_len   = args.buflen
+					            .ends
+					            .endu
+					            .ends
+.0003					file        .dstruct    file_t
+					            .union
+.0003					open        .dstruct    fs_open_t
+>0003					drive       .byte       ?
+>0004					cookie      .byte       ?
+=$fb					fname       = args.buf
+=$fd					fname_len   = args.buflen
+>0005					mode        .byte       ?
+=0					READ        = 0
+=1					WRITE       = 1
+=2					END         = 2
+					            .ends
+.0003					read        .dstruct    fs_read_t
+>0003					stream      .byte       ?
+>0004					buflen      .byte       ?
+					            .ends
+.0003					write       .dstruct    fs_write_t
+>0003					stream      .byte       ?
+=$fb					buf         = args.buf
+=$fd					buflen      = args.buflen
+					            .ends
+.0003					seek        .dstruct    fs_seek_t
+>0003					stream      .byte       ?
+>0004					position    .dword      ?
+					            .ends
+.0003					close       .dstruct    fs_close_t
+>0003					stream      .byte       ?
+					            .ends
+.0003					rename      .dstruct    fs_rename_t
+>0003					drive       .byte       ?
+>0004					cookie      .byte       ?
+=$fb					old         = args.buf
+=$fd					old_len     = args.buflen
+=$f8					new         = args.ext
+=$fa					new_len     = args.extlen
+					            .ends
+.0003					delete      .dstruct    fs_open_t
+>0003					drive       .byte       ?
+>0004					cookie      .byte       ?
+=$fb					fname       = args.buf
+=$fd					fname_len   = args.buflen
+>0005					mode        .byte       ?
+=0					READ        = 0
+=1					WRITE       = 1
+=2					END         = 2
+					            .ends
+					            .endu
+					            .ends
+.0003					directory   .dstruct    dir_t
+					            .union
+.0003					open        .dstruct    dir_open_t
+>0003					drive       .byte       ?
+>0004					cookie      .byte       ?
+=$fb					path        = args.buf
+=$fd					path_len    = args.buflen
+					            .ends
+.0003					read        .dstruct    dir_read_t
+>0003					stream      .byte       ?
+>0004					buflen      .byte       ?
+					            .ends
+.0003					close       .dstruct    dir_close_t
+>0003					stream      .byte       ?
+					            .ends
+.0003					mkdir       .dstruct    dir_open_t
+>0003					drive       .byte       ?
+>0004					cookie      .byte       ?
+=$fb					path        = args.buf
+=$fd					path_len    = args.buflen
+					            .ends
+.0003					rmdir       .dstruct    dir_open_t
+>0003					drive       .byte       ?
+>0004					cookie      .byte       ?
+=$fb					path        = args.buf
+=$fd					path_len    = args.buflen
+					            .ends
+					            .endu
+					            .ends
+.0003					display     .dstruct    display_t
+>0003					x           .byte       ?   ; coordinate or size
+>0004					y           .byte       ?   ; coordinate or size
+=$fb					text        = args.buf      ; text
+=$f8					color       = args.ext      ; color
+=$fb					buf         = args.buf      ; deprecated
+=$f8					buf2        = args.ext      ; deprecated
+=$fd					buflen      = args.buflen
+					            .ends
+.0003					net         .dstruct    net_t
+
+=$fb					socket      = args.buf
+
+					            ; Arguments
+					            .union
+
+					           ; Init
+					            .struct
+>0003					src_port    .word       ?
+>0005					dest_port   .word       ?
+>0007					dest_ip     .fill       4
+					            .ends
+
+					           ; Send / Recv
+					            .struct
+>0003					accepted    .byte       ?
+=$f8					buf         = args.ext
+=$fa					buflen      = args.extlen
+					            .ends
+
+					            .endu
+					            .ends
+.0003					config      .dstruct    config_t
+					            .union
+					            .endu
+					            .ends
+					            .endu
+
+=$f8					ext         = $f8
+=$fa					extlen      = $fa
+=$fb					buf         = $fb
+=$fd					buflen      = $fd
+=$fe					ptr         = $fe
+					            .ends
+
+					          ; Event calls
+.0000					event_t     .struct
+>0000					dest        .word       ?   ; GetNextEvent copies event data here
+>0002					pending     .byte       ?   ; Negative count of pending events
+.0003					end         .ends
+
+					          ; Generic recv
+.0000					recv_t      .struct
+=$fb					buf         = args.buf
+=$fd					buflen      = args.buflen
+					            .ends
+
+					          ; Run Calls
+.0000					run_t       .struct
+>0000					block_id    .byte   ?
+					            .ends
+
+					          ; FileSystem Calls
+.0000					fs_t        .struct
+					            .union
+.0000					format      .dstruct    fs_mkfs_t
+>0000					drive       .byte       ?
+>0001					cookie      .byte       ?
+=$fb					label       = args.buf
+=$fd					label_len   = args.buflen
+					            .ends
+.0000					mkfs        .dstruct    fs_mkfs_t
+>0000					drive       .byte       ?
+>0001					cookie      .byte       ?
+=$fb					label       = args.buf
+=$fd					label_len   = args.buflen
+					            .ends
+					            .endu
+					            .ends
+.0000					fs_mkfs_t .struct
+>0000					drive       .byte       ?
+>0001					cookie      .byte       ?
+=$fb					label       = args.buf
+=$fd					label_len   = args.buflen
+					            .ends
+
+					          ; File Calls
+.0000					file_t      .struct
+					            .union
+.0000					open        .dstruct    fs_open_t
+>0000					drive       .byte       ?
+>0001					cookie      .byte       ?
+=$fb					fname       = args.buf
+=$fd					fname_len   = args.buflen
+>0002					mode        .byte       ?
+=0					READ        = 0
+=1					WRITE       = 1
+=2					END         = 2
+					            .ends
+.0000					read        .dstruct    fs_read_t
+>0000					stream      .byte       ?
+>0001					buflen      .byte       ?
+					            .ends
+.0000					write       .dstruct    fs_write_t
+>0000					stream      .byte       ?
+=$fb					buf         = args.buf
+=$fd					buflen      = args.buflen
+					            .ends
+.0000					seek        .dstruct    fs_seek_t
+>0000					stream      .byte       ?
+>0001					position    .dword      ?
+					            .ends
+.0000					close       .dstruct    fs_close_t
+>0000					stream      .byte       ?
+					            .ends
+.0000					rename      .dstruct    fs_rename_t
+>0000					drive       .byte       ?
+>0001					cookie      .byte       ?
+=$fb					old         = args.buf
+=$fd					old_len     = args.buflen
+=$f8					new         = args.ext
+=$fa					new_len     = args.extlen
+					            .ends
+.0000					delete      .dstruct    fs_open_t
+>0000					drive       .byte       ?
+>0001					cookie      .byte       ?
+=$fb					fname       = args.buf
+=$fd					fname_len   = args.buflen
+>0002					mode        .byte       ?
+=0					READ        = 0
+=1					WRITE       = 1
+=2					END         = 2
+					            .ends
+					            .endu
+					            .ends
+.0000					fs_open_t   .struct
+>0000					drive       .byte       ?
+>0001					cookie      .byte       ?
+=$fb					fname       = args.buf
+=$fd					fname_len   = args.buflen
+>0002					mode        .byte       ?
+=0					READ        = 0
+=1					WRITE       = 1
+=2					END         = 2
+					            .ends
+.0000					fs_read_t   .struct
+>0000					stream      .byte       ?
+>0001					buflen      .byte       ?
+					            .ends
+.0000					fs_write_t  .struct
+>0000					stream      .byte       ?
+=$fb					buf         = args.buf
+=$fd					buflen      = args.buflen
+					            .ends
+.0000					fs_seek_t  .struct
+>0000					stream      .byte       ?
+>0001					position    .dword      ?
+					            .ends
+.0000					fs_close_t  .struct
+>0000					stream      .byte       ?
+					            .ends
+.0000					fs_rename_t .struct
+>0000					drive       .byte       ?
+>0001					cookie      .byte       ?
+=$fb					old         = args.buf
+=$fd					old_len     = args.buflen
+=$f8					new         = args.ext
+=$fa					new_len     = args.extlen
+					            .ends
+.0000					fs_delete_t .struct
+>0000					drive       .byte       ?
+>0001					cookie      .byte       ?
+=$fb					fnane       = args.buf
+=$fd					fname_len   = args.buflen
+					            .ends
+
+
+					          ; Directory Calls
+.0000					dir_t       .struct
+					            .union
+.0000					open        .dstruct    dir_open_t
+>0000					drive       .byte       ?
+>0001					cookie      .byte       ?
+=$fb					path        = args.buf
+=$fd					path_len    = args.buflen
+					            .ends
+.0000					read        .dstruct    dir_read_t
+>0000					stream      .byte       ?
+>0001					buflen      .byte       ?
+					            .ends
+.0000					close       .dstruct    dir_close_t
+>0000					stream      .byte       ?
+					            .ends
+.0000					mkdir       .dstruct    dir_open_t
+>0000					drive       .byte       ?
+>0001					cookie      .byte       ?
+=$fb					path        = args.buf
+=$fd					path_len    = args.buflen
+					            .ends
+.0000					rmdir       .dstruct    dir_open_t
+>0000					drive       .byte       ?
+>0001					cookie      .byte       ?
+=$fb					path        = args.buf
+=$fd					path_len    = args.buflen
+					            .ends
+					            .endu
+					            .ends
+.0000					dir_open_t  .struct
+>0000					drive       .byte       ?
+>0001					cookie      .byte       ?
+=$fb					path        = args.buf
+=$fd					path_len    = args.buflen
+					            .ends
+.0000					dir_read_t  .struct
+>0000					stream      .byte       ?
+>0001					buflen      .byte       ?
+					            .ends
+.0000					dir_close_t .struct
+>0000					stream      .byte       ?
+					            .ends
+
+					          ; Drawing Calls
+.0000					display_t   .struct
+>0000					x           .byte       ?   ; coordinate or size
+>0001					y           .byte       ?   ; coordinate or size
+=$fb					text        = args.buf      ; text
+=$f8					color       = args.ext      ; color
+=$fb					buf         = args.buf      ; deprecated
+=$f8					buf2        = args.ext      ; deprecated
+=$fd					buflen      = args.buflen
+					            .ends
+
+					          ; Net calls
+.0000					net_t       .struct
+
+=$fb					socket      = args.buf
+
+					            ; Arguments
+					            .union
+
+					           ; Init
+					            .struct
+>0000					src_port    .word       ?
+>0002					dest_port   .word       ?
+>0004					dest_ip     .fill       4
+					            .ends
+
+					           ; Send / Recv
+					            .struct
+>0000					accepted    .byte       ?
+=$f8					buf         = args.ext
+=$fa					buflen      = args.extlen
+					            .ends
+
+					            .endu
+					            .ends
+
+.0000					config_t    .struct
+					            .union
+					            .endu
+					            .ends
+
+.0000					time_t      .struct
+>0000					century     .byte       ?
+>0001					year        .byte       ?
+>0002					month       .byte       ?
+>0003					day         .byte       ?
+>0004					hours       .byte       ?
+>0005					minutes     .byte       ?
+>0006					seconds     .byte       ?
+>0007					millis      .byte       ?
+.0008					size        .ends
+
+					; Events
+					; The vast majority of kernel operations communicate with userland
+					; by sending events; the data contained in the various events are
+					; described following the event list.
+
+					event       .namespace
+
+					            .virtual 0
+>0000					            .word   ?   ; Reserved
+>0002					            .word   ?   ; Deprecated
+>0004					JOYSTICK    .word   ?   ; Game Controller changes.
+>0006					DEVICE      .word   ?   ; Device added/removed.
+
+					key         .namespace
+>0008					PRESSED     .word   ?   ; Key pressed
+>000a					RELEASED    .word   ?   ; Key released.
+					            .endn
+
+					mouse       .namespace
+>000c					DELTA       .word   ?   ; Regular mouse move and button state
+>000e					CLICKS      .word   ?   ; Click counts
+					            .endn
+
+					block       .namespace
+>0010					NAME        .word   ?
+>0012					SIZE        .word   ?
+>0014					DATA        .word   ?   ; The read request has succeeded.
+>0016					WROTE       .word   ?   ; The write request has completed.
+>0018					FORMATTED   .word   ?   ; The low-level format has completed.
+>001a					ERROR       .word   ?
+					            .endn
+
+					fs          .namespace
+>001c					SIZE        .word   ?
+>001e					CREATED     .word   ?
+>0020					CHECKED     .word   ?
+>0022					DATA        .word   ?   ; The read request has succeeded.
+>0024					WROTE       .word   ?   ; The write request has completed.
+>0026					ERROR       .word   ?
+					            .endn
+
+					file        .namespace
+>0028					NOT_FOUND   .word   ?   ; The file file was not found.
+>002a					OPENED      .word   ?   ; The file was successfully opened.
+>002c					DATA        .word   ?   ; The read request has succeeded.
+>002e					WROTE       .word   ?   ; The write request has completed.
+>0030					EOF         .word   ?   ; All file data has been read.
+>0032					CLOSED      .word   ?   ; The close request has completed.
+>0034					RENAMED     .word   ?   ; The rename request has completed.
+>0036					DELETED     .word   ?   ; The delete request has completed.
+>0038					ERROR       .word   ?   ; An error occured; close the file if opened.
+>003a					SEEK        .word   ?   ; The seek request has completed.
+					            .endn
+
+					directory   .namespace
+>003c					OPENED      .word   ?   ; The directory open request succeeded.
+>003e					VOLUME      .word   ?   ; A volume record was found.
+>0040					FILE        .word   ?   ; A file record was found.
+>0042					FREE        .word   ?   ; A file-system free-space record was found.
+>0044					EOF         .word   ?   ; All data has been read.
+>0046					CLOSED      .word   ?   ; The directory file has been closed.
+>0048					ERROR       .word   ?   ; An error occured; user should close.
+>004a					CREATED     .word   ?   ; The directory has been created.
+>004c					DELETED     .word   ?   ; The directory has been deleted.
+					            .endn
+
+					net         .namespace
+>004e					TCP         .word   ?
+>0050					UDP         .word   ?
+					            .endn
+
+					clock       .namespace
+>0052					TICK        .word   ?
+					            .endn
+
+
+					            .endv
+
+.0000					event_t     .struct
+>0000					type        .byte   ?   ; Enum above
+>0001					buf         .byte   ?   ; page id or zero
+>0002					ext         .byte   ?   ; page id or zero
+					            .union
+.0003					key         .dstruct    kernel.event.key_t
+>0003					keyboard    .byte   ?   ; Keyboard ID
+>0004					raw         .byte   ?   ; Raw key ID
+>0005					ascii       .byte   ?   ; ASCII value
+>0006					flags       .byte   ?   ; Flags (META)
+=$80					META        = $80       ; Meta key; no associated ASCII value.
+					            .ends
+.0003					mouse       .dstruct    kernel.event.mouse_t
+					            .union
+.0003					delta       .dstruct    kernel.event.m_delta_t
+>0003					x           .byte   ?
+>0004					y           .byte   ?
+>0005					z           .byte   ?
+>0006					buttons     .byte   ?
+					            .ends
+.0003					clicks      .dstruct    kernel.event.m_clicks_t
+>0003					inner       .byte   ?
+>0004					middle      .byte   ?
+>0005					outer       .byte   ?
+					            .ends
+					            .endu
+					            .ends
+.0003					joystick    .dstruct    kernel.event.joystick_t
+>0003					joy0        .byte   ?
+>0004					joy1        .byte   ?
+					            .ends
+.0003					udp         .dstruct    kernel.event.udp_t
+>0003					token       .byte   ?   ; TODO: break out into fields
+					            .ends
+.0003					tcp         .dstruct    kernel.event.tcp_t
+>0003					len         .byte   ?   ; Raw packet length.
+					            .ends
+.0003					file        .dstruct    kernel.event.file_t
+>0003					stream      .byte   ?
+>0004					cookie      .byte   ?
+					            .union
+.0005					data        .dstruct    kernel.event.fs_data_t
+>0005					requested   .byte   ?   ; Requested number of bytes to read
+>0006					read        .byte   ?   ; Number of bytes actually read
+					            .ends
+.0005					wrote       .dstruct    kernel.event.fs_wrote_t
+>0005					requested   .byte   ?   ; Requested number of bytes to read
+>0006					wrote       .byte   ?   ; Number of bytes actually read
+					            .ends
+					            .endu
+					            .ends
+.0003					directory   .dstruct    kernel.event.dir_t
+>0003					stream      .byte   ?
+>0004					cookie      .byte   ?
+					            .union
+.0005					volume      .dstruct    kernel.event.dir_vol_t
+>0005					len         .byte   ?   ; Length of volname (in buf)
+>0006					flags       .byte   ?   ; block size, text encoding
+					            .ends
+.0005					file        .dstruct    kernel.event.dir_file_t
+>0005					len         .byte   ?
+>0006					flags       .byte   ?   ; block scale, text encoding, approx size
+					            .ends
+.0005					free        .dstruct    kernel.event.dir_free_t
+>0005					flags       .byte   ?   ; block scale, text encoding, approx size
+					            .ends
+					            .endu
+					            .ends
+					            .endu
+					            .ends
+
+					          ; Data in keyboard events
+.0000					key_t       .struct
+>0000					keyboard    .byte   ?   ; Keyboard ID
+>0001					raw         .byte   ?   ; Raw key ID
+>0002					ascii       .byte   ?   ; ASCII value
+>0003					flags       .byte   ?   ; Flags (META)
+=$80					META        = $80       ; Meta key; no associated ASCII value.
+					            .ends
+
+					          ; Data in mouse events
+.0000					mouse_t     .struct
+					            .union
+.0000					delta       .dstruct    kernel.event.m_delta_t
+>0000					x           .byte   ?
+>0001					y           .byte   ?
+>0002					z           .byte   ?
+>0003					buttons     .byte   ?
+					            .ends
+.0000					clicks      .dstruct    kernel.event.m_clicks_t
+>0000					inner       .byte   ?
+>0001					middle      .byte   ?
+>0002					outer       .byte   ?
+					            .ends
+					            .endu
+					            .ends
+.0000					m_delta_t   .struct
+>0000					x           .byte   ?
+>0001					y           .byte   ?
+>0002					z           .byte   ?
+>0003					buttons     .byte   ?
+					            .ends
+.0000					m_clicks_t  .struct
+>0000					inner       .byte   ?
+>0001					middle      .byte   ?
+>0002					outer       .byte   ?
+					            .ends
+
+.0000					joystick_t  .struct
+>0000					joy0        .byte   ?
+>0001					joy1        .byte   ?
+					            .ends
+
+					          ; Data in file events:
+.0000					file_t      .struct
+>0000					stream      .byte   ?
+>0001					cookie      .byte   ?
+					            .union
+.0002					data        .dstruct    kernel.event.fs_data_t
+>0002					requested   .byte   ?   ; Requested number of bytes to read
+>0003					read        .byte   ?   ; Number of bytes actually read
+					            .ends
+.0002					wrote       .dstruct    kernel.event.fs_wrote_t
+>0002					requested   .byte   ?   ; Requested number of bytes to read
+>0003					wrote       .byte   ?   ; Number of bytes actually read
+					            .ends
+					            .endu
+					            .ends
+.0000					fs_data_t   .struct     ; ext contains disk id
+>0000					requested   .byte   ?   ; Requested number of bytes to read
+>0001					read        .byte   ?   ; Number of bytes actually read
+					            .ends
+.0000					fs_wrote_t  .struct     ; ext contains disk id
+>0000					requested   .byte   ?   ; Requested number of bytes to read
+>0001					wrote       .byte   ?   ; Number of bytes actually read
+					            .ends
+
+					          ; Data in directory events:
+.0000					dir_t       .struct
+>0000					stream      .byte   ?
+>0001					cookie      .byte   ?
+					            .union
+.0002					volume      .dstruct    kernel.event.dir_vol_t
+>0002					len         .byte   ?   ; Length of volname (in buf)
+>0003					flags       .byte   ?   ; block size, text encoding
+					            .ends
+.0002					file        .dstruct    kernel.event.dir_file_t
+>0002					len         .byte   ?
+>0003					flags       .byte   ?   ; block scale, text encoding, approx size
+					            .ends
+.0002					free        .dstruct    kernel.event.dir_free_t
+>0002					flags       .byte   ?   ; block scale, text encoding, approx size
+					            .ends
+					            .endu
+					            .ends
+.0000					dir_vol_t   .struct     ; ext contains disk id
+>0000					len         .byte   ?   ; Length of volname (in buf)
+>0001					flags       .byte   ?   ; block size, text encoding
+					            .ends
+.0000					dir_file_t  .struct     ; ext contains byte count and modified date
+>0000					len         .byte   ?
+>0001					flags       .byte   ?   ; block scale, text encoding, approx size
+					            .ends
+.0000					dir_free_t  .struct     ; ext contains byte count and modified date
+>0000					flags       .byte   ?   ; block scale, text encoding, approx size
+					            .ends
+.0000					dir_ext_t   .struct     ; Extended information; more to follow.
+>0000					free        .fill   6   ; blocks used/free
+					            .ends
+
+					          ; Data in net events (major changes coming)
+.0000					udp_t       .struct
+>0000					token       .byte   ?   ; TODO: break out into fields
+					            .ends
+
+.0000					tcp_t       .struct
+>0000					len         .byte   ?   ; Raw packet length.
+					            .ends
+
+					            .endn
+
+
+					            .endn
+
+
+;******  End of listing
