@@ -13,7 +13,7 @@ file_bytes_wrote ds 0
 file_bytes_read ds 3
 		dend
 
-		dum $100
+		dum $800
 file_buffer ds 128
 		dend
 

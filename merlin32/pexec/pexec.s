@@ -15,7 +15,7 @@
 		mx %11
 
 ; some Kernel Stuff
-		put ..\kernel\api.s
+		put ../kernel/api.s
 
 ; Kernel uses MMU configurations 0 and 1
 ; User programs default to # 3
@@ -53,8 +53,6 @@ event_ext  = $32
 
 event_file_data_read  = event_type+kernel_event_event_t_file_data_read
 event_file_data_wrote = event_type+kernel_event_event_t_file_wrote_wrote 
-
-args = $300
 
 old_sp = $A0
 
@@ -101,8 +99,11 @@ start
 		jsr TermPUTS
 
 		; Display the arguments, hopefully there are some
-		lda #<args+2
-		ldx #>args+2
+		ldy	#3
+		lda (kernel_args_ext),y
+		tax
+		dey
+		lda (kernel_args_ext),y
 		jsr TermPUTS
 		jsr TermCR
 
@@ -118,8 +119,8 @@ start
 		; currently hard-coded to drive 0, since drive not passed
 		; stz kernel_args_file_open_drive
 		; Set the Filename
-		lda #<args+2
-		ldx #>args+2
+		lda	#1
+		jsr	get_arg
 		jsr fopen
 		bcc :opened
 		; failed
@@ -296,8 +297,8 @@ LoadPGX
 		ldy #^temp0
 		jsr set_write_address
 		
-		lda #<args+2
-		ldx #>args+2
+		lda	#1
+		jsr	get_arg
 		jsr fopen
 
 		lda #8
@@ -327,12 +328,12 @@ LoadPGX
 ;-----------------------------------------------------------------------------
 LoadPGZ
 		; Open the File again (seek back to 0)
-		lda #<args+2
-		ldx #>args+2
+		lda	#1
+		jsr	get_arg
 		jsr TermPUTS
 
-		lda #<args+2
-		ldx #>args+2
+		lda	#1
+		jsr	get_arg
 		jsr fopen
 		
 		lda #<temp0
@@ -377,12 +378,12 @@ load_image
 ; $10000, for the bitmap
 
 		; Open the File again (seek back to 0)
-		lda #<args+2
-		ldx #>args+2
+		lda	#1
+		jsr	get_arg
 		jsr TermPUTS
 
-		lda #<args+2
-		ldx #>args+2
+		lda	#1
+		jsr	get_arg
 		jsr fopen
 
 		; Address where we're going to load the file
@@ -496,6 +497,23 @@ init320x240
 		plp
 
 		rts
+
+;------------------------------------------------------------------------------
+; Get argument
+; A - argument number
+;
+; Returns string in AX
+
+get_arg
+		asl
+		tay
+		iny
+		lda (kernel_args_ext),y
+		tax
+		dey
+		lda (kernel_args_ext),y
+		rts
+
 
 
 
