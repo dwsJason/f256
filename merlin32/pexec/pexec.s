@@ -519,7 +519,7 @@ get_arg
 
 ;------------------------------------------------------------------------------
 ; Strings and other includes
-txt_version asc 'Pexec 0.01'
+txt_version asc 'Pexec 0.02'
 		db 13,13,0
 
 txt_press_key db 13
