@@ -237,3 +237,39 @@ writebyte
 		rts
 
 
+; 
+; Determine how many bytes it's possible to write into the write window, max 128
+;
+bytes_can_write
+		lda	pDest+1
+		cmp	#>WRITE_BLOCK+$1F00
+		bne	:use_128
+		lda	pDest
+		bpl	:use_128	; A (pointer) is less than 128, there's room for yet another 128 bytes
+		; Subtract A from 256, in 8 bit two's complement this is the same as negate
+		eor	#$FF
+		clc
+		adc	#1
+		rts
+:use_128
+		lda	#128
+		rts
+
+; 
+; Increment pDest by A
+;
+increment_dest
+		clc
+		adc	pDest
+		sta	pDest
+		bcc	:done
+		lda	pDest+1
+		inc
+		cmp #>WRITE_BLOCK+$2000
+		bne	:no_wrap
+		inc	WRITE_MMU
+		lda	#>WRITE_BLOCK
+:no_wrap
+		sta	pDest+1
+:done
+		rts

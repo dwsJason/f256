@@ -11,10 +11,8 @@ file_bytes_req  ds 3
 
 file_bytes_wrote ds 0
 file_bytes_read ds 3
-		dend
 
-		dum $800
-file_buffer ds 128
+file_to_read ds 1
 		dend
 
 ;
@@ -133,29 +131,19 @@ fread
 		lda file_bytes_req+1      
 		bne :do128
 		lda file_bytes_req
-		cmp #128
-		bcc :small_read
+		bne	:not_done
+		jmp	:done_done
+:not_done
+		bpl :small_read
 :do128	
-;-----------------------------------------------------------------------------
-; LAME PROGRESS INDICATOR
-;-----------------------------------------------------------------------------
-
-		lda #'.'
-		jsr TermCOUT
-
-;-----------------------------------------------------------------------------
-
-		lda #128
-		bra :try128
+		lda	#128
 :small_read
-		lda file_bytes_req
-		do DEBUG_FILE
-		bne :try128
-		jmp :done_done
-		else
-		beq :done_done  	   	; zero bytes left
-		fin
-:try128
+		sta	file_to_read
+		jsr	bytes_can_write
+		cmp file_to_read
+		blt :read_len_ok
+		lda file_to_read
+:read_len_ok
 		sta kernel_args_file_read_buflen
 
 		do DEBUG_FILE
@@ -165,18 +153,6 @@ fread
 		jsr TermPrintAXH
 		jsr TermCR
 		fin
-
-		; subtract request from the total request
-		sec
-		lda file_bytes_req
-		sbc kernel_args_file_read_buflen
-		sta file_bytes_req
-		lda file_bytes_req+1
-		sbc #0
-		sta file_bytes_req+1
-		lda file_bytes_req+2
-		sbc #0
-		sta file_bytes_req+2
 
 		; Set the stream
 		lda file_handle
@@ -194,7 +170,7 @@ fread
 		sta kernel_args_events+1
 		fin
 
-        jsr kernel_Yield    ; Not required; but good while waiting.
+        ;jsr kernel_Yield    ; Not required; but good while waiting.
         jsr kernel_NextEvent
         bcs ]event_loop
 
@@ -222,11 +198,31 @@ fread
 		jsr TermCR
 		fin
 
+		; subtract bytes read from the total request
+		sec
+		lda file_bytes_req
+		sbc event_file_data_read
+		sta file_bytes_req
+		lda file_bytes_req+1
+		sbc #0
+		sta file_bytes_req+1
+		lda file_bytes_req+2
+		sbc #0
+		sta file_bytes_req+2
+
 		clc
 		lda file_bytes_read
 		adc event_file_data_read
 		sta file_bytes_read
 		bcc :get_data
+;-----------------------------------------------------------------------------
+; LAME PROGRESS INDICATOR
+;-----------------------------------------------------------------------------
+
+		lda #'.'
+		jsr TermCOUT
+
+;-----------------------------------------------------------------------------
 		inc file_bytes_read+1
 		bne :get_data
 		inc file_bytes_read+2
@@ -244,20 +240,16 @@ fread
 		jsr TermCR
 		fin
 
-		lda #<file_buffer
+		lda	pDest
 		sta kernel_args_recv_buf
-		lda #>file_buffer
+		lda	pDest+1
 		sta kernel_args_recv_buf+1
 
 		jsr kernel_ReadData
 
-		ldx #0
-]lp		lda file_buffer,x
-		jsr writebyte
-		inx
-		cpx event_file_data_read
-		bne ]lp
-		
+		lda kernel_args_recv_buflen
+		jsr increment_dest
+
 		do DEBUG_FILE				 
 		jmp ]loop
 		else
@@ -280,6 +272,7 @@ fclose
 txt_data_read asc 'Data Read:'
 		db 0
 
+	do 0
 ;
 ; mmu read address is the address
 ; AXY - Num Bytes to write
@@ -416,3 +409,4 @@ fwrite
 		bne ]lp
 		rts
 
+	fin
