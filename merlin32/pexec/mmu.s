@@ -46,12 +46,6 @@ mmu_unlock
 		lda io_ctrl
 		sta old_io_ctrl
 
-		ldx #7
-]save	lda mmu0,x
-		sta old_mmu0,x
-		dex
-		bpl ]save
-
 		lda mmu_ctrl
 		and #$3
 		sta temp0     ; active MLUT
@@ -62,6 +56,12 @@ mmu_unlock
 		ora temp0     ; active MLUT, copied to the EDIT LUT
 		ora #$80      ; Enable MMU edit - we are editing the active (spooky)
 		sta mmu_ctrl
+
+		ldx #7
+]save	lda mmu0,x
+		sta old_mmu0,x
+		dex
+		bpl ]save
 
 		rts
 
