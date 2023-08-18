@@ -15,7 +15,7 @@
 		mx %11
 
 ; some Kernel Stuff
-		put ..\kernel\api.s
+		put ../kernel/api.s
 
 ; Kernel uses MMU configurations 0 and 1
 ; User programs default to # 3
@@ -46,6 +46,12 @@ temp2 ds 4
 temp3 ds 4
 	dend
 
+	dum $20
+PGz_z ds 1
+PGz_addr ds 4
+PGz_size ds 4
+	dend
+
 ; Event Buffer at $30
 event_type = $30
 event_buf  = $31
@@ -54,7 +60,9 @@ event_ext  = $32
 event_file_data_read  = event_type+kernel_event_event_t_file_data_read
 event_file_data_wrote = event_type+kernel_event_event_t_file_wrote_wrote 
 
-args = $300
+; arguments
+args_buf = $40
+args_buflen = $42
 
 old_sp = $A0
 
@@ -84,6 +92,20 @@ start
 		;ldx #$FF
 		;txs
 
+		; store argument list, but skip over first argument (us)
+		lda	kernel_args_ext
+		clc
+		adc	#2
+		sta	args_buf
+		lda	kernel_args_ext+1
+		adc #0
+		sta	args_buf+1
+
+		lda	kernel_args_extlen
+		dec
+		dec
+		sta	args_buflen
+
 		; Terminal Init
 		jsr TermInit
 
@@ -100,9 +122,22 @@ start
 		ldx #>txt_launch
 		jsr TermPUTS
 
+		lda	args_buflen
+		bne	:has_argument
+
+		lda #<txt_no_argument
+		ldx #>txt_no_argument
+		jsr TermPUTS
+
+		jmp	wait_for_key
+
+:has_argument		
 		; Display the arguments, hopefully there are some
-		lda #<args+2
-		ldx #>args+2
+		ldy	#3
+		lda (kernel_args_ext),y
+		tax
+		dey
+		lda (kernel_args_ext),y
 		jsr TermPUTS
 		jsr TermCR
 
@@ -118,8 +153,8 @@ start
 		; currently hard-coded to drive 0, since drive not passed
 		; stz kernel_args_file_open_drive
 		; Set the Filename
-		lda #<args+2
-		ldx #>args+2
+		lda	#1
+		jsr	get_arg
 		jsr fopen
 		bcc :opened
 		; failed
@@ -190,7 +225,7 @@ wait_for_key
 		cmp #kernel_event_key_PRESSED
 		beq :done
 
-		jsr TermPrintAH
+		;jsr TermPrintAH
 		bra ]loop
 :done
 		jmp mmu_lock
@@ -205,6 +240,8 @@ execute_file
 		lda temp0
 		cmp #'Z'
 		beq :pgZ
+		cmp #'z'
+		beq :pgz
 		cmp #'P'
 		beq :pgx
 		cmp #'I'
@@ -222,6 +259,8 @@ execute_file
 ; Load / run pgZ Program
 :pgZ
 		jmp LoadPGZ
+:pgz
+		jmp LoadPGz
 :pgx
 		lda temp0+1
 		cmp #'G'
@@ -296,8 +335,8 @@ LoadPGX
 		ldy #^temp0
 		jsr set_write_address
 		
-		lda #<args+2
-		ldx #>args+2
+		lda	#1
+		jsr	get_arg
 		jsr fopen
 
 		lda #8
@@ -321,18 +360,72 @@ LoadPGX
 
 		lda #$4c
 		sta temp1-1
+
+		lda args_buf
+		sta kernel_args_ext
+		lda args_buf+1
+		sta kernel_args_ext+1
+		lda args_buflen
+		sta kernel_args_extlen
 		
 		jmp temp1-1
 
 ;-----------------------------------------------------------------------------
-LoadPGZ
+LoadPGz
 		; Open the File again (seek back to 0)
-		lda #<args+2
-		ldx #>args+2
+		lda	#1
+		jsr	get_arg
 		jsr TermPUTS
 
-		lda #<args+2
-		ldx #>args+2
+		lda	#1
+		jsr	get_arg
+		jsr fopen
+		
+		lda #<PGz_z
+		ldx #>PGz_z
+		ldy #^PGz_z
+		jsr set_write_address
+		
+		lda #9
+]loop
+		ldx #0
+		ldy #0
+		jsr fread
+		
+		lda PGz_size
+		ora PGz_size+1
+		ora PGz_size+2
+		ora PGz_size+3
+		beq launchProgram
+		
+		lda PGz_addr
+		ldx PGz_addr+1
+		ldy PGz_addr+2
+		jsr set_write_address
+
+		lda PGz_size
+		ldx PGz_size+1
+		ldy PGz_size+2
+		jsr fread
+		
+		lda #<PGz_addr
+		ldx #>PGz_addr
+		ldy #^PGz_addr
+		jsr set_write_address
+		lda #8
+		bra ]loop
+
+		bra launchProgram
+
+;-----------------------------------------------------------------------------
+LoadPGZ
+		; Open the File again (seek back to 0)
+		lda	#1
+		jsr	get_arg
+		jsr TermPUTS
+
+		lda	#1
+		jsr	get_arg
 		jsr fopen
 		
 		lda #<temp0
@@ -349,7 +442,7 @@ LoadPGZ
 		lda temp1
 		ora temp1+1
 		ora temp1+2
-		beq :launch
+		beq launchProgram
 		
 		lda temp0+1
 		ldx temp0+2
@@ -367,22 +460,32 @@ LoadPGZ
 		jsr set_write_address
 		lda #6
 		bra ]loop
-:launch
+
+launchProgram
 		lda #$4c
 		sta temp0
+
+		lda args_buf
+		sta kernel_args_ext
+		lda args_buf+1
+		sta kernel_args_ext+1
+		lda args_buflen
+		sta kernel_args_extlen
+
 		jsr mmu_lock
+
 		jmp temp0
 ;-----------------------------------------------------------------------------
 load_image
 ; $10000, for the bitmap
 
 		; Open the File again (seek back to 0)
-		lda #<args+2
-		ldx #>args+2
+		lda	#1
+		jsr	get_arg
 		jsr TermPUTS
 
-		lda #<args+2
-		ldx #>args+2
+		lda	#1
+		jsr	get_arg
 		jsr fopen
 
 		; Address where we're going to load the file
@@ -497,11 +600,28 @@ init320x240
 
 		rts
 
+;------------------------------------------------------------------------------
+; Get argument
+; A - argument number
+;
+; Returns string in AX
+
+get_arg
+		asl
+		tay
+		iny
+		lda (kernel_args_ext),y
+		tax
+		dey
+		lda (kernel_args_ext),y
+		rts
+
+
 
 
 ;------------------------------------------------------------------------------
 ; Strings and other includes
-txt_version asc 'Pexec 0.01'
+txt_version asc 'Pexec 0.02'
 		db 13,13,0
 
 txt_press_key db 13
@@ -525,6 +645,9 @@ txt_error asc 'ERROR!'
 		db 13
 		db 0
 txt_open asc 'Open Success!'
+		db 13
+		db 0
+txt_no_argument asc 'Missing file argument'
 		db 13
 		db 0
 

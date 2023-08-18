@@ -155,12 +155,21 @@ TermCOUT
 ; Fill Text Buffer with spaces
 
 TermClearTextBuffer
+		stz	io_ctrl
+		stz	$D010			; disable cursor
+
+		lda #3
+		sta io_ctrl         ; swap in the color memory
+		lda $C000			; get current color attribute
+		jsr	:clear
 
 		lda #2
 		sta io_ctrl         ; swap in the text memory
-
-		ldx #0
 		lda #' '
+
+:clear
+		ldx #0
+
 ]lp
 		sta $C000,x
 		sta $C100,x
