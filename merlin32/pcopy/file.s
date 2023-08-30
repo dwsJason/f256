@@ -96,7 +96,7 @@ fcreate_open
 		cmp #kernel_event_file_OPENED
 		beq :success
 		cmp #kernel_event_file_ERROR
-		bne :error
+		beq :error
 		bra ]loop
 
 :success

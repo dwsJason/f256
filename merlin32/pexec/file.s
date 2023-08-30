@@ -74,6 +74,15 @@ fcreate_open
         bcs ]loop
 
 		lda event_type
+
+		do DEBUG_FILE
+		pha
+		jsr TermPrintAH
+		lda #'y'
+		jsr TermCOUT
+		pla
+		fin
+
 		cmp #kernel_event_file_CLOSED
 		beq :error
         cmp #kernel_event_file_NOT_FOUND
@@ -81,7 +90,7 @@ fcreate_open
 		cmp #kernel_event_file_OPENED
 		beq :success
 		cmp #kernel_event_file_ERROR
-		bne :error
+		beq :error
 		bra ]loop
 
 :success

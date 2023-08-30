@@ -133,12 +133,16 @@ start
 
 :has_argument		
 		; Display the arguments, hopefully there are some
+		lda	#'"'
+		jsr	TermCOUT
 		ldy	#3
 		lda (kernel_args_ext),y
 		tax
 		dey
 		lda (kernel_args_ext),y
 		jsr TermPUTS
+		lda	#'"'
+		jsr	TermCOUT
 		jsr TermCR
 
 ;------------------------------------------------------------------------------
