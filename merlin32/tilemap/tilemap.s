@@ -324,11 +324,13 @@ BGPICNUM = 1 ;1 is BG
 		asl
 		and #$F0
 		ora <temp0
-		sta $D208
+		sta $D208 ; tile map 0
+		sta $D214 ; tile map 1
 
 		lda <xpos+1
 		rol
 		sta $D209
+		sta $D215
 ;-----------------------
 
 		lda ping
@@ -362,11 +364,16 @@ BGPICNUM = 1 ;1 is BG
 		bra ]wait
 
 WaitVBL
-		lda #241
-		ldx #0
+LINE_NO = 241*2
+		lda #<LINE_NO
+		ldx #>LINE_NO
 ]wait
 		cpx $D01B
 		beq ]wait
+]wait
+		cmp $D01A
+		beq ]wait
+
 ]wait
 		cpx $D01B
 		bne ]wait
