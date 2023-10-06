@@ -16,7 +16,7 @@ WRITE_MMU = mmu+{WRITE_BLOCK/8192}
 
 ; Zero Page defines
 mmu_ctrl equ 0
-;io_ctrl  equ 1
+io_ctrl  equ 1
 ; reserved addresses 2-7 for future expansion, use at your own peril
 mmu      equ 8
 mmu0     equ 8
@@ -32,6 +32,9 @@ mmu7     equ 15
 pSource  equ $10
 pDest    equ pSource+2
 old_mmu_ctrl = pDest+2
+old_io_ctrl = old_mmu_ctrl+1
+old_mmu0 = old_io_ctrl+1
+
 
 ;
 ; Take the current mmu config, and allow write access
@@ -40,6 +43,10 @@ mmu_unlock
 		lda mmu_ctrl
 		sta old_mmu_ctrl
 
+		lda io_ctrl
+		sta old_io_ctrl
+
+		lda mmu_ctrl
 		and #$3
 		sta temp0     ; active MLUT
 		asl
@@ -50,12 +57,27 @@ mmu_unlock
 		ora #$80      ; Enable MMU edit - we are editing the active (spooky)
 		sta mmu_ctrl
 
+		ldx #7
+]save	lda mmu0,x
+		sta old_mmu0,x
+		dex
+		bpl ]save
+
 		rts
 
 ;
 ; Restore mmu to it's previous state (prior to calling unlock)
 ;
 mmu_lock
+		ldx #7
+]fix	lda old_mmu0,x
+		sta mmu0,x
+		dex
+		bpl ]fix
+
+		lda old_io_ctrl
+		sta io_ctrl
+
 		lda old_mmu_ctrl
 		sta mmu_ctrl
 		rts
@@ -215,3 +237,39 @@ writebyte
 		rts
 
 
+; 
+; Determine how many bytes it's possible to write into the write window, max 128
+;
+bytes_can_write
+		lda	pDest+1
+		cmp	#>WRITE_BLOCK+$1F00
+		bne	:use_128
+		lda	pDest
+		bpl	:use_128	; A (pointer) is less than 128, there's room for yet another 128 bytes
+		; Subtract A from 256, in 8 bit two's complement this is the same as negate
+		eor	#$FF
+		clc
+		adc	#1
+		rts
+:use_128
+		lda	#128
+		rts
+
+; 
+; Increment pDest by A
+;
+increment_dest
+		clc
+		adc	pDest
+		sta	pDest
+		bcc	:done
+		lda	pDest+1
+		inc
+		cmp #>WRITE_BLOCK+$2000
+		bne	:no_wrap
+		inc	WRITE_MMU
+		lda	#>WRITE_BLOCK
+:no_wrap
+		sta	pDest+1
+:done
+		rts
