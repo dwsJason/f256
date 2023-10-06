@@ -7,7 +7,7 @@
 
 ; Zero Page defines
 ;mmu_ctrl equ 0
-io_ctrl  equ 1
+;io_ctrl  equ 1
 ; reserved addresses 2-7 for future expansion, use at your own peril
 
 ; System Bus Pointer's
@@ -309,7 +309,7 @@ BGPICNUM = 1 ;1 is BG
 
 		stz io_ctrl
 		stz xpos
-		stz xpos+2
+		stz xpos+1
 		stz ping
 
 ]wait 
@@ -470,7 +470,7 @@ init320x240
 		stz $D213  ; reserved
 		stz $D214  ; scroll x lo
 		stz $D215  ; scroll x hi
-		;lda #16
+		;lda #1
 		stz $D216  ; scroll y lo
 		stz $D217  ; scroll y hi
 
@@ -566,3 +566,19 @@ txt_decompress_map asc 'decompress_map'
 
 ;------------------------------------------------------------------------------
 ; 176 pixels is the range, so center is 88 pixels
+
+
+	dum *
+
+floor_x0 ds 240
+floor_x1 ds 240
+floor_x2 ds 240
+floor_x3 ds 240
+
+bg_x0 ds 240
+bg_x1 ds 240
+bg_x2 ds 240
+bg_x3 ds 240
+
+	dend
+
