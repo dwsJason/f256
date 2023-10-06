@@ -81,9 +81,15 @@ sig		db $f2,$56		; signature
 		db 1            ; 1 8k block
 		db 5            ; mount at $a000
 		da start		; start here
-		dw 0			; version
-		dw 0			; kernel
+		db 1			; version
+		db 0			; reserved
+		db 0			; reserved
+		db 0			; reserved
 		asc '-' 		; This will require some discussion with Gadget
+		db 0
+		asc '<file>'
+		db 0
+		asc '"pexec", load and execute file.'
 		db 0
 
 start
