@@ -87,9 +87,9 @@ sig		db $f2,$56		; signature
 		db 0			; reserved
 		asc '-' 		; This will require some discussion with Gadget
 		db 0
-		asc '<file>'
+		asc '<file>'	; argument list
 		db 0
-		asc '"pexec", load and execute file.'
+		asc '"pexec", load and execute file.'	; description
 		db 0
 
 start
