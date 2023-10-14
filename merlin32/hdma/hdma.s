@@ -22,8 +22,8 @@ state        = $24
 ;LINE0 = 16
 ;LINE1 = 480-16
 
-LINE0 = 50
-LINE1 = 480-50
+LINE0 = 16
+LINE1 = 480-16
 
 VIRQ = $FFFE
 
@@ -802,20 +802,67 @@ CopyROM
 		rts
 
 ;------------------------------------------------------------------------------
-; 176 pixels is the range, so center is 88 pixels
 
+fg_rate_l ds 240
+fg_rate_h ds 240 
+
+;------------------------------------------------------------------------------
+default_fg_rate
+		lup 127
+		dw $00C0 ; 75% - for the balloowns
+		--^
+
+		; upper lip of the hot tub
+]target = $0094
+]start  = $0080
+]delta  = ]target-]start
+]steps  = 13
+]step   = 0
+		lup 13
+		dw ]start+{{]delta*]step}/]steps}  ; 13 lines here (0.5->0.58)
+]step = ]step+1
+		--^
+
+		; 140-175 - tub body, needs to be constant
+		lup 35
+		dw $0094
+		--^
+
+		; floor (168->215) (0.5->1.0)
+
+		; 176->215 ; 0.58->1.0
+]start  = $0094
+]target = $0100
+]delta  = ]target-]start
+]steps  = 39
+]step   = 0
+		lup 39
+		dw ]start+{{]delta*]step}/]steps}
+]step = ]step+1
+		--^
+
+		; 215->240
+		lup 25
+		dw $0100
+		--^
+
+;------------------------------------------------------------------------------
+default_bg_rate
+		lup 240
+		dw $0080  ; 50%, but revist because ceiling can parallax
+		--^
+;------------------------------------------------------------------------------
+; 176 pixels is the range, so center is 88 pixels
 
 	dum *
 
 floor_x0 ds 240
 floor_x1 ds 240
 floor_x2 ds 240
-floor_x3 ds 240
 
 bg_x0 ds 240
 bg_x1 ds 240
 bg_x2 ds 240
-bg_x3 ds 240
 
 	dend
 

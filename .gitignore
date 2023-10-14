@@ -6,3 +6,6 @@ merlin32/bitmap/bin/png2raw/obj/
 merlin32/tilemap/data/ehonda_floor.filelist.txt
 merlin32/tilemap/data/ehonda_floor.Untitled 2.layer-Layer 1.map001.stm
 merlin32/tilemap/data/ehonda_floor.Untitled 4.layer-Layer 1.map001.stm
+*.vpj
+*.vpw
+*.vtg
