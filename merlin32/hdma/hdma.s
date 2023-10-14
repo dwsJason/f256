@@ -304,6 +304,9 @@ BGPICNUM = 1 ;1 is BG
 
 ;-----------------------------------------------
 
+		jsr init_rate_tables
+		jsr init_default_scroll_positions
+
 ; Going to image at $01/0000
 ; Going to put palette at $03/0000 
 		jsr InstallIRQ
@@ -802,9 +805,197 @@ CopyROM
 		rts
 
 ;------------------------------------------------------------------------------
+;
+; copy rates from array of short values
+; into arrays of 8 bit values for easier indexing
+;
+init_rate_tables
 
-fg_rate_l ds 240
-fg_rate_h ds 240 
+:pSrc = temp0
+:pDstLow  = temp1
+:pDstHigh = temp1+2
+
+		; floor table
+		lda #<default_fg_rate
+		sta :pSrc
+		lda #>default_fg_rate
+		sta :pSrc+1
+
+		lda #<floor_rate_l
+		sta <:pDstLow
+		lda #>floor_rate_l
+		sta <:pDstLow+1
+
+		lda #<floor_rate_h
+		sta <:pDstHigh
+		lda #>floor_rate_h
+		sta <:pDstHigh
+
+		jsr :copy
+
+		; background table
+
+		lda #<default_bg_rate
+		sta <:pSrc
+		lda #>default_bg_rate
+		sta <:pSrc+1
+
+		lda #<bg_rate_l
+		sta <:pDstLow
+		lda #>bg_rate_l
+		sta <:pDstLow+1
+
+		lda #<bg_rate_h
+		sta <:pDstHigh
+		lda #>bg_rate_h
+		sta <:pDstHigh
+
+:copy
+		ldx #240
+]loop
+		lda (:pSrc)
+		sta (:pDstLow)
+
+		inc <:pSrc
+		bne :skip1
+		inc <:pSrc+1
+:skip1
+		lda (:pSrc)
+		sta (:pDstHigh)
+
+		inc <:pSrc
+		bne :skip2
+		inc <:pSrc+1
+:skip2
+
+
+		inc <:pDstLow
+		bne :skip3
+		inc <:pDstLow+1
+:skip3
+
+		inc <:pDstHigh
+		bne :skip4
+		inc <:pDstHigh+1
+:skip4
+		dex
+		bne ]loop
+
+		rts
+
+;------------------------------------------------------------------------------
+init_default_scroll_positions
+
+		ldx #240
+		lda #{176-88}
+]lp
+		stz |floor_x0,x
+		sta |floor_x1,x
+		stz |floor_x2,x
+
+		stz |bg_x0,x
+		sta |bg_x1,x
+		stz |bg_x2,x
+		
+		dex
+		bne ]lp
+
+		rts
+
+;------------------------------------------------------------------------------
+;
+; Supports a max rate of 0.99, to make the code quicker
+;
+scroll_left
+
+		ldx #240
+		sec
+]lp
+		lda |floor_x0-1,x
+		sbc |floor_rate_l-1,x
+		sta |floor_x0-1,x
+		bcs :skip1
+		dec |floor_x1-1,x
+		sec
+:skip1
+		lda |bg_x0-1,x
+		sbc |bg_rate_l-1,x
+		sta |bg_x0-1,x
+		bcs :skip2
+		dec |bg_x0-1,x
+		sec
+:skip2
+		dex
+		bne ]lp
+
+		rts
+;------------------------------------------------------------------------------
+;
+; Supports a max rate of 0.99, to make the code quicker
+;
+scroll_right
+
+		ldx #240
+		clc
+]lp
+		lda |floor_x0-1,x
+		adc |floor_rate_l-1,x
+		sta |floor_x0-1,x
+		bcc :skip1
+		inc |floor_x1-1,x
+		clc
+:skip1
+		lda |bg_x0-1,x
+		adc |bg_rate_l-1,x
+		sta |bg_x0-1,x
+		bcc :skip2
+		inc |bg_x0-1,x
+		clc
+:skip2
+		dex
+		bne ]lp
+
+		rts
+;------------------------------------------------------------------------------
+blit_scroll
+
+]i = 0
+		lup 240
+		ldx |floor_x1+]i
+		lda :xlate_lo,x
+		sta |mangled_floor_x0+]i
+		lda :xlate_hi,x
+		sta |mangled_floor_x1+]i
+
+		ldx |bg_x1+]i
+		lda :xlate_lo,x
+		sta |mangled_bg_x0+]i
+		lda :xlate_hi,x
+		sta |mangled_bg_x1+]i
+
+]i = ]i+1
+		--^
+
+		rts
+
+:xlate_lo
+]src = 0
+		lup 256
+]value = {{]src&$F8}*2}
+]value = ]value+{]src&7}
+		db	<{]value}
+]src = ]src+1
+		--^
+
+]src = 0
+
+:xlate_hi
+		lup 256
+]value = {{]src&$F8}*2}
+]value = ]value+{]src&7}
+		db	>{]value}
+]src = ]src+1
+		--^
 
 ;------------------------------------------------------------------------------
 default_fg_rate
@@ -843,7 +1034,8 @@ default_fg_rate
 
 		; 215->240
 		lup 25
-		dw $0100
+		;dw $0100
+		dw $00FF
 		--^
 
 ;------------------------------------------------------------------------------
@@ -856,6 +1048,16 @@ default_bg_rate
 
 	dum *
 
+;------------------------------------------------------------------------------
+
+bg_rate_l ds 240
+bg_rate_h ds 240 
+
+floor_rate_l ds 240
+floor_rate_h ds 240 
+
+;------------------------------------------------------------------------------
+
 floor_x0 ds 240
 floor_x1 ds 240
 floor_x2 ds 240
@@ -864,5 +1066,12 @@ bg_x0 ds 240
 bg_x1 ds 240
 bg_x2 ds 240
 
+mangled_floor_x0 ds 240
+mangled_floor_x1 ds 240
+
+mangled_bg_x0 ds 240
+mangled_bg_x1 ds 240
+
 	dend
+;------------------------------------------------------------------------------
 
