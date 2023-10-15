@@ -303,23 +303,64 @@ BGPICNUM = 1 ;1 is BG
 		jsr decompress_pixels
 
 ;-----------------------------------------------
+		sei
+		jsr InstallIRQ
+
+;]stop bra ]stop
 
 		jsr init_rate_tables
 		jsr init_default_scroll_positions
 
+		;jsr mmu_lock
+
 ; Going to image at $01/0000
 ; Going to put palette at $03/0000 
-		jsr InstallIRQ
 		cli
 
-		stz io_ctrl
-		stz xpos
+;--------------------------------------------------------
+
+		;lda #2
+		;sta io_ctrl         ; swap in the text memory, so I can use term
+
+		stz io_ctrl 	; for wait vbl
+		; make debug text easier
+		stz VKY_TXT_FGLUT+{4*1}+0
+		stz VKY_TXT_FGLUT+{4*1}+1
+		stz VKY_TXT_FGLUT+{4*1}+2
+
+		; clear text etc
+		jsr TermInit
+
+		stz io_ctrl 	; for wait vbl
+		lda #{176-88}
+		sta xpos
 		stz xpos+1
 		stz ping
 
-]wait 
-		jsr WaitVBL
 
+;		lda bg_x1+10
+;		pha
+;		jsr scroll_left
+;		jsr scroll_left
+;		pla
+;]done
+;		cmp bg_x1+10
+;		beq ]done
+
+]wait 
+;		ldy #60
+;]slower
+;		phy
+		jsr WaitVBL
+;		ply
+;		dey
+;		bpl ]slower
+
+		jsr blit_scroll
+
+;		jsr debug_scroll
+
+		do 0
 ;--  copy X Position into Register
 		lda <xpos
 		and #7
@@ -336,6 +377,7 @@ BGPICNUM = 1 ;1 is BG
 		rol
 		sta $D209
 		sta $D215
+		fin
 ;-----------------------
 
 		lda ping
@@ -346,19 +388,22 @@ BGPICNUM = 1 ;1 is BG
 
 		lda <xpos
 		cmp #$FF
-		bne ]wait
+		bne :scroll_left
 
 		stz <xpos
 		stz <ping
 
+		bra ]wait
 
+:scroll_left
+		jsr scroll_left
 		bra ]wait
 :inc
-
 
 		inc <xpos
 		;bne ]continue
 		;inc <xpos+1
+		jsr scroll_right
 
 		lda <xpos
 		cmp #512-320-16
@@ -388,6 +433,49 @@ LINE_NO = 261*2  ; 240+21
 		bne ]wait
 		rts
 
+;------------------------------------------------------------------------------
+; debug_scroll
+;
+debug_scroll
+
+		;sei
+		lda #2
+		sta io_ctrl         ; swap in the text memory, so I can use term
+
+		ldx #0
+;		txy
+		ldy #0
+		jsr TermSetXY
+
+		ldy #0
+]lp
+		tya
+		jsr TermPrintAH
+		lda #' '
+		jsr TermCOUT
+
+		lda |bg_rate_h,y
+		tax
+		lda |bg_rate_l,y
+		jsr TermPrintAXH
+		lda #' '
+		jsr TermCOUT
+
+		lda |bg_x1,y
+		tax
+		lda |bg_x0,y
+		jsr TermPrintAXH
+		jsr TermCR
+
+		iny
+		cpy #40
+		bcc ]lp
+
+		stz io_ctrl
+		;cli
+		rts
+
+;------------------------------------------------------------------------------
 
 ;
 ; X = offset to picture to set
@@ -669,6 +757,9 @@ InstallIRQ mx %11
 my_irq_handler
 
 		pha
+		phx
+		phy
+
 		lda <MMU_IO_CTRL
 		pha
 
@@ -680,21 +771,42 @@ my_irq_handler
 		; start with 0, and increment, for 240 lines?
 		; on the last line, increment the jiffy, so we can use that for VSync
 
-		lda INT_PEND_0
-		;lda #INT01_VKY_SOL
-		;bit INT_PEND_0  		; check SOL
-		;beq not_this
-		;beq return
-
-		sta INT_PEND_0 			; clear SOL interrupt
 
 ;------------------------------------------------------------------------------
 ; Border Stuff
 
-		lda #VKY_LINE_ENABLE
-		sta |VKY_LINE_CTRL 	; enable line interrupts
+		;lda #VKY_LINE_ENABLE
+		;sta |VKY_LINE_CTRL 	; enable line interrupts
 
+		ldx state
+		lda mangled_floor_x1,x
+		sta $D209
+		lda mangled_floor_x0,x
+		sta $D208
 
+		lda mangled_bg_x1,x
+		sta $D215
+		lda mangled_bg_x0,x
+		sta $D214
+
+		inx
+		cpx #{240-32}
+		bcc :keep_going
+
+		ldx #0
+:keep_going
+		stx state
+
+		txa
+		clc
+;		adc #LINE0
+		asl
+		sta VKY_LINE_NBR_L
+		lda #0
+		rol
+		sta VKY_LINE_NBR_H
+
+		do 0
 		lda state ; Check the state
 		beq is_zero
 		stz state ; If state 1: Set the state to 0
@@ -717,18 +829,42 @@ is_zero lda #$01 ; Set the state to 1
 		stz VKY_BRDR_COL_B
 		stz VKY_BRDR_COL_G
 		sta VKY_BRDR_COL_R
+		fin
 
 ;------------------------------------------------------------------------------
 return
+		lda INT_PEND_0
+		;lda #INT01_VKY_SOL
+		;bit INT_PEND_0  		; check SOL
+		;beq not_this
+		;beq return
+
+		sta INT_PEND_0 			; clear SOL interrupt
+
 		pla
 		sta <MMU_IO_CTRL
+
+		ply
+		plx
 
 		pla
 		rti
 
 not_this
+
+		lda INT_PEND_0
+		;lda #INT01_VKY_SOL
+		;bit INT_PEND_0  		; check SOL
+		;beq not_this
+		;beq return
+
+		sta INT_PEND_0 			; clear SOL interrupt
+
 		pla
 		sta <MMU_IO_CTRL
+
+		ply
+		plx
 
 		pla
 		jmp (original_irq) ; $$JGA, this might unmap our IRQ handler
@@ -829,7 +965,7 @@ init_rate_tables
 		lda #<floor_rate_h
 		sta <:pDstHigh
 		lda #>floor_rate_h
-		sta <:pDstHigh
+		sta <:pDstHigh+1
 
 		jsr :copy
 
@@ -848,7 +984,7 @@ init_rate_tables
 		lda #<bg_rate_h
 		sta <:pDstHigh
 		lda #>bg_rate_h
-		sta <:pDstHigh
+		sta <:pDstHigh+1
 
 :copy
 		ldx #240
@@ -891,11 +1027,11 @@ init_default_scroll_positions
 ]lp
 		stz |floor_x0,x
 		sta |floor_x1,x
-		stz |floor_x2,x
+;		stz |floor_x2,x
 
 		stz |bg_x0,x
 		sta |bg_x1,x
-		stz |bg_x2,x
+;		stz |bg_x2,x
 		
 		dex
 		bne ]lp
@@ -908,6 +1044,7 @@ init_default_scroll_positions
 ;
 scroll_left
 
+		do 0
 		ldx #240
 		sec
 ]lp
@@ -922,11 +1059,35 @@ scroll_left
 		sbc |bg_rate_l-1,x
 		sta |bg_x0-1,x
 		bcs :skip2
-		dec |bg_x0-1,x
+		dec |bg_x1-1,x
 		sec
 :skip2
 		dex
 		bne ]lp
+		fin
+
+		do 1
+		ldx #240
+]lp
+		sec
+		lda |floor_x0-1,x
+		sbc |floor_rate_l-1,x
+		sta |floor_x0-1,x
+		lda |floor_x1-1,x
+		sbc |floor_rate_h-1,x
+		sta |floor_x1-1,x
+
+		sec
+		lda |bg_x0-1,x
+		sbc |bg_rate_l-1,x
+		sta |bg_x0-1,x
+		lda |bg_x1-1,x
+		sbc |bg_rate_h-1,x
+		sta |bg_x1-1,x
+:skip2
+		dex
+		bne ]lp
+		fin
 
 		rts
 ;------------------------------------------------------------------------------
@@ -935,6 +1096,7 @@ scroll_left
 ;
 scroll_right
 
+		do 0
 		ldx #240
 		clc
 ]lp
@@ -949,11 +1111,34 @@ scroll_right
 		adc |bg_rate_l-1,x
 		sta |bg_x0-1,x
 		bcc :skip2
-		inc |bg_x0-1,x
+		inc |bg_x1-1,x
 		clc
 :skip2
 		dex
 		bne ]lp
+		fin
+
+		do 1
+		ldx #240
+]lp
+		clc
+		lda |floor_x0-1,x
+		adc |floor_rate_l-1,x
+		sta |floor_x0-1,x
+		lda |floor_x1-1,x
+		adc |floor_rate_h-1,x
+		sta |floor_x1-1,x
+		clc
+		lda |bg_x0-1,x
+		adc |bg_rate_l-1,x
+		sta |bg_x0-1,x
+		lda |bg_x1-1,x
+		adc |bg_rate_h-1,x
+		sta |bg_x1-1,x
+
+		dex
+		bne ]lp
+		fin
 
 		rts
 ;------------------------------------------------------------------------------
@@ -1000,7 +1185,7 @@ blit_scroll
 ;------------------------------------------------------------------------------
 default_fg_rate
 		lup 127
-		dw $00C0 ; 75% - for the balloowns
+		dw $00C0 ; 75% - for the balloons
 		--^
 
 		; upper lip of the hot tub
@@ -1040,13 +1225,28 @@ default_fg_rate
 
 ;------------------------------------------------------------------------------
 default_bg_rate
-		lup 240
+
+		lup 7
+		dw $0080  ; 50%, but revist because ceiling can parallax
+		--^
+
+]start  = $00C0
+]target = $0080
+]delta  = ]start-]target
+]steps  = 23
+]step   = 0
+		lup 24
+		dw ]start-{{]delta*]step}/]steps}
+]step = ]step+1
+		--^
+
+		lup 208
 		dw $0080  ; 50%, but revist because ceiling can parallax
 		--^
 ;------------------------------------------------------------------------------
 ; 176 pixels is the range, so center is 88 pixels
 
-	dum *
+	;dum *
 
 ;------------------------------------------------------------------------------
 
@@ -1060,11 +1260,11 @@ floor_rate_h ds 240
 
 floor_x0 ds 240
 floor_x1 ds 240
-floor_x2 ds 240
+;floor_x2 ds 240
 
 bg_x0 ds 240
 bg_x1 ds 240
-bg_x2 ds 240
+;bg_x2 ds 240
 
 mangled_floor_x0 ds 240
 mangled_floor_x1 ds 240
@@ -1072,6 +1272,6 @@ mangled_floor_x1 ds 240
 mangled_bg_x0 ds 240
 mangled_bg_x1 ds 240
 
-	dend
+;	dend
 ;------------------------------------------------------------------------------
 
