@@ -39,6 +39,7 @@ main_code_start
 		put line.s
 		put term.s
 		put mmu.s
+		put colors.s
 main_code_end
 
 ; Launch Address
