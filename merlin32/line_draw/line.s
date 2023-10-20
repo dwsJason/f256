@@ -25,11 +25,17 @@ start
 ; to display the bitmap
 
 		jsr init320x240
+
+		jsr initColors
+
 		jsr TermInit
 
 		lda #<txt_title
 		ldx #>txt_title
 		jsr TermPUTS
+
+		lda #2  	; Fill Color
+		jsr DmaClear
 
 ]wait bra ]wait
 
@@ -81,24 +87,18 @@ init320x240
 		stz VKY_MSTR_CTRL_1
 
 		; layer stuff - take from Jr manual
-		lda #$54
+;		lda #$54
+		lda #$10
 		sta VKY_LAYER_CTRL_0  ; tile map layers
-		lda #$06
+;		lda #$06
+		lda #$02
 		sta VKY_LAYER_CTRL_1  ; tile map layers
 
 		; Tile Map 0
 		lda #$11
 		sta $D200 ; tile size 8x8 + enable
 
-		;lda #<MAP_DATA0
-		;sta $D201
-		;lda #>MAP_DATA0
-		;sta $D202
-		;lda #^MAP_DATA0
-		;sta $D203
-
-		; Tile Map 1
-		lda #$11
+		; Tile Map Disable
 		stz VKY_TM0_CTRL
 		stz VKY_TM1_CTRL
 		stz VKY_TM2_CTRL
@@ -130,4 +130,50 @@ txt_title asc 'Line Draw Example'
 
 
 ;------------------------------------------------------------------------------
+;
+; A = Fill Color
+;
+; Clear 320x240 buffer PIXEL_DATA with A
+;
+DmaClear
+		php
+		sei
+
+		ldy io_ctrl
+		phy
+
+		stz io_ctrl
+
+		ldx #DMA_CTRL_ENABLE+DMA_CTRL_FILL
+		stx |DMA_CTRL
+
+		sta |DMA_FILL_VAL
+
+		lda #<PIXEL_DATA
+		sta |DMA_DST_ADDR
+		lda #>PIXEL_DATA
+		sta |DMA_DST_ADDR+1
+		lda #^PIXEL_DATA
+		sta |DMA_DST_ADDR+2
+
+]size = {320*240}
+
+		lda #<]size
+		sta |DMA_COUNT
+		lda #>]size
+		sta |DMA_COUNT+1
+		lda #^]size
+		sta |DMA_COUNT+2
+
+		lda #DMA_CTRL_START
+		tsb |DMA_CTRL
+
+		pla
+		sta io_ctrl
+
+		plp
+		rts
+
+;------------------------------------------------------------------------------
+
 

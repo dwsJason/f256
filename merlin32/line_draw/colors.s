@@ -5,6 +5,91 @@
 
 ;------------------------------------------------------------------------------
 
+initColors
+		php
+		sei
+		lda io_ctrl
+		pha
+
+		; Copy the colors up into the text luts
+
+		stz io_ctrl
+
+		ldx #{16*4}-1       ; 16 colors
+]lp
+		lda |gs_colors,x
+		sta |VKY_TXT_FGLUT,x
+		sta |VKY_TXT_BGLUT,x
+		dex
+		bpl ]lp
+
+		; Set the background color, and the border color
+
+		ldx #2
+]lp
+		lda |gs_colors+{4*2},x ; Dark Blue index 2
+		stz |VKY_BKG_COL_B,x
+		sta |VKY_BRDR_COL_B,x
+		dex
+		bpl ]lp
+
+		; setup border?
+		lda #1
+		sta |VKY_BRDR_CTRL
+
+		lda #20
+		sta VKY_BRDR_VERT	; take from 240 down to 200
+
+		;lda #15
+		sta VKY_BRDR_HORI 	; take from 320 down to 258
+
+
+		; copy the first 16 colors up into the normal graphics luts
+
+		inc io_ctrl	; io_ctrl = 1
+
+		ldx #{16*4}-1       ; 16 colors
+]lp
+		lda |gs_colors,x
+		sta |VKY_GR_CLUT_0,x
+		sta |VKY_GR_CLUT_1,x
+		sta |VKY_GR_CLUT_2,x
+		sta |VKY_GR_CLUT_3,x
+		dex
+		bpl ]lp
+
+		; clear the text color matrix to white
+
+		lda #3
+		sta io_ctrl
+
+		ldx #0
+		lda #$F2	; white on blue
+]lp
+		sta $C000,x
+		sta $C100,x
+		sta $C200,x
+		sta $C300,x
+		sta $C400,x
+		sta $C500,x
+		sta $C600,x
+		sta $C700,x
+		sta $C800,x
+		sta $C900,x
+		sta $CA00,x
+		sta $CB00,x
+		sta $CC00,x
+		sta $CD00,x
+		sta $CE00,x
+		sta $CF00,x
+		dex
+		bne ]lp
+
+		pla
+		sta io_ctrl
+		plp
+		rts
+
 ;------------------------------------------------------------------------------
 ;GS Border Colors
 border_colors
