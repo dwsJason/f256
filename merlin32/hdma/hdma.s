@@ -1144,6 +1144,17 @@ scroll_right
 ;------------------------------------------------------------------------------
 blit_scroll
 
+;		ldx #0
+;]lp
+;		dex
+;		lda :xlate_lo,x
+;		bne :ct
+;		ora #$F
+;		sta :xlate_lo,x
+;:ct
+;		dex
+;		bne ]lp
+
 ]i = 0
 		lup 240
 		ldx |floor_x1+]i

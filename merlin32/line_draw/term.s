@@ -22,6 +22,8 @@ term_temp1  ds 4
 ;TermPrintAI    - print value in A, as DEC
 ;TermPrintAXH   - print value in AX, as HEX  (it will end up XA, because high, then low)
 ;TermPrintAXI   - print value in AX, as DEC
+;TermPrintAXYH  - print values in AXY, as HEX
+;TermSetXY      - cursor position X in X, Y in Y
 
 ;------------------------------------------------------------------------------
 TermInit
@@ -155,12 +157,21 @@ TermCOUT
 ; Fill Text Buffer with spaces
 
 TermClearTextBuffer
+		stz	io_ctrl
+		stz	$D010			; disable cursor
+
+		lda #3
+		sta io_ctrl         ; swap in the color memory
+		lda $C000			; get current color attribute
+		jsr	:clear
 
 		lda #2
 		sta io_ctrl         ; swap in the text memory
-
-		ldx #0
 		lda #' '
+
+:clear
+		ldx #0
+
 ]lp
 		sta $C000,x
 		sta $C100,x
@@ -178,6 +189,9 @@ TermClearTextBuffer
 		sta $CD00,x
 		sta $CE00,x
 		sta $CF00,x
+		sta $D000,x
+		sta $D100,x
+		sta $D200,x
 		dex
 		bne ]lp
 
@@ -214,6 +228,18 @@ TermPUTS
 		bra ]lp
 :done
 		rts
+
+;------------------------------------------------------------------------------
+;TermPrintAXH   - print value in AX, as HEX  (it will end up XA, because high, then low)
+TermPrintAXYH
+		pha
+		phx
+		tya
+		jsr TermPrintAH
+		pla
+		jsr TermPrintAH
+		pla
+;		bra TermPrintAH
 
 ;------------------------------------------------------------------------------
 ;TermPrintAH    - print value in A, as HEX
@@ -259,6 +285,7 @@ TermPrintAI
 		and #$0F
 		beq :skip
 		jsr TermPrintAN
+		lda :bcd
 		bra TermPrintAH
 :skip
 		lda :bcd

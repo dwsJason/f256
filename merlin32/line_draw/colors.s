@@ -37,10 +37,10 @@ initColors
 		lda #1
 		sta |VKY_BRDR_CTRL
 
-		lda #20
+		lda #20*2
 		sta VKY_BRDR_VERT	; take from 240 down to 200
 
-		;lda #15
+		lda #$3F
 		sta VKY_BRDR_HORI 	; take from 320 down to 258
 
 

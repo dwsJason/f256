@@ -285,6 +285,7 @@ TermPrintAI
 		and #$0F
 		beq :skip
 		jsr TermPrintAN
+		lda :bcd
 		bra TermPrintAH
 :skip
 		lda :bcd
