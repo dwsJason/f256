@@ -93,7 +93,7 @@ start
 
 		ldx #170+]x
 		ldy #95+]y
-;		jsr text_plot_too
+		jsr text_plot_too
 
 		ldx #160+]x
 		ldy #90+]y 
@@ -515,7 +515,7 @@ plot_line
 
 		inc <mmu5
 
-		lda #0
+		lda #$A0
 :gtg	sta |:p+2
 :good_to_go
 		lda line_color
