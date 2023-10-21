@@ -54,21 +54,83 @@ start
 		lda #$B
 		sta line_color
 
-		lda #160
+]x = 0
+]y = 0
+
+		lda #150+]x
 		sta <line_x0
-		sta <line_y0
 		sta <line_x1
+
+		lda #150+]y
+		sta <line_y0
 		sta <line_y1
 
 		;jsr plot_line
 
-		;ldx #170
-		;ldy #160
-		;jsr text_plot_too
-
-		ldx #160
-		ldy #170
+		ldx #160+]x
+		ldy #150+]y
 		jsr text_plot_too
+
+		ldx #170+]x
+		ldy #145+]y
+		jsr text_plot_too
+
+		ldx #180+]x
+		ldy #135+]y
+		jsr text_plot_too
+
+		ldx #185+]x
+		ldy #125+]y
+		jsr text_plot_too
+
+		ldx #185+]x 
+		ldy #115+]y
+		jsr text_plot_too
+
+		ldx #180+]x 
+		ldy #105+]y
+		jsr text_plot_too
+
+		ldx #170+]x
+		ldy #95+]y
+;		jsr text_plot_too
+
+		ldx #160+]x
+		ldy #90+]y 
+		jsr text_plot_too
+
+		ldx #150+]x
+		ldy #90+]y 
+		jsr text_plot_too
+
+		ldx #140+]x
+		ldy #95+]y 
+		jsr text_plot_too
+
+		ldx #130+]x
+		ldy #105+]y 
+		jsr text_plot_too
+
+		ldx #125+]x
+		ldy #115+]y 
+		jsr text_plot_too
+
+		ldx #125+]x
+		ldy #125+]y 
+		jsr text_plot_too
+
+		ldx #130+]x
+		ldy #135+]y 
+		jsr text_plot_too
+
+		ldx #140+]x
+		ldy #145+]y 
+		jsr text_plot_too
+
+		ldx #150+]x
+		ldy #150+]y 
+		jsr text_plot_too
+
 
 
 		do 0 ; this doesn't work on my Jr.
@@ -345,8 +407,8 @@ plot_line
 		sta <:err2
 		lda <:err+1
 		rol
-		sta <:err2+2
-; if e2 >= dy   (in original code dy is always negative)
+		sta <:err2+1
+; if e2 >= (-dy)   (in original code dy is always negative)
 ;               (in our code dy is always positive)
 		bpl :e2_ge_dy ; when error is positive, it's always greater=
 
@@ -397,8 +459,11 @@ plot_line
 ; if e2 <= dx
 		lda <:err2+1
 		bmi :kk2	  ; if e2 negative, it's automatically smaller
-		bne ]loop    ; dx can be 255 at the biggest, so err2+1 has to be 0
+		bne ]loop     ; dx can be 255 at the biggest, so err2+1 has to be 0
 					  ; for e2 to be <= dx
+		lda <:dx
+		cmp <:err2
+		bcc ]loop
 
 :kk2
 		; if y0 == y1 break
@@ -416,7 +481,7 @@ plot_line
 		; y0 = y0 + sy
 		lda <:sy
 		beq :dec_y
-		inc <:sy
+		inc <:y0
 		bra ]loop
 :dec_y
 		dec <:y0
