@@ -415,7 +415,7 @@ plot_line
 		sbc #0
 		sta <:err+1
 ]loop
-		jsr :plot
+		jsr PlotXY
 
 ; if x0==x1 && y0==y1 - done
 		lda <:x0
@@ -516,33 +516,6 @@ plot_line
 		rts
 
 		do 0
-:plot
-		lda <:x0
-		sta |XY_POS_X
-;		stz |XY_POS_X+1
-		lda <:y0
-		sta |XY_POS_Y
-;		stz |XY_POS_Y+1
-
-		lda |XY_BANK
-		sta <mmu5
-
-		lda |XY_OFFSET
-		sta |:p+1
-
-		lda |XY_OFFSET+1
-		ora #$A0
-		sta |:p+2
-
-		lda line_color
-
-:p		sta |WRITE_BLOCK
-
-		rts
-		fin
-
-
-		do 1
 ; plot a pixel at :x0,:y0, with line_color
 ; with no regards to efficiency
 :plot
@@ -570,6 +543,37 @@ plot_line
 :p		sta |WRITE_BLOCK
 
 		rts
+		fin
+
+;------------------------------------------------------------------------------
+;
+; Version requires $6000 WRITE_BLOCK, so quicker detection of wrap
+;
+PlotXY
+		ldx <:y0
+		clc
+		lda |:block_low_320,x   ; low byte of address in our mapped block
+		adc <:x0
+		sta |:p+1				; modify the store code, with abs address
+
+		ldy |:block_num,x
+
+		lda |:block_hi_320,x
+		adc #0  				; Or adc x0+1 for 16-bit
+		bpl :good_to_go 		; this check depends on block ending at 7FFF
+
+		iny
+
+		lda #>WRITE_BLOCK
+
+:good_to_go
+		sty <mmu3
+		sta |:p+2
+		lda line_color
+:p		sta |WRITE_BLOCK
+
+		rts
+
 
 ; I'm going to change this out to be an mmu+block + offset address
 ; simulating what the bitmap coordinate math block does
@@ -596,7 +600,6 @@ plot_line
 		db {]var/$2000}
 ]var = ]var + 320
 		--^
-		fin
 
 ;------------------------------------------------------------------------------
 
@@ -609,6 +612,9 @@ text_plot_too
 
 		stx <line_x1
 		sty <line_y1
+
+		jmp plot_line
+
 
 		lda #<txt_plot
 		ldx #>txt_plot

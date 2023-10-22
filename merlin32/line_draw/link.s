@@ -19,7 +19,7 @@
 		put ..\jr\f256_tiles.asm
 		put ..\jr\f256_timers.asm
 		put ..\jr\f256_via.asm
-		put ..\jr\f256_xymath.asm
+		put ..\jr\f256_intmath.asm
 
 ;------------------------------------------------------------------------------
 

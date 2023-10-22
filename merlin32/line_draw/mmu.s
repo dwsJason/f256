@@ -8,8 +8,8 @@
 ; if you want to use $C000, you'll have
 ; to make sure to set the mmu up for this yourself
 
-READ_BLOCK  = $A000
-WRITE_BLOCK = $A000
+READ_BLOCK  = $6000
+WRITE_BLOCK = $6000
 READ_MMU  = mmu+{READ_BLOCK/8192}
 WRITE_MMU = mmu+{WRITE_BLOCK/8192}
 
