@@ -48,11 +48,29 @@ start
 		jsr mmu_unlock ; just being lazy here, don't use the mmu functions
 					   ; $A000 is both read and write block
 
+		do 0
+; use magic xymath
+		stz <io_ctrl
+		stz |XY_BASE
+		stz |XY_BASE+1
+		lda #^PIXEL_DATA
+		sta |XY_BASE+2
+		stz |XY_POS_X
+		stz |XY_POS_X+1
+		stz |XY_POS_Y
+		stz |XY_POS_Y+1
+		lda #2
+		sta <io_ctrl
+; use magic xymath
+		fin
+
+
 		lda #2  	; Fill Color
 		jsr DmaClear
 
 		lda #$B
 		sta line_color
+wow_loop
 
 ]x = 0
 ]y = 0
@@ -130,6 +148,13 @@ start
 		ldx #150+]x
 		ldy #150+]y 
 		jsr text_plot_too
+
+		lda line_color
+		inc
+		and #$F
+		sta line_color
+
+		jmp wow_loop
 
 
 
@@ -490,34 +515,57 @@ plot_line
 :done_done
 		rts
 
+		do 0
+:plot
+		lda <:x0
+		sta |XY_POS_X
+;		stz |XY_POS_X+1
+		lda <:y0
+		sta |XY_POS_Y
+;		stz |XY_POS_Y+1
+
+		lda |XY_BANK
+		sta <mmu5
+
+		lda |XY_OFFSET
+		sta |:p+1
+
+		lda |XY_OFFSET+1
+		ora #$A0
+		sta |:p+2
+
+		lda line_color
+
+:p		sta |WRITE_BLOCK
+
+		rts
+		fin
+
+
+		do 1
 ; plot a pixel at :x0,:y0, with line_color
 ; with no regards to efficiency
 :plot
 		ldx <:y0
-		lda |:block_low_320,x
-		sta |:p+1
+		clc
+		lda |:block_low_320,x   ; low byte of address in our mapped block
+		adc <:x0
+		sta |:p+1				; modify the store code, with abs address
 
 		lda |:block_hi_320,x
-		sta |:p+2
+		adc #0  				; Or adc x0+1 for 16-bit
 
-		lda |:block_num,x
-		sta <mmu5
-
-		clc
-		lda <:x0
-		adc |:p+1
-		sta |:p+1
-		bcc :good_to_go
-		lda |:p+2
-		inc
+		ldy |:block_num,x
 		cmp #$C0
-		bcc :gtg
+		bcc :good_to_go
 
-		inc <mmu5
+		iny
 
 		lda #$A0
-:gtg	sta |:p+2
+
 :good_to_go
+		sty <mmu5
+		sta |:p+2
 		lda line_color
 :p		sta |WRITE_BLOCK
 
@@ -548,6 +596,7 @@ plot_line
 		db {]var/$2000}
 ]var = ]var + 320
 		--^
+		fin
 
 ;------------------------------------------------------------------------------
 
@@ -591,7 +640,14 @@ text_plot_too
 		jsr TermCOUT
 		jsr TermCR
 
-		jmp plot_line
+		;stz <io_ctrl
+
+		jsr plot_line
+
+		;lda #2
+		;sta <io_ctrl
+		rts
+
 
 
 ;------------------------------------------------------------------------------
