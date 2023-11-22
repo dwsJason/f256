@@ -178,6 +178,9 @@ TermClearTextBuffer
 		sta $CD00,x
 		sta $CE00,x
 		sta $CF00,x
+		sta $D000,x
+		sta $D100,x
+		sta $D200,x
 		dex
 		bne ]lp
 
@@ -259,6 +262,7 @@ TermPrintAI
 		and #$0F
 		beq :skip
 		jsr TermPrintAN
+		lda :bcd
 		bra TermPrintAH
 :skip
 		lda :bcd
