@@ -24,7 +24,6 @@ temp7 ds 4
 PIXEL_DATA = $010000
 
 start
-
 ; This will copy the color table into memory, then set the video registers
 ; to display the bitmap
 
@@ -50,10 +49,20 @@ start
 ; Color Cycle Loop for the clears
 ;
 ]clamp
-		lda #1
+		lda #14
 ]speed
 		pha
+
+		jsr TermPrintAH
+
+		pla
+		pha
 		jsr DmaClearWithSmallDMA
+
+		pla
+		pha
+		jsr TermPrintAH
+		jsr TermCR
 
 		pla
 		dec
@@ -71,7 +80,7 @@ start
 ; Clear 320x240 buffer PIXEL_DATA with A, but do it 1 pixel at a time.
 ;
 DmaClearWithSmallDMA
-:color = temp1
+:color = temp2
 :pPixelData = temp0
 ]size = {320*240}
 ]DONE_ADDRESS = PIXEL_DATA+]size
