@@ -80,3 +80,23 @@ VKY_GR_CLUT_0 = $D000           ; Graphics LUT #0
 VKY_GR_CLUT_1 = $D400           ; Graphics LUT #1
 VKY_GR_CLUT_2 = $D800           ; Graphics LUT #2
 VKY_GR_CLUT_3 = $DC00           ; Graphics LUT #3
+
+;;
+;; Buzzer and Status LEDs
+;;
+
+VKY_SYS0 = $D6A0
+VKY_SYS1 = $D6A1
+
+SYS_SID_ST = $08
+SYS_PSG_ST = $04
+
+;;
+;; Sound Generators
+;;
+VKY_PSG0 = $D600
+VKY_PSG1 = $D610
+
+VKY_PSG_BOTH = $D608
+
+
