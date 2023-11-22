@@ -21,16 +21,42 @@ temp6 ds 4
 temp7 ds 4
 
 line_color ds 1
-line_x0 ds 1
+line_x0 ds 2
 line_y0 ds 1
-line_x1 ds 1
+line_x1 ds 2
 line_y1 ds 1
 
 	dend
 
 PIXEL_DATA = $010000
 
+spot
+		db 0
 start
+		do 0
+		sei
+		stz |spot
+]lp
+		lda |spot
+		sta |spot
+		bra ]lp
+		bra ]lp
+		bra ]lp
+		bra ]lp
+		bra ]lp
+		bra ]lp
+		bra ]lp
+		bra ]lp
+		bra ]lp
+		bra ]lp
+		bra ]lp
+		bra ]lp
+		bra ]lp
+
+		ds 512,$EA
+
+		fin
+
 
 ; This will copy the color table into memory, then set the video registers
 ; to display the bitmap
@@ -46,27 +72,123 @@ start
 		jsr TermPUTS
 
 		jsr mmu_unlock ; just being lazy here, don't use the mmu functions
-					   ; $A000 is both read and write block
-
-		do 0
-; use magic xymath
-		stz <io_ctrl
-		stz |XY_BASE
-		stz |XY_BASE+1
-		lda #^PIXEL_DATA
-		sta |XY_BASE+2
-		stz |XY_POS_X
-		stz |XY_POS_X+1
-		stz |XY_POS_Y
-		stz |XY_POS_Y+1
-		lda #2
-		sta <io_ctrl
-; use magic xymath
-		fin
+					   ; $6000 is both read and write block
 
 
 		lda #2  	; Fill Color
 		jsr DmaClear
+
+		do 0
+;------------------------------------------------------------------------------
+; test crap
+
+		sei
+]loop
+		inc |$2200
+		bra ]loop
+		inc |$2201
+		bra ]loop
+		inc |$2202
+		bra ]loop
+		inc |$2203
+		bra ]loop
+		inc |$2204
+		bra ]loop
+		inc |$2205
+		bra ]loop
+		inc |$2206
+		bra ]loop
+		inc |$2207
+		bra ]loop
+		inc |$2208
+		bra ]loop
+
+		lda #0
+		tax
+		tay
+
+]lp
+		sta |$2200,x
+
+		sta :temp
+		;pha
+
+		txa
+		sta |$2300,y
+
+		tya
+		sta |$2400,x
+
+		lda :temp
+		;pla
+
+		inx
+		bne ]lp
+
+		iny
+		bne ]lp
+
+		inc
+		jmp ]lp
+
+:temp ds 1
+		fin
+
+;------------------------------------------------------------------------------
+
+		do 0
+		stz <io_ctrl
+
+		stz |MULU_A_L
+		stz |MULU_A_H
+
+		stz |MULU_B_L
+		stz |MULU_B_H
+
+		lda #$40
+		sta |MULU_A_L		; 0.25
+
+		lda #230
+		sta |MULU_A_L		; 0.9
+
+math_loop
+
+		ldy #2
+
+		stz <io_ctrl
+		lda |MULU_A_L
+		ldx |MULU_A_H
+		sty <io_ctrl
+		jsr TermPrintAXH
+
+		lda #' '
+		jsr TermCOUT
+
+		stz <io_ctrl
+		lda |MULU_B_L
+		ldx |MULU_B_H
+		sty <io_ctrl
+		jsr TermPrintAXH
+		lda #' '
+		jsr TermCOUT
+
+		stz <io_ctrl
+		lda |MULU_LH
+		ldx |MULU_HL
+		sty <io_ctrl
+		jsr TermPrintAXH
+		jsr TermCR
+
+		stz <io_ctrl
+		inc |MULU_B_L
+		bne math_loop
+		inc |MULU_B_H
+
+		bra math_loop
+		fin
+		
+
+;------------------------------------------------------------------------------
 
 		lda #$B
 		sta line_color
@@ -233,8 +355,10 @@ init320x240
 		sta VKY_MSTR_CTRL_0
 		;lda #%110       ; text in 40 column when it's enabled
 		;sta $D001
-		lda #6
-		stz VKY_MSTR_CTRL_1
+		;lda #6
+		;lda #1 ; clock_70
+		lda #0
+		sta VKY_MSTR_CTRL_1
 
 		; layer stuff - take from Jr manual
 ;		lda #$54
@@ -336,10 +460,16 @@ DmaClear
 		rts
 
 ;------------------------------------------------------------------------------
+plot_line
+		jmp plot_line_8x8y
+		rts
+
+
+;------------------------------------------------------------------------------
 ;
 ; no real regard given to performance, just make it work
 ;
-plot_line
+plot_line_8x8y
 
 :x0 = temp0
 :y0 = temp0+1
@@ -529,12 +659,12 @@ plot_line
 		adc #0  				; Or adc x0+1 for 16-bit
 
 		ldy |:block_num,x
-		cmp #$C0
+		cmp #>{WRITE_BLOCK+$2000}
 		bcc :good_to_go
 
 		iny
 
-		lda #$A0
+		lda #>WRITE_BLOCK
 
 :good_to_go
 		sty <mmu5
@@ -613,7 +743,7 @@ text_plot_too
 		stx <line_x1
 		sty <line_y1
 
-		jmp plot_line
+;		jmp plot_line
 
 
 		lda #<txt_plot
