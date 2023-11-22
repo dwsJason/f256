@@ -50,7 +50,7 @@ mod_num_instruments ds 1 ; expected 31
 
 mod_song_length       ds 1     ; length in patterns
 mod_p_current_pattern ds 3     ; pointer to the current pattern
-mod_p_pattern_dir     ds 3	   ; pointer to directory of patterns
+mod_p_pattern_dir     ds 3	   ; pointer to directory of patterns (local ptr, and mmu block number)
 mod_current_row       ds 1     ; current row #
 mod_pattern_index     ds 1     ; current index into pattern directory
 mod_num_patterns      ds 1     ; total number of patterns

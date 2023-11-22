@@ -86,8 +86,8 @@ ModInit
 
 ;----------- Display the Mod Name ---------------
 
-		ldx #12
-		ldy #0
+		ldx #3
+		ldy #2
 		jsr TermSetXY
 
 		ldx #0
@@ -102,7 +102,7 @@ ModInit
 
 ;----------- Display the Number of Instruments -------
 
-		ldx #40
+		ldx #14
 		ldy #0
 		jsr TermSetXY
 
@@ -114,7 +114,7 @@ ModInit
 
 ;----------- Display the Number of Tracks -------
 
-		ldx #60
+		ldx #30
 		ldy #0
 		jsr TermSetXY
 
@@ -124,7 +124,25 @@ ModInit
 		ldax #txt_tracks
 		jsr TermPUTS
 
+; line accross the bottom of instrument block
+
+		ldx #0
+		ldy #18
+		jsr TermSetXY
+
+		ldx #79
+]lp 	lda #173
+		jsr TermCOUT
+		dex
+		bpl ]lp
+
+
 ; line accross the top
+
+		ldx #0
+		ldy #1
+		jsr TermSetXY
+
 
 		ldx #79
 ]lp 	lda #173
@@ -152,6 +170,7 @@ ModInit
 :pSourceInst = temp0
 :loopCount   = temp0+2
 :pInst       = temp1
+:num_patterns = temp1+2
 
 		stz <:loopCount
 
@@ -234,6 +253,39 @@ ModInit
 		bcc ]inst_fetch_loop
 
 ;------------------------------------------------------------------------------
+
+		jsr :get_byte
+		sta mod_song_length
+
+		jsr :inc_pSource
+
+		ldax :pSourceInst
+		stax mod_p_pattern_dir
+
+		lda <mmu3
+		sta mod_p_pattern_dir+1
+
+		; initialize pattern index
+		stz <mod_pattern_index
+
+		; Scan the pattern directory, to find out how many patterns are
+		; actually referenced in this file
+
+		ldy #0
+		stz <:num_patterns
+]lp
+		lda (:SourceInst),y
+		cmp <:num_patterns
+		bcc :no_update
+		sta <:num_patterns
+:no_update
+		iny
+		cpy mode_song_length
+		
+
+:no_update
+
+;------------------------------------------------------------------------------
 ; Dump the Instrument Data from the local instrument table
 
 		stz <:loopCount
@@ -290,7 +342,8 @@ ModInit
 ;------------------------------------------------------------------------------
 
 		rts
-
+:get_byte
+		lda (:pSourceInst)
 :inc_pSource
 		inc <:pSourceInst
 		beq :inc_high
