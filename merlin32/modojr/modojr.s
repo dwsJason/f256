@@ -99,13 +99,16 @@ start
 
 ; Jr Vicky can't see above this
 ;		jsr init320x240_fireplace
+		jsr mmu_unlock
+		lda #5
+		sta mmu5
+
 		jsr init320x240_bitmap
 
 		jsr initColors
 
 		jsr TermInit
 
-		jsr mmu_unlock
 
 		lda #<txt_modo
 		ldx #>txt_modo

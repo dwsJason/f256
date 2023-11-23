@@ -63,6 +63,11 @@ mmu_unlock
 		dex
 		bpl ]save
 
+; for our RAM BASED PROGRAM, we need block at $A000
+		lda #5
+		sta mmu5
+		sta old_mmu0+5,x
+
 		rts
 
 ;

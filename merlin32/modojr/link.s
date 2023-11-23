@@ -39,6 +39,7 @@
 main_code_start
 		put modojr.s
 		put mod.s
+		put mmu.s
 main_code_end
 
 		; $6000->$7FFF reserved for memory hole
@@ -48,10 +49,9 @@ main_code_end
 		adr code2_start
 		adr code2_end-code2_start
 
-		org $8000
+		org $A000
 code2_start
 		put term.s
-		put mmu.s
 		put lzsa2.s
 		put file256.s
 		put colors.s
@@ -64,7 +64,9 @@ code2_end
 		adr mod_data_end-mod_data_start ; 72144      ;mod_end-mod_start  ; labels only work here, if data below is less than 64K
 		org $040000
 mod_data_start
-mod_song putbin data/dru.mod
+mod_song
+;		putbin data/dru.mod
+       putbin data/tomsdine.mod
 mod_data_end
 
 

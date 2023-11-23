@@ -29,6 +29,15 @@ sizeof_inst ds 0
 ; needs to be on an 8k boundary, aligned to a multiple of $2000
 ;
 ModInit
+
+:pSourceInst = temp0
+:loopCount   = temp0+2
+:pInst       = temp1
+:num_patterns = temp1+2
+:pPatterns    = temp2
+:pCurPattern = temp3
+:pCurInst = temp3
+
 		staxy <mod_start
 		jsr set_read_address
 
@@ -179,12 +188,6 @@ ModInit
 :ss
 		cmpax #mod_local_end
 		bcc ]loop
-
-:pSourceInst = temp0
-:loopCount   = temp0+2
-:pInst       = temp1
-:num_patterns = temp1+2
-:pPatterns   = temp2
 
 		stz <:loopCount
 
@@ -356,16 +359,58 @@ ModInit
 		jsr :add_to_pSource
 		
 ; now at position 1080 / M.K.
-
-		ldax #1084 ; modern mod
+		; READ_BLOCK+1084
+		ldax #$6000+1084 ; modern mod
 	   
 		ldy <mod_num_instruments
 		cpy #15
 		bne :mkmod
 
 		; old school mod
-		ldax #1080-{16*30}
+		; READ_BLOCK+1080
+		ldax #$6000+1080-{16*30}
 :mkmod			   
+		stax <:pPatterns
+		stax <:pCurPattern
+
+		lda mmu3
+		sta <:pPatterns+2
+		sta <:pCurPattern
+
+; fill out the pattern address table
+; yes, this could be nicer, since patterns are 1k in size
+; we could relocate them to be aligned in the mmu, and reduce
+; the window size.  We're going to try using a 16k window
+; for now, and see if we can get away with using only 32k
+; of mapped memory for our program
+
+		ldy #0
+		clc
+]pat_loop
+		ldax :pCurPattern
+		sta |mod_patterns_l,y
+		txa
+		sta |mod_patterns_m,y
+		lda :pCurPattern+2
+		sta |mod_patterns_b,y
+
+		lda <:pCurPattern+1
+		adc #>1024  ; 4
+		bpl :pat_adr_ok
+
+		inc <:pCurPattern+2
+		sbc #31 		   ; c=0, -=$2000
+
+:pat_adr_ok
+		sta <:pCurPattern+1
+
+		iny
+		cpy #128
+		bcc ]pat_loop
+
+; At this point :pCurPattern is the start of the instrument block
+
+
 
  
 
@@ -524,7 +569,7 @@ mod_patterns_l
 	ds 128
 mod_patterns_m
 	ds 128
-mod_patterns_h
+mod_patterns_b  ; block
 	ds 128
 
 mod_instruments ds sizeof_inst*32  ; Really a normal mod only has 31 of them
