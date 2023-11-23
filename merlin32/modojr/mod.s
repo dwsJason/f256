@@ -184,6 +184,7 @@ ModInit
 :loopCount   = temp0+2
 :pInst       = temp1
 :num_patterns = temp1+2
+:pPatterns   = temp2
 
 		stz <:loopCount
 
@@ -304,7 +305,7 @@ ModInit
 ; top of screen stats
 
 		ldy #0
-		ldx #40
+		ldx #41
 		jsr TermSetXY
 		ldax #txt_song_length
 		jsr TermPUTS
@@ -348,7 +349,25 @@ ModInit
 		bcc ]lp
 
 		jsr TermCR
+	   
+;------------------------------------------------------------------------------
+	   
+		lda #128
+		jsr :add_to_pSource
 		
+; now at position 1080 / M.K.
+
+		ldax #1084 ; modern mod
+	   
+		ldy <mod_num_instruments
+		cpy #15
+		bne :mkmod
+
+		; old school mod
+		ldax #1080-{16*30}
+:mkmod			   
+
+ 
 
 ;------------------------------------------------------------------------------
 ; Dump the Instrument Data from the local instrument table

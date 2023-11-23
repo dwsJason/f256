@@ -111,6 +111,13 @@ start
 		ldx #>txt_modo
 		jsr TermPUTS
 
+		ldx #68
+		ldy #0
+		jsr TermSetXY
+
+		ldax #txt_sampler
+		jsr TermPUTS
+
 ;------------------------------------------------------------------------------
 ; bitmap demo
 ;
@@ -612,6 +619,9 @@ txt_song_length asc 'Length:'
 		db 0
 
 txt_patterns asc 'Patterns:'
+		db 0
+
+txt_sampler asc 'Mixer:16khz'
 		db 0
 
 
