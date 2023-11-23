@@ -608,6 +608,14 @@ txt_instruments asc ' Instruments'
 txt_tracks asc ' Tracks'
 		db 13,0
 
+txt_song_length asc 'Length:'
+		db 0
+
+txt_patterns asc 'Patterns:'
+		db 0
+
+
+
 
 ;------------------------------------------------------------------------------
 ;

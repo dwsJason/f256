@@ -124,6 +124,19 @@ ModInit
 		ldax #txt_tracks
 		jsr TermPUTS
 
+; line accross the bottom of pattern list
+
+		ldx #0
+		ldy #24
+		jsr TermSetXY
+
+		ldx #79
+]lp 	lda #173
+		jsr TermCOUT
+		dex
+		bpl ]lp
+
+
 ; line accross the bottom of instrument block
 
 		ldx #0
@@ -274,16 +287,68 @@ ModInit
 		ldy #0
 		stz <:num_patterns
 ]lp
-		lda (:SourceInst),y
+		lda (:pSourceInst),y
 		cmp <:num_patterns
 		bcc :no_update
 		sta <:num_patterns
 :no_update
 		iny
-		cpy mode_song_length
-		
+		;cpy mode_song_length
+		cpy #128
+		bcc ]lp
 
-:no_update
+		inc <:num_patterns
+
+;-------------------- print out the pattern indexes
+
+; top of screen stats
+
+		ldy #0
+		ldx #40
+		jsr TermSetXY
+		ldax #txt_song_length
+		jsr TermPUTS
+
+		lda mod_song_length
+		jsr TermPrintAI
+
+		lda #' '
+		jsr TermCOUT
+
+		ldax #txt_patterns
+		jsr TermPUTS
+
+		lda <:num_patterns
+		jsr TermPrintAI
+
+; pattern indexes
+
+		ldx #0
+		ldy #19
+		jsr TermSetXY
+
+		ldx #26
+		ldy #0
+]lp		
+		lda #' '
+		jsr TermCOUT
+
+		lda (:pSourceInst),y
+		phx
+		jsr TermPrintAH
+		plx
+
+		dex
+		bne :no_cr
+		ldx #26
+		jsr TermCR
+:no_cr
+		iny
+		cpy #128
+		bcc ]lp
+
+		jsr TermCR
+		
 
 ;------------------------------------------------------------------------------
 ; Dump the Instrument Data from the local instrument table
