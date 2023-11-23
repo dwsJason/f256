@@ -20,6 +20,424 @@ i_sample_loop_end   ds 3    ; address
 sizeof_inst ds 0
 		dend
 
+		do 0
+;------------------------------------------------------------------------------
+ModPlayerTick mx %11
+		lda <mod_jiffy
+		inc
+		cmp <mod_speed
+		bcs :next_row
+		sta <mod_jiffy
+		rts
+:next_row
+		stz <mod_jiffy
+
+; interpret mod_p_current_pattern, for simple note events
+; this is called during an interrupt, so I'm working with the idea
+; that it's safe to modify the oscillators
+
+:note_period = mod_temp0
+:note_sample = mod_temp0+2
+:effect_no   = mod_temp1
+:effect_parm = mod_temp1+2
+:break = mod_temp2
+:break_row = mod_temp2+2
+:osc_x = mod_temp3
+:vol   = mod_temp3+2
+:jump = mod_temp4
+:jump_order = mod_temp4+2
+
+		stz <:break
+		stz <:jump
+
+		;lda #$2020 ; $$JGA TODO, adjust the volume over in the volume table construction, instead of here
+		;sta <:vol
+
+		ldx #0
+		stx <:osc_x
+
+		ldy #0
+]lp
+		lda |mod_channel_pan,y
+		sta <:vol
+
+		lda [mod_p_current_pattern],y
+		sta <:note_sample
+		xba
+		and #$FFF ; we have the period
+		sta <:note_period
+
+		iny
+		iny
+
+		lda #$FF0F
+		trb <:note_sample
+
+		lda [mod_p_current_pattern],y
+		sta <:effect_no
+
+		lsr
+		lsr
+		lsr
+		lsr
+		and #$0F
+		tsb <:note_sample
+
+		lda <:effect_no
+		xba
+		and #$ff
+		sta <:effect_parm
+
+		lda #$FFF0
+		trb <:effect_no
+;----------------------------------- what can I do with this stuff?
+
+;     if (SAMPLE > 0) then {
+;	  LAST_INSTRUMENT[CHANNEL] = SAMPLE_NUMBER  (we store this for later)
+;	  volume[CHANNEL] = default volume of sample SAMPLE_NUMBER
+;     }
+
+		lda <:note_sample
+		beq :no_note_sample
+
+		sta |mod_last_sample,y
+
+:no_note_sample
+
+;     if (NOTE exists) then {
+;	  if (VIBRATO_WAVE_CONTROL = retrig waveform) then {
+;		vibrato_position[CHANNEL] = 0 (see SECTION 5.5 about this)
+;	  if (TREMOLO_WAVE_CONTROL = retrig waveform) then {
+;		tremolo_position[CHANNEL] = 0 (see SECTION 5.8 about this)
+;
+;	  if (EFFECT does NOT = 3 and EFFECT does NOT = 5) then
+;	      frequency[CHANNEL] =
+;			FREQ_TAB[NOTE + LAST_INSTRUMENT[CHANNEL]'s finetune]
+;     }
+;
+;     if (EFFECT = 0 and EFFECT_PARAMETER = 0) then goto to SKIP_EFFECTS label
+;									    |
+;     ....                                                                   ³
+;     PROCESS THE NON TICK BASED EFFECTS (see section 5 how to do this)      ³
+;     ALSO GRAB PARAMETERS FOR TICK BASED EFFECTS (like porta, vibrato etc)  ³
+;     ....                                                                   ³
+;									    ³
+;label SKIP_EFFECTS:     <-ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+;
+;     if (frequency[CHANNEL] > 0) then SetFrequency(frequency[CHANNEL])
+;	 if (NOTE exists) then {
+;	  PLAYVOICE (adding sample_offset[CHANNEL] to start address)
+;     }
+;     move note pointer to next note (ie go forward 4 bytes in pattern buffer)
+
+;		lda <:note_period
+;		beql :nothing
+
+		; do some effect stuff here
+		lda <:effect_no
+		asl
+		tax
+		jmp (:effect_table,x)
+
+:effect_table
+		da :arpeggio		   ;0
+		da :porta_up		   ;1
+		da :porta_down  	   ;2
+		da :porta_to_note      ;3
+		da :vibrato 		   ;4
+		da :porta_vol_slide    ;5
+		da :vibrato_vol_slide  ;6
+		da :tremolo 		   ;7
+		da :pan 			   ;8
+		da :sample_offset      ;9
+		da :vol_slide   	   ;A
+		da :jump_to_pattern    ;B
+		da :set_volume  	   ;C
+		da :pattern_break      ;D
+		da :E_things  	   	   ;E
+		da :set_speed   	   ;F
+
+
+:arpeggio
+:porta_up
+:porta_down
+:porta_to_note
+:vibrato
+:porta_vol_slide
+:vibrato_vol_slide
+:tremolo
+		bra :after_effect
+:pan
+; Dual Mod Player
+;00 = far left
+;40 = middle
+;80 = far right
+;A4 = surround *
+
+; FT2 00 = far left, 80 = center, FF = far right
+
+; how can you know?  (I guess I would analyze all the pan settings in the whole)
+; tune, ahead of time, and see what the range is.  Yuck
+		bra :after_effect
+:sample_offset
+:vol_slide
+		bra :after_effect
+:jump_to_pattern
+		inc <:jump
+		stz <:break_row    ; we always use this as the row
+		lda <:effect_parm
+		sta <:jump_order
+		bra :after_effect  ; if a break is encountered after this in the row, it change the the jump_row, which is the same as the break row
+:set_volume
+		pei <:vol
+
+		lda <:effect_parm ; 0-$40
+		lsr
+		cmp #$20
+		bcc :vol_range_ok
+		lda #$20   ; clamp
+:vol_range_ok
+		sta <:vol    ; left
+		xba
+		tsb <:vol    ; right (until we take into account pan)
+
+		pla
+		cmp #$0820
+		beq :dim_right
+
+		; dim_left
+		lsr <:vol
+		lsr <:vol
+
+		bra :not_right
+:dim_right
+
+		lsr <:vol+1
+		lsr <:vol+1
+
+:not_right
+
+		ldx <:osc_x
+		lda <:vol  		; left/right volume (3f max)
+		sta <osc_left_vol,x
+		bra :after_effect
+
+:pattern_break
+		inc <:break 	  			; need to break
+		lda <:effect_parm
+		sta <:break_row 			; skip to this row, with the break
+		bra :after_effect
+:E_things
+		bra :after_effect
+:set_speed
+		lda <:effect_parm
+		cmp #$20
+		bcs :BPM  ; this needs to alter the 50hz timer, Beats Per Minute
+		sta <mod_speed
+		bra :after_effect
+
+:BPM
+		; needs to alter timer, skip for now
+		phx
+		sta <mod_bpm  			    ; for the visualizer
+		asl
+		asl
+		tax
+		lda |bpm_tick_table,x    	; changing from 50hz to, who knows what
+		sta |TIMER0_CMP_L
+		lda |bpm_tick_table+1,x
+		sta |TIMER0_CMP_M
+		plx
+
+:after_effect
+
+;NSTC:  (7159090.5  / (:note_period * 2))/24000 into 8.8 fixed result
+;        (3579545.25 / :note_period) / 24000
+
+;149.14771875 / :note_period
+;38181 / :note_period
+		lda <:note_period
+		beq :nothing
+
+		sta |UNSIGNED_DIV_DEM_LO
+
+		lda #38181
+		sta |UNSIGNED_DIV_NUM_LO
+
+		lda |UNSIGNED_DIV_QUO_LO
+		; frequency
+		ldx <:osc_x
+		sta <osc_frequency,x
+
+		lda <:vol  		; left/right volume (3f max)
+		sta <osc_left_vol,x
+
+		;---- start - this might be a good spot to update the pumpbar out
+
+		sta |mod_pump_vol,y
+
+		;---- end - this might be a good spot to update the pumpbar out
+
+		phy  ; need to preserve
+
+		lda |mod_last_sample,y
+		and #$1F
+		beq :no_sample
+
+		dec
+		asl
+		tay
+		lda |inst_address_table,y
+		tay
+
+		lda |i_sample_length,y
+		ora |i_sample_length+2,y
+		beq :no_sample
+
+		lda |i_fine_tune,y
+		lda |i_volume,y
+
+
+		; wave pointer 24.8
+		stz <osc_pWave,x
+		lda |i_sample_start_addr,y
+		sta <osc_pWave+1,x
+		lda |i_sample_start_addr+1,y
+		sta <osc_pWave+2,x
+
+		; loop address 24.8
+		stz <osc_pWaveLoop,x
+		lda |i_sample_loop_start,y
+		sta <osc_pWaveLoop+1,x
+		lda |i_sample_loop_start+1,y
+		sta <osc_pWaveLoop+2,x
+
+		; wave end
+		stz <osc_pWaveEnd,x
+		lda |i_sample_loop_end,y
+		sta <osc_pWaveEnd+1,x
+		lda |i_sample_loop_end+1,y
+		sta <osc_pWaveEnd+2,x
+
+		; need proper loop size, for the loop logic $$TODO, consider removing this field
+		sec
+		lda <osc_pWaveEnd+2,x
+		sbc <osc_pWaveLoop+2,x
+		sta <osc_loop_size+2,x
+		lda <osc_pWaveEnd,x
+		sbc <osc_pWaveLoop,x
+		sta <osc_loop_size,x
+
+:no_sample
+		ply ; restore y
+
+:nothing
+
+		; c=?
+		ldx <:osc_x
+		clc
+		txa
+		adc #sizeof_osc  ; next oscillator, for the next track
+		tax
+		stx <:osc_x
+
+		iny
+		iny
+		cpy <mod_row_size ; 4*4 or 8*4 or 6*4 or 7*4
+		bccl ]lp
+
+; check for jump
+		lda <:jump
+		bne :perform_jump  ; if we jump, we don't break
+
+; check for break
+		lda <:break
+		bne :perform_break
+
+; next row, and so on
+		lda <mod_current_row
+		inc
+		cmp #64 ; number of rows in the pattern
+		bcs :next_pattern
+		sta <mod_current_row
+		;c=0
+		lda <mod_p_current_pattern
+		adc <mod_row_size ;#4*4 or #8*4
+		sta <mod_p_current_pattern
+		bcc :no_carry
+		inc <mod_p_current_pattern+2
+:no_carry
+		rts
+
+:next_pattern
+		stz <mod_current_row
+:nxtp_leave_row
+		lda <mod_pattern_index
+		inc
+		cmp <mod_song_length
+		bcs :song_done
+		sta <mod_pattern_index
+
+		bra ModSetPatternPtr
+
+:song_done
+		stz <SongIsPlaying
+		rts
+
+:perform_jump
+		; the next pattern is <:jump_order
+		lda <:jump_order
+		sta <mod_pattern_index
+
+		lda <:break_row
+		sta <mod_current_row
+
+		bra ModSetPatternPtr
+
+:perform_break
+
+		lda <:break_row
+		sta <mod_current_row
+
+		bra :nxtp_leave_row
+
+;------------------------------------------------------------------------------
+; ModPlay (play the current Mod)
+;
+ModPlay mx %00
+; stop existing song
+	stz <SongIsPlaying
+
+; Initialize song stuff
+
+	lda #6  ; default speed
+	sta <mod_speed
+	stz <mod_jiffy
+
+	stz <mod_current_row
+	stz <mod_pattern_index
+	jsr ModSetPatternPtr
+
+	lda #1
+	sta <SongIsPlaying
+	rts
+
+;------------------------------------------------------------------------------
+ModSetPatternPtr mx %00
+	ldy <mod_pattern_index
+	lda [mod_p_pattern_dir],y
+	and #$7F
+	asl
+	asl
+	tax
+	lda |mod_patterns,x
+	sta <mod_p_current_pattern
+	lda |mod_patterns+2,x
+	sta <mod_p_current_pattern+2
+
+	rts
+
+	fin
 
 ;------------------------------------------------------------------------------
 ;
@@ -819,6 +1237,9 @@ ModIsSupported
 :not_letter
 		sec
 		rts
+
+;------------------------------------------------------------------------------
+
 
 
 ; Mod Other Local Variables
