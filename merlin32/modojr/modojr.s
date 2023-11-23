@@ -100,8 +100,6 @@ start
 ; Jr Vicky can't see above this
 ;		jsr init320x240_fireplace
 		jsr mmu_unlock
-		lda #5
-		sta mmu5
 
 		jsr init320x240_bitmap
 
@@ -618,16 +616,10 @@ txt_instruments asc ' Instruments'
 txt_tracks asc ' Tracks'
 		db 13,0
 
-txt_song_length asc 'Length:'
-		db 0
-
-txt_patterns asc 'Patterns:'
-		db 0
-
-txt_sampler asc 'Mixer:16khz'
-		db 0
-
-
+txt_song_length cstr 'Length:'
+txt_patterns cstr 'Patterns:'
+txt_sampler cstr 'Mixer:16khz'
+txt_L cstr ' L'
 
 
 ;------------------------------------------------------------------------------

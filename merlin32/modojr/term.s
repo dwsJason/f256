@@ -18,6 +18,7 @@ term_temp1  ds 4
 
 ;TermCOUT       - COUT, prints character in A, right now only special character code #13 is supported <cr>
 ;TermPUTS       - AX is a pointer to a 0 terminated string, this function will send the characters into COUT  
+;TermPrintAN    - print nybble value in A
 ;TermPrintAH    - print value in A, as HEX
 ;TermPrintAI    - print value in A, as DEC
 ;TermPrintAXH   - print value in AX, as HEX  (it will end up XA, because high, then low)

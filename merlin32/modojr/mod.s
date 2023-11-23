@@ -36,7 +36,9 @@ ModInit
 :num_patterns = temp1+2
 :pPatterns    = temp2
 :pCurPattern = temp3
-:pCurInst = temp3
+:pCurInst = temp4
+:iLen = temp5
+:temp = temp6
 
 		staxy <mod_start
 		jsr set_read_address
@@ -303,6 +305,9 @@ ModInit
 
 		inc <:num_patterns
 
+		lda <:num_patterns
+		sta <mod_num_patterns
+
 ;-------------------- print out the pattern indexes
 
 ; top of screen stats
@@ -375,7 +380,7 @@ ModInit
 
 		lda mmu3
 		sta <:pPatterns+2
-		sta <:pCurPattern
+		sta <:pCurPattern+2
 
 ; fill out the pattern address table
 ; yes, this could be nicer, since patterns are 1k in size
@@ -395,7 +400,7 @@ ModInit
 		sta |mod_patterns_b,y
 
 		lda <:pCurPattern+1
-		adc #>1024  ; 4
+		adc #>1024  ; 4 	(16*64)
 		bpl :pat_adr_ok
 
 		inc <:pCurPattern+2
@@ -405,13 +410,175 @@ ModInit
 		sta <:pCurPattern+1
 
 		iny
-		cpy #128
+		;cpy #128
+		cpy mod_num_patterns 
 		bcc ]pat_loop
 
 ; At this point :pCurPattern is the start of the instrument block
 
+		; convert in to system memory pointer
+		lda <:pCurPattern
+		sta <:pCurInst
+		lda <:pCurPattern+1
+		and #$1f
+		sta <:pCurInst+1
+
+		lda <:pCurPattern+2
+		lsr
+		lsr
+		lsr
+		sta <:pCurInst+2
+
+		lda <:pCurPattern+2
+		asl
+		asl
+		asl
+		asl
+		asl
+		tsb <:pCurInst+1
+
+		do 0
+		; test junk
+		ldx #0
+		ldy #25
+		jsr TermSetXY
+
+		ldaxy <:pCurPattern
+		jsr TermPrintAXYH
+
+		lda #' '
+		jsr TermCOUT
+
+		ldaxy <:pCurInst
+		jsr TermPrintAXYH
+
+]wait   bra ]wait
+		fin
+
+; fix up the instrument table
+;
+; i_sample_start_addr
+; i_sample_length
+; i_sample_loop_start
+; i_sample_loop_end
+;
+
+		; change out each pcm sample, to be unsigned
+		; instead of signed  (eor #$80)
+
+		; convert into SN76489 format
+		; eor #$FF
+		; lsr4
 
 
+		stz <:loopCount
+]iloop
+		lda <:loopCount
+		asl
+		tax
+		lda |inst_address_table,x
+		sta <:pInst
+		lda |inst_address_table+1,x
+		sta <:pInst+1
+
+		ldy #i_sample_start_addr
+
+		; System Memory Start of the Instrument
+		lda <:pCurInst
+		sta (:pInst),y
+		iny
+		lda <:pCurInst+1
+		sta (:pInst),y
+		iny
+		lda <:pCurInst+2
+		sta (:pInst),y
+
+		; Adjust the length from words to bytes
+		; and update length
+		ldy #i_sample_length
+		lda (:pInst),y
+		asl
+		sta (:pInst),y
+		sta <:iLen
+
+		iny
+		lda (:pInst),y
+		rol
+		sta (:pInst),y
+		sta <:iLen+1
+
+		iny
+		lda #0
+		rol
+		sta (:pInst),y
+		sta <:iLen+2
+
+		; adjust the loop start - words to byte
+		; and add to the pCurInst start
+
+		ldy #i_sample_loop_end   ; really length
+
+		lda (:pInst),y
+		cmp #2
+		bcs :it_loops
+		iny
+		lda (:pInst),y
+		bne :it_loops
+
+		; no loop
+		lda #0
+		sta (:pInst),y
+		dey
+		sta (:pInst),y
+
+		ldy #i_loop			; zero loop flag
+		sta (:pInst),y
+
+		ldy #i_sample_loop_start
+
+		sta (:pInst),y
+		iny
+		sta (:pInst),y
+
+		bra :no_loop
+
+:it_loops
+		ldy #i_sample_loop_start
+		jsr :get_add_store
+
+		ldy #i_sample_loop_end
+		jsr :get_add_store
+
+		ldy #i_loop
+		lda #1
+		sta (:pInst),y
+
+:no_loop
+		; next wave start location
+		clc
+		lda <:pCurInst
+		adc <:iLen
+		sta <:pCurInst
+		lda <:pCurInst+1
+		adc <:iLen+1
+		sta <:pCurInst+1
+		lda <:pCurInst+2
+		adc <:iLen+2
+		sta <:pCurInst+2
+
+		lda <:loopCount
+		inc
+		sta <:loopCount
+		cmp <mod_num_instruments
+		bccl ]iloop
+
+		; dump out last address, so I can make sure it matches mod length
+		ldx #73
+		ldy #24
+		jsr TermSetXY
+
+		ldaxy <:pCurInst
+		jsr TermPrintAXYH
  
 
 ;------------------------------------------------------------------------------
@@ -442,7 +609,7 @@ ModInit
 		pha
 		;clc
 		txa
-		adc #40				; tab the x over to the left
+		adc #39				; tab the x over to the right
 		tax
 		pla
 :left
@@ -456,12 +623,46 @@ ModInit
 		inc
 		jsr TermPrintAI
 
+		ldx term_x
+		phx		; save, so we can put data next to the name
+
+
 		lda #' '
 		jsr TermCOUT
 
 		ldax <:pInst
 		jsr TermPUTS
 
+		; jump cursor to right of name
+		clc
+		pla
+		adc #23
+		tax
+		ldy term_y
+		jsr TermSetXY
+
+		ldy #i_sample_length
+		lda (:pInst),y
+		iny
+		ora (:pInst),y
+		beq :skip_this_one
+
+		ldy #i_sample_start_addr
+		jsr :show_address
+
+		ldy #i_loop
+		lda (:pInst),y
+		beq :skip_this_one
+
+		ldy #i_sample_loop_start
+		jsr :show_address
+
+		;ldax #txt_L
+		;jsr TermPUTS
+		;lda #'L'
+		;jsr TermCOUT
+
+:skip_this_one
 		lda <:loopCount
 		inc
 		sta <:loopCount
@@ -471,6 +672,31 @@ ModInit
 ;------------------------------------------------------------------------------
 
 		rts
+
+:show_address
+		jsr :get_temp
+		;lda :temp+2
+		;jsr TermPrintAN  ; Nybble
+		;ldax :temp
+		;jsr TermPrintAXH
+
+		ldaxy :temp
+		jsr TermPrintAXYH
+		lda #' '
+		jmp TermCOUT
+
+:get_temp
+		lda (:pInst),y
+		sta <:temp
+		iny
+		lda (:pInst),y
+		sta <:temp+1
+		iny
+		lda (:pInst),y
+		sta <:temp+2
+		rts
+
+
 :get_byte
 		lda (:pSourceInst)
 :inc_pSource
@@ -487,6 +713,52 @@ ModInit
 		inc <:pSourceInst+1
 :rts
 		rts
+
+:get_add_store
+		; fetch word offset, x2 into temp
+		phy
+		lda (:pInst),y
+		asl
+		sta <:temp
+
+		iny
+		lda (:pInst),y
+		rol
+		sta <:temp+1
+
+		iny
+		lda #0
+		rol
+		sta <:temp+2
+
+	    ; add temp to current sample start
+		clc
+		lda <:temp
+		adc <:pCurInst
+		sta <:temp
+		lda <:temp+1
+		adc <:pCurInst+1
+		sta <:temp+1
+		lda <:temp+2
+		adc <:pCurInst+2
+		sta <:temp+2
+
+		; save result back into instrument def
+		;ldy #i_sample_loop_start
+		ply
+		lda <:temp
+		sta (:pInst),y
+
+		iny
+		lda <:temp+1
+		sta (:pInst),y
+
+		iny
+		lda <:temp+2
+		sta (:pInst),y
+		rts
+
+;------------------------------------------------------------------------
 
 ModIsSupported
 
