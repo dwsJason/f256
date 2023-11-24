@@ -10,6 +10,42 @@ psg_r = VKY_PSG0
 psg_l = VKY_PSG1
 
 MixerInit
+		; default no oscilators running
+		stz VOICE0+osc_state
+		stz VOICE1+osc_state
+		stz VOICE2+osc_state
+		stz VOICE3+osc_state
+
+		; even when not running they output samples
+		; so setup some silence
+		lda #$08 ; middle of the wave?
+		sta VOICE0+osc_sample
+		sta VOICE1+osc_sample
+		sta VOICE2+osc_sample
+		sta VOICE3+osc_sample
+
+		; default volume - not used
+		lda #$7f
+		sta VOICE0+osc_left_vol
+		sta VOICE1+osc_left_vol
+		sta VOICE2+osc_left_vol
+		sta VOICE3+osc_left_vol
+
+		sta VOICE0+osc_right_vol
+		sta VOICE1+osc_right_vol
+		sta VOICE2+osc_right_vol
+		sta VOICE3+osc_right_vol
+
+		lda #1 ; default frequency is 16khz, or 1.00
+		stz VOICE0+osc_frequency+0
+		sta VOICE0+osc_frequency+1
+		stz VOICE1+osc_frequency+0
+		sta VOICE1+osc_frequency+1
+		stz VOICE2+osc_frequency+0
+		sta VOICE2+osc_frequency+1
+		stz VOICE3+osc_frequency+0
+		sta VOICE3+osc_frequency+1
+
 		rts
 
 ;------------------------------------------------------------------------------

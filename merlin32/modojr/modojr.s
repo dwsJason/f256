@@ -34,7 +34,7 @@ frame_number ds 1
 
 jiffy ds 1		; 60hz jiffy timer
 ;
-; mixer - variables - I'm hogging up like 90 bytes here
+; mixer - variables - I'm hogging up like 64 bytes here
 ; if need be, we could give mixer it's own DP (by using the mmu)
 ;
 mixer_voices ds sizeof_osc*VOICES
@@ -110,7 +110,6 @@ start
 
 		jsr TermInit
 
-
 		lda #<txt_modo
 		ldx #>txt_modo
 		jsr TermPUTS
@@ -141,9 +140,15 @@ start
 		;jsr InstallModJiffy     ; 50hz timer
 		;jsr InstallMixerJiffy   ; 16k mixer
 
+		jsr MixerInit   ; init those OSCilattors
+
+
 		; hey needs to start on an 8k boundary
 		ldaxy #mod_song
 		jsr ModInit
+
+		jsr InstallIRQ
+
 
 ]main_loop
 		jsr WaitVBL

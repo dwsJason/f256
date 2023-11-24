@@ -40,7 +40,6 @@
 main_code_start
 		put modojr.s
 		put mod.s
-		put mixer.s
 		put mmu.s
 main_code_end
 
@@ -57,6 +56,8 @@ code2_start
 		put lzsa2.s
 		put file256.s
 		put colors.s
+		put irq.s
+		put mixer.s
 code2_end
 
 		ERR    *-1/$C000      ; Error if PC > $C000

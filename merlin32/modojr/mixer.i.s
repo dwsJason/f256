@@ -24,9 +24,6 @@ osc_pWaveEnd   ds 3 ; 24 end of wave
 osc_frequency  ds 2 ; 8.8 frequency
 osc_left_vol   ds 1 ; Left Volume
 osc_right_vol  ds 1 ; Right Volume
-osc_set_freq   ds 2
-osc_set_left   ds 1
-osc_set_right  ds 1
 
 sizeof_osc ds 0
 
