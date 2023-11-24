@@ -32,10 +32,46 @@ InstallIRQ
 		stz io_ctrl
 
 		lda #$FF
+		sta |INT_MASK_0 	; disable all these interrupts
 		sta |INT_MASK_1		; disable all these interrupts
+		sta |INT_PEND_0 	; clear any pending interrupts
+		sta |INT_PEND_1
+		
+;
+; Setup the Hi Rate Timer for 16Khz
+; 
+;CPU_CLOCK_RATE equ 6293750
+RATE     equ CPU_CLOCK_RATE/16000
+MODRATE  equ {{16000/50}-1}
 
-		and #INT00_VKY_SOF!$FF  ; clear mask for SOF
-		sta |INT_MASK_0 	; disable the rest, except SOF
+		stz <SongIsPlaying
+
+		; MOD set to 50hz
+		lda #<MODRATE
+		sta <mod_jiffy_rate
+		lda #>MODRATE
+		sta <mod_jiffy_rate+1
+
+		; High Res Timer0 
+
+		lda #TM_CTRL_CLEAR.TM_CTRL_UP_DOWN.TM_CTRL_ENABLE.TM_CTRL_INTEN
+		sta |TM0_CTRL
+
+		lda #TM_CMP_CTRL_CLR
+		sta |TM0_CMP_CTRL
+
+		lda #<RATE
+		sta |TM0_CMP_L
+		lda #>RATE
+		sta |TM0_CMP_M
+		lda #^RATE
+		sta |TM0_CMP_H
+
+		lda #TM_CTRL_UP_DOWN.TM_CTRL_ENABLE.TM_CTRL_INTEN
+		sta |TM0_CTRL
+  
+		lda #{INT00_VKY_SOF.INT04_TIMER_0}!$FF  ; clear mask for SOF, and fast timer
+		sta |INT_MASK_0 	; enable some interrupts
 
 		lda #$FF
 		sta |INT_PEND_0 	; clear any pending interrupts
@@ -43,6 +79,12 @@ InstallIRQ
 
 		pla
 		sta io_ctrl
+
+
+		stz jiffy
+		stz jiffy+1
+		stz mod_jiffy
+		stz mod_jiffy+1
 
 		plp
 		rts
@@ -62,8 +104,8 @@ my_irq_handler
 		lda INT_PEND_0
 		sta INT_PEND_0 			; clear all interrupts
 
-;		bit #INT05_TIMER_1		; check mixer
-;		beq :not_mixer
+		bit #INT04_TIMER_0
+		beq :not_mixer
 
 ;		pha  ; preserve the interrupts that happened
 
@@ -76,18 +118,30 @@ my_irq_handler
 
 ;		pla
 
+		; it's slow
+		; we have to manually count off 16000/50 interrupts :(
+
+		dec <mod_jiffy_countdown
+		bpl :not_mixer
+		dec <mod_jiffy_countdown+1
+		bpl :not_mixer
+
+		lda <mod_jiffy_rate
+		sta <mod_jiffy_countdown
+		lda <mod_jiffy_rate+1
+		sta <mod_jiffy_countdown+1
+
+		cli
+		jsr ModPlayerTick
+
 :not_mixer
-		;bit #INT00_VKY_SOF
-		;beq :not_sof
+		bit #INT00_VKY_SOF
+		beq :not_sof
 		; SOF interrupt
 		inc <jiffy
+		bne :not_sof
+		inc <jiffy+1
 :not_sof
-;		bit #INT04_TIMER_0
-;		beq :not_modJiffy
-
-;		cli			; we need mixer IRQs to be serviced, and the ModPlayer is
-					; it's slow
-;		jsr ModPlayerTick
 
 :not_modJiffy
 

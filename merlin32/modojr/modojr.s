@@ -32,7 +32,7 @@ ping ds 2
 
 frame_number ds 1
 
-jiffy ds 1		; 60hz jiffy timer
+jiffy ds 2		; 60hz jiffy timer
 ;
 ; mixer - variables - I'm hogging up like 64 bytes here
 ; if need be, we could give mixer it's own DP (by using the mmu)
@@ -57,7 +57,10 @@ mod_p_pattern_dir     ds 3	   ; pointer to directory of patterns (local ptr, and
 mod_current_row       ds 1     ; current row #
 mod_pattern_index     ds 1     ; current index into pattern directory
 mod_num_patterns      ds 1     ; total number of patterns
-mod_jiffy             ds 1     ; mod player jiffy
+
+mod_jiffy_rate        ds 2
+mod_jiffy_countdown   ds 2
+mod_jiffy             ds 2     ; mod player jiffy
 
 mod_temp0			ds 4
 mod_temp1           ds 4
@@ -161,11 +164,16 @@ start
 		ldy #35
 		jsr TermSetXY
 
-		lda <jiffy
-		jsr TermPrintAH
+		ldax jiffy
+		jsr TermPrintAXH
+
+		lda #' '
+		jsr TermCOUT
+
+		ldax mod_jiffy
+		jsr TermPrintAXH
 
 		jmp ]main_loop
-
 
 
 ;----------------------------------------------------------------------------

@@ -20,9 +20,18 @@ i_sample_loop_end   ds 3    ; address
 sizeof_inst ds 0
 		dend
 
-		do 0
 ;------------------------------------------------------------------------------
 ModPlayerTick mx %11
+
+		inc mod_jiffy
+		bne :no_hi
+		inc mod_jiffy+1
+:no_hi
+		rts
+
+
+		do 0
+
 		lda <mod_jiffy
 		inc
 		cmp <mod_speed
@@ -31,6 +40,8 @@ ModPlayerTick mx %11
 		rts
 :next_row
 		stz <mod_jiffy
+
+		rts
 
 ; interpret mod_p_current_pattern, for simple note events
 ; this is called during an interrupt, so I'm working with the idea
