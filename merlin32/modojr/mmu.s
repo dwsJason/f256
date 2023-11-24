@@ -8,7 +8,11 @@
 ; if you want to use $C000, you'll have
 ; to make sure to set the mmu up for this yourself
 
+;!!! THIS HAS TO BE $6000!!!
+;!!! THERES A LOT OF CODE THAT DEPENDS ON THE HI BYTE
+;!!! GOING NEGATIVE WHEN IT GOES OUT OF BOUNDS!!!
 READ_BLOCK  = $6000
+;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 WRITE_BLOCK = $8000
 READ_MMU  = mmu+{READ_BLOCK/8192}
 WRITE_MMU = mmu+{WRITE_BLOCK/8192}

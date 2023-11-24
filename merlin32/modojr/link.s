@@ -21,6 +21,7 @@
 ;------------------------------------------------------------------------------
 
 		use macros.i
+		use mixer.i
 
 ;------------------------------------------------------------------------------
 
@@ -39,6 +40,7 @@
 main_code_start
 		put modojr.s
 		put mod.s
+		put mixer.s
 		put mmu.s
 main_code_end
 
@@ -62,11 +64,12 @@ code2_end
 		org $0
 		adr mod_data_start
 		adr mod_data_end-mod_data_start ; 72144      ;mod_end-mod_start  ; labels only work here, if data below is less than 64K
-		org $040000
+;		org $100000 - expansion RAM
+		org $40000
 mod_data_start
 mod_song
-;		putbin data/dru.mod
-       putbin data/tomsdine.mod
+	   putbin data/dru.mod
+;       putbin data/tomsdine.mod
 mod_data_end
 
 
@@ -74,7 +77,7 @@ mod_data_end
 		org $0
 		adr image2_start
 		adr image2_end-image2_start  ; labels only work here, if data below is less than 64K
-		org $060000
+		org $70000
 
 ;;		put data0.s
 image2_start

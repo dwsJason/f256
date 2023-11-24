@@ -33,8 +33,11 @@ ping ds 2
 frame_number ds 1
 
 jiffy ds 1		; 60hz jiffy timer
-
-; mixer - variables
+;
+; mixer - variables - I'm hogging up like 90 bytes here
+; if need be, we could give mixer it's own DP (by using the mmu)
+;
+mixer_voices ds sizeof_osc*VOICES
 
 ; mod player - variables
 mod_start ds 3

@@ -1239,7 +1239,43 @@ ModIsSupported
 		rts
 
 ;------------------------------------------------------------------------------
+; tick rate table
+CPU_CLOCK_RATE equ 6293750
+bpm_tick_table_l
+]bpm = 0
+		lup 256
+]hz = {{2*]bpm}/5}
+		do ]hz
+		db <{CPU_CLOCK_RATE/]hz}
+		else
+		db 0
+		fin
+]bpm = ]bpm+1
+		--^
 
+bpm_tick_table_m
+]bpm = 0
+		lup 256
+]hz = {{2*]bpm}/5}
+		do ]hz
+		db >{CPU_CLOCK_RATE/]hz}
+		else
+		db 0
+		fin
+]bpm = ]bpm+1
+		--^
+
+bpm_tick_table_h
+]bpm = 0
+		lup 256
+]hz = {{2*]bpm}/5}
+		do ]hz
+		db ^{CPU_CLOCK_RATE/]hz}
+		else
+		db 0
+		fin
+]bpm = ]bpm+1
+		--^
 
 
 ; Mod Other Local Variables
