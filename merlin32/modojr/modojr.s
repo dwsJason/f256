@@ -106,7 +106,7 @@ start
 
 		jsr init320x240_bitmap
 
-		jsr initColors
+		jsr initColors    	; copy GS colors over into the font LUT, and the LUT0 for the bitmap
 
 		jsr TermInit
 
@@ -136,7 +136,7 @@ start
 ; Trying to be friendly, in case we can friendly exit
 ;
 
-		;jsr InstallJiffy		; SOF timer
+		;jsr InstallJiffy		 ; SOF timer
 		;jsr InstallModJiffy     ; 50hz timer
 		;jsr InstallMixerJiffy   ; 16k mixer
 
@@ -147,11 +147,22 @@ start
 		ldaxy #mod_song
 		jsr ModInit
 
+		; All in wonder interrupt
+		; - SOF timer, for dpJiffy
+		; - 50hz timer, for the Mod Sequencer
+		; - 16Khz timer, for the PCM player
 		jsr InstallIRQ
-
+		cli
 
 ]main_loop
 		jsr WaitVBL
+
+		ldx #0
+		ldy #35
+		jsr TermSetXY
+
+		lda <jiffy
+		jsr TermPrintAH
 
 		jmp ]main_loop
 

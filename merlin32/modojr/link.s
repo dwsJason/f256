@@ -35,12 +35,13 @@
 		adr main_code_start 			 	; Address to load into memory
 		adr main_code_end-main_code_start   ; Length of data to load into their
 
-		org $800
+		org $2000
 
 main_code_start
 		put modojr.s
 		put mod.s
 		put mmu.s
+		put irq.s
 main_code_end
 
 		; $6000->$7FFF reserved for memory hole
@@ -56,7 +57,6 @@ code2_start
 		put lzsa2.s
 		put file256.s
 		put colors.s
-		put irq.s
 		put mixer.s
 code2_end
 
@@ -65,7 +65,7 @@ code2_end
 		org $0
 		adr mod_data_start
 		adr mod_data_end-mod_data_start ; 72144      ;mod_end-mod_start  ; labels only work here, if data below is less than 64K
-;		org $100000 - expansion RAM
+;		org $100000 - expansion RAM  (this works!)
 		org $40000
 mod_data_start
 mod_song
