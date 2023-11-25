@@ -40,9 +40,10 @@ InstallIRQ
 ;
 ; Setup the Hi Rate Timer for 16Khz
 ; 
-;CPU_CLOCK_RATE equ 6293750
-RATE     equ CPU_CLOCK_RATE/16000
-MODRATE  equ {{16000/50}-1}
+;CPU_CLOCK_RATE equ 6293750  ; this is 1/4th clock rate
+;RATE     equ 25175000/16000 ; system clock rate, timer is tied to this
+RATE     equ CPU_CLOCK_RATE/4000
+MODRATE  equ 16000/50
 
 		stz <SongIsPlaying
 
@@ -54,8 +55,8 @@ MODRATE  equ {{16000/50}-1}
 
 		; High Res Timer0 
 
-		lda #TM_CTRL_CLEAR.TM_CTRL_UP_DOWN.TM_CTRL_ENABLE.TM_CTRL_INTEN
-		sta |TM0_CTRL
+		;lda #TM_CTRL_CLEAR.TM_CTRL_UP_DOWN.TM_CTRL_ENABLE.TM_CTRL_INTEN
+		stz |TM0_CTRL
 
 		lda #TM_CMP_CTRL_CLR
 		sta |TM0_CMP_CTRL
@@ -107,25 +108,32 @@ my_irq_handler
 		bit #INT04_TIMER_0
 		beq :not_mixer
 
-;		pha  ; preserve the interrupts that happened
+		pha  ; preserve the interrupts that happened
 
 		; mixer / DAC service
-;		lda mmu3
-;		pha
-;		jsr MixerMix
-;		pla
-;		sta mmu3
+		;lda mmu3
+		;pha
+		;jsr MixerMix
+		;pla
+		;sta mmu3
 
-;		pla
 
 		; it's slow
 		; we have to manually count off 16000/50 interrupts :(
 
-		dec <mod_jiffy_countdown
-		bpl :not_mixer
+		lda <mod_jiffy_countdown
+		dec
+		sta <mod_jiffy_countdown
+		cmp #$FF
+		bne :not_hi
 		dec <mod_jiffy_countdown+1
-		bpl :not_mixer
+:not_hi
+		ora <mod_jiffy_countdown+1
+		bne :not_mod
 
+:do_mod_jiffy
+
+		; reset the count
 		lda <mod_jiffy_rate
 		sta <mod_jiffy_countdown
 		lda <mod_jiffy_rate+1
@@ -133,6 +141,10 @@ my_irq_handler
 
 		cli
 		jsr ModPlayerTick
+
+:not_mod
+		pla
+
 
 :not_mixer
 		bit #INT00_VKY_SOF
@@ -142,8 +154,6 @@ my_irq_handler
 		bne :not_sof
 		inc <jiffy+1
 :not_sof
-
-:not_modJiffy
 
 		pla
 		sta <MMU_IO_CTRL
