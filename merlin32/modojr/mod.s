@@ -518,6 +518,7 @@ ModInit
 :pCurInst = temp4
 :iLen = temp5
 :temp = temp6
+:iEnd = temp7
 
 		staxy <mod_start
 		jsr set_read_address
@@ -1206,6 +1207,7 @@ ModInit
 		lda |inst_address_table+1,x
 		sta <:pInst+1
 
+		do 0     			; make me feel good, to see stuff happening
 		lda <:loopCount
 		jsr TermPrintAI
 
@@ -1222,7 +1224,59 @@ ModInit
 		jsr :print_addr
 
 		jsr TermCR
+		fin
 
+;
+; Do the actual sample massage so it's ready to stuff into the PSG
+;
+		ldy #i_sample_loop_bend
+		jsr :get_temp
+
+		lda :temp
+		sta :iEnd
+		lda :temp+1
+		sta :iEnd+1
+		lda :temp+2
+		sta :iEnd+2
+
+		ldy #i_sample_start_badr
+		jsr :get_temp
+
+		lda :temp+2
+		sta <mmu3
+]massage
+		lda <:temp
+		cmp <:iEnd
+		bne :process_sample
+
+		lda <:temp+1
+		cmp <:iEnd+1
+		bne :process_sample
+
+		lda <mmu3
+		cmp <:iEnd+2
+		beq :done_sample
+
+:process_sample
+
+		lda (:temp)
+		eor #$FF
+		lsr
+		lsr
+		lsr
+		lsr
+		sta (:temp)
+
+		inc <:temp
+		bne ]massage
+		inc <:temp+1
+		bpl ]massage
+		lda #>READ_BLOCK
+		sta <:temp+1
+		inc <mmu3
+		bra ]massage
+
+:done_sample
 
 		lda <:loopCount
 		inc
