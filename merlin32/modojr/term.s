@@ -6,7 +6,7 @@
 TextBuffer = $C000
 
 ; Terminal Variables
-	dum $C0
+	dum $D0
 term_width  ds 1
 term_height ds 1
 term_x      ds 1
