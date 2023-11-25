@@ -10,7 +10,7 @@ psg_r = VKY_PSG0
 psg_l = VKY_PSG1
 
 MixerInit
-		; default no oscilators running
+		; default no oscillators running
 		stz VOICE0+osc_state
 		stz VOICE1+osc_state
 		stz VOICE2+osc_state
@@ -45,6 +45,44 @@ MixerInit
 		sta VOICE2+osc_frequency+1
 		stz VOICE3+osc_frequency+0
 		sta VOICE3+osc_frequency+1
+
+		lda <io_ctrl
+		pha
+
+		stz <io_ctrl
+
+		; force the PSG outputs to be stereo
+		lda #SYS_SID_ST+SYS_PSG_ST
+		tsb |VKY_SYS1
+
+; set carrier frequency as high as it can go
+AUDIO_FREQ = 0
+
+		; tone 1, fast carrier
+		lda #{AUDIO_FREQ&$F}
+		ora #$80
+		sta |psg_l
+		sta |psg_r
+
+		lda #{AUDIO_FREQ/16}
+		and #$3F
+		sta |psg_l
+		sta |psg_r
+
+		; tone 2, fast carrier
+		lda #{AUDIO_FREQ&$F}
+		ora #$80.$20
+		sta |psg_l
+		sta |psg_r
+
+		lda #{AUDIO_FREQ/16}
+		and #$3F
+		sta |psg_l
+		sta |psg_r
+
+		pla
+		sta <io_ctrl
+
 
 		rts
 
