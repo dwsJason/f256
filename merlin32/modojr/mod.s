@@ -334,6 +334,11 @@ ModPlayerTick mx %11
 
 		stz <osc_state ; stop the oscillator, while we futz with it
 
+		; Instrument Definitions have their pointers in system
+		; memory format $$TODO - pre-convert the information
+		; into block + offset address mmu format, to save some cpu
+		; cycles here
+
 		; wave pointer 24.8
 		ldy #i_sample_start_addr
 		stz <osc_pWave,x
@@ -345,7 +350,6 @@ ModPlayerTick mx %11
 		iny
 		lda (:pInst),y
 		sta <osc_pWave+3,x
-
 
 		; loop address 24
 		ldy #i_sample_loop_start
@@ -359,7 +363,7 @@ ModPlayerTick mx %11
 		sta <osc_pWaveLoop+2,x
 
 		; wave end address 24
-		ldy #i_sample_loop_end  ; $$TODO - make sure this is set, when wave doesn't loop
+		ldy #i_sample_loop_end
 		lda (:pInst),y
 		sta <osc_pWaveEnd,x
 		iny
@@ -1000,18 +1004,18 @@ ModInit
 
 		; no loop
 		lda #0
-		sta (:pInst),y
+		sta (:pInst),y  	; i_sample_loop_end is now zero
 		dey
 		sta (:pInst),y
 
 		ldy #i_loop			; zero loop flag
 		sta (:pInst),y
 
-		ldy #i_sample_loop_start
+		ldy #i_sample_loop_start   
 
 		sta (:pInst),y
 		iny
-		sta (:pInst),y
+		sta (:pInst),y		; i_sample_loop_start is now zero 
 
 		bra :no_loop
 
@@ -1039,6 +1043,24 @@ ModInit
 		adc <:iLen+2
 		sta <:pCurInst+2
 
+		; if the instrument is single shot, here's our chance to
+		; set he i_sample_loop_end to the end of the single shot
+		; to make the mod player note-on code a little more simple
+		ldy #i_loop
+		lda (:pInst),y
+		bne :loops_ok
+
+		; This is a single shot
+		ldy #i_sample_loop_end
+		lda <:pCurInst
+		sta (:pInst),y
+		iny
+		lda <:pCurInst+1
+		sta (:pInst),y
+		iny
+		lda <:pCurInst+2
+		sta (:pInst),y
+:loops_ok
 		lda <:loopCount
 		inc
 		sta <:loopCount
