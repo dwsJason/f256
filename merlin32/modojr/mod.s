@@ -17,6 +17,10 @@ i_sample_length     ds 3    ; length in bytes
 i_sample_loop_start ds 3    ; address
 i_sample_loop_end   ds 3    ; address
 
+i_sample_start_badr ds 3  	; Start, Loop, and End in Block MMU3 address format
+i_sample_loop_badr  ds 3	;
+i_sample_loop_bend  ds 3	;
+
 sizeof_inst ds 0
 		dend
 
@@ -340,7 +344,7 @@ ModPlayerTick mx %11
 		; cycles here
 
 		; wave pointer 24.8
-		ldy #i_sample_start_addr
+		ldy #i_sample_start_badr
 		stz <osc_pWave,x
 		lda (:pInst),y
 		sta <osc_pWave+1,x
@@ -352,7 +356,7 @@ ModPlayerTick mx %11
 		sta <osc_pWave+3,x
 
 		; loop address 24
-		ldy #i_sample_loop_start
+		ldy #i_sample_loop_badr
 		lda (:pInst),y
 		sta <osc_pWaveLoop,x
 		iny
@@ -363,7 +367,7 @@ ModPlayerTick mx %11
 		sta <osc_pWaveLoop+2,x
 
 		; wave end address 24
-		ldy #i_sample_loop_end
+		ldy #i_sample_loop_bend
 		lda (:pInst),y
 		sta <osc_pWaveEnd,x
 		iny
@@ -1061,6 +1065,24 @@ ModInit
 		lda <:pCurInst+2
 		sta (:pInst),y
 :loops_ok
+
+		;
+		; This is getting silly, but if I can pre-calcuate these
+		; pointers for the mixer, the mod player interrupt can
+		; be a bit shorter.
+		;
+		ldy #i_sample_start_addr
+		ldx #i_sample_start_badr
+		jsr :convert_to_baddr
+
+		ldy #i_sample_loop_start
+		ldx #i_sample_loop_badr
+		jsr :convert_to_baddr
+
+		ldy #i_sample_loop_end
+		ldx #i_sample_loop_bend
+		jsr :convert_to_baddr
+
 		lda <:loopCount
 		inc
 		sta <:loopCount
@@ -1165,6 +1187,36 @@ ModInit
 		bcc ]print
 
 ;------------------------------------------------------------------------------
+
+		rts
+
+:convert_to_baddr
+		jsr :get_temp
+
+		lda <:temp+1
+		asl
+		rol <:temp+2
+		asl
+		rol <:temp+2
+		asl
+		rol <:temp+2
+
+		lda <:temp+1
+		and #$1F
+		ora #>READ_BLOCK
+		sta <:temp+1
+
+		txa
+		tay
+:set_temp
+		lda <:temp
+		sta (:pInst),y
+		iny
+		lda <:temp+1
+		sta (:pInst),y
+		iny
+		lda <:temp+2
+		sta (:pInst),y
 
 		rts
 
