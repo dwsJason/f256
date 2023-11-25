@@ -57,6 +57,7 @@ ModPlayerTick mx %11
 :vol   = mod_temp3+2
 :jump = mod_temp4
 :jump_order = mod_temp4+2
+:pInst = mod_temp5
 
 		stz <:break
 		stz <:jump
@@ -279,7 +280,7 @@ ModPlayerTick mx %11
 ;57273 / :note_period
 		ldax <:note_period
 		cmpax #0
-		beq :nothing
+		beql :nothing
 
 		stax |DIVU_DEN_L
 
@@ -316,43 +317,67 @@ ModPlayerTick mx %11
 		asl
 		tay
 		lda |inst_address_table,y
-		tay
+		sta <:pInst
+		lda |inst_address_table+1,y
+		sta <:pInst+1
 
-		lda |i_sample_length,y
-		ora |i_sample_length+2,y
+		; skip playing empty samples
+		ldy #i_sample_length
+		lda (:pInst),y
+		iny
+		ora (:pInst),y
 		beq :no_sample
 
-		lda |i_fine_tune,y
-		lda |i_volume,y
+		;$$TODO
+		;lda |i_fine_tune,y
+		;lda |i_volume,y
 
 		stz <osc_state ; stop the oscillator, while we futz with it
 
 		; wave pointer 24.8
+		ldy #i_sample_start_addr
 		stz <osc_pWave,x
-		lda |i_sample_start_addr,y
+		lda (:pInst),y
 		sta <osc_pWave+1,x
-		lda |i_sample_start_addr+1,y
+		iny
+		lda (:pInst),y
 		sta <osc_pWave+2,x
+		iny
+		lda (:pInst),y
+		sta <osc_pWave+3,x
 
-		; loop address 24.8
-		stz <osc_pWaveLoop,x
-		lda |i_sample_loop_start,y
+
+		; loop address 24
+		ldy #i_sample_loop_start
+		lda (:pInst),y
+		sta <osc_pWaveLoop,x
+		iny
+		lda (:pInst),y
 		sta <osc_pWaveLoop+1,x
-		lda |i_sample_loop_start+1,y
+		iny
+		lda (:pInst),y
 		sta <osc_pWaveLoop+2,x
 
-		; wave end
-		stz <osc_pWaveEnd,x
-		lda |i_sample_loop_end,y
+		; wave end address 24
+		ldy #i_sample_loop_end  ; $$TODO - make sure this is set, when wave doesn't loop
+		lda (:pInst),y
+		sta <osc_pWaveEnd,x
+		iny
+		lda (:pInst),y
 		sta <osc_pWaveEnd+1,x
-		lda |i_sample_loop_end+1,y
+		iny
+		lda (:pInst),y
 		sta <osc_pWaveEnd+2,x
+
+		ldy #i_loop
+		lda (:pInst),y
+		inc 					; 1=single shot, 2=loop
+		sta <osc_state			; re-enable the osc
 
 :no_sample
 		ply ; restore y
 
 :nothing
-
 		; c=?
 		ldx <:osc_x
 		clc
