@@ -12,7 +12,7 @@ os_playing_looped     ds 1
 
 ;
 ;
-; Voice/Oscillator Structure (32 bytes)
+; Voice/Oscillator Structure
 ;
 ; 
 		dum 0

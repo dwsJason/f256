@@ -23,15 +23,10 @@ sizeof_inst ds 0
 ;------------------------------------------------------------------------------
 ModPlayerTick mx %11
 
-		inc mod_jiffy
-		bne :no_hi
-		inc mod_jiffy+1
-:no_hi
-		rts
-
-
-		do 0
-
+;		inc mod_jiffy
+;		bne :no_hi
+;		inc mod_jiffy+1
+;:no_hi
 		lda <mod_jiffy
 		inc
 		cmp <mod_speed
@@ -41,7 +36,12 @@ ModPlayerTick mx %11
 :next_row
 		stz <mod_jiffy
 
+		lda SongIsPlaying
+		bne :play_song
+
 		rts
+
+:play_song
 
 ; interpret mod_p_current_pattern, for simple note events
 ; this is called during an interrupt, so I'm working with the idea
@@ -61,30 +61,38 @@ ModPlayerTick mx %11
 		stz <:break
 		stz <:jump
 
-		;lda #$2020 ; $$JGA TODO, adjust the volume over in the volume table construction, instead of here
-		;sta <:vol
-
-		ldx #0
+		ldx #mixer_voices
 		stx <:osc_x
 
 		ldy #0
 ]lp
-		lda |mod_channel_pan,y
+		lda |mod_channel_pan,y    ; left
 		sta <:vol
+		lda |mod_channel_pan+1,y  ; right
+		sta <:vol+1
 
-		lda [mod_p_current_pattern],y
+		; map
+		lda mod_p_current_pattern+2
+		sta mmu3
+		inc  		; NOTE, I COULD FIX THIS BY ALIGNING PATTERN DATA
+		sta mmu4
+
+		lda (mod_p_current_pattern),y
 		sta <:note_sample
-		xba
-		and #$FFF ; we have the period
+		and #$0F
+		sta <:note_period+1
+
+		iny
+		lda (mod_p_current_pattern),y
 		sta <:note_period
 
 		iny
+
+		lda #$0F
+		trb <:note_sample		; :note_sample has the instrument index
+
+		lda (mod_p_current_pattern),y
 		iny
-
-		lda #$FF0F
-		trb <:note_sample
-
-		lda [mod_p_current_pattern],y
 		sta <:effect_no
 
 		lsr
@@ -94,12 +102,12 @@ ModPlayerTick mx %11
 		and #$0F
 		tsb <:note_sample
 
-		lda <:effect_no
-		xba
-		and #$ff
+		lda (mod_p_current_pattern),y
+		iny
 		sta <:effect_parm
 
-		lda #$FFF0
+
+		lda #$F0
 		trb <:effect_no
 ;----------------------------------- what can I do with this stuff?
 
@@ -200,7 +208,8 @@ ModPlayerTick mx %11
 		sta <:jump_order
 		bra :after_effect  ; if a break is encountered after this in the row, it change the the jump_row, which is the same as the break row
 :set_volume
-		pei <:vol
+		ldax <:vol
+		phax		   ; temp save left,right vol on stack
 
 		lda <:effect_parm ; 0-$40
 		lsr
@@ -208,12 +217,11 @@ ModPlayerTick mx %11
 		bcc :vol_range_ok
 		lda #$20   ; clamp
 :vol_range_ok
-		sta <:vol    ; left
-		xba
-		tsb <:vol    ; right (until we take into account pan)
+		sta <:vol     ; left
+		sta <:vol+1   ; right (until we take into account pan)
 
-		pla
-		cmp #$0820
+		plax
+		cmpax #$0820
 		beq :dim_right
 
 		; dim_left
@@ -251,37 +259,46 @@ ModPlayerTick mx %11
 		; needs to alter timer, skip for now
 		phx
 		sta <mod_bpm  			    ; for the visualizer
-		asl
-		asl
 		tax
-		lda |bpm_tick_table,x    	; changing from 50hz to, who knows what
-		sta |TIMER0_CMP_L
-		lda |bpm_tick_table+1,x
-		sta |TIMER0_CMP_M
+		lda |bpm_tick_table_l,x    	; changing from 50hz to, who knows what
+		sei
+		sta |TM0_CMP_L
+		lda |bpm_tick_table_m,x
+		sta |TM0_CMP_M
+		lda |bpm_tick_table_h,x
+		sta |TM0_CMP_H
+		cli
 		plx
 
 :after_effect
 
-;NSTC:  (7159090.5  / (:note_period * 2))/24000 into 8.8 fixed result
-;        (3579545.25 / :note_period) / 24000
+;NSTC:  (7159090.5  / (:note_period * 2))/16000 into 8.8 fixed result
+;        (3579545.25 / :note_period) / 16000
 
-;149.14771875 / :note_period
-;38181 / :note_period
-		lda <:note_period
+;223.721578125 / :note_period
+;57273 / :note_period
+		ldax <:note_period
+		cmpax #0
 		beq :nothing
 
-		sta |UNSIGNED_DIV_DEM_LO
+		stax |DIVU_DEN_L
 
-		lda #38181
-		sta |UNSIGNED_DIV_NUM_LO
+		ldax #57273
+		stax |DIVU_NUM_L
 
-		lda |UNSIGNED_DIV_QUO_LO
 		; frequency
+		sei
 		ldx <:osc_x
+		lda |QUOU_LL
 		sta <osc_frequency,x
+		lda |QUOU_LH
+		sta <osc_frequency+1,x
+		cli
 
 		lda <:vol  		; left/right volume (3f max)
 		sta <osc_left_vol,x
+		lda <:vol+1
+		sta <osc_right_vol,x
 
 		;---- start - this might be a good spot to update the pumpbar out
 
@@ -308,6 +325,7 @@ ModPlayerTick mx %11
 		lda |i_fine_tune,y
 		lda |i_volume,y
 
+		stz <osc_state ; stop the oscillator, while we futz with it
 
 		; wave pointer 24.8
 		stz <osc_pWave,x
@@ -329,15 +347,6 @@ ModPlayerTick mx %11
 		sta <osc_pWaveEnd+1,x
 		lda |i_sample_loop_end+1,y
 		sta <osc_pWaveEnd+2,x
-
-		; need proper loop size, for the loop logic $$TODO, consider removing this field
-		sec
-		lda <osc_pWaveEnd+2,x
-		sbc <osc_pWaveLoop+2,x
-		sta <osc_loop_size+2,x
-		lda <osc_pWaveEnd,x
-		sbc <osc_pWaveLoop,x
-		sta <osc_loop_size,x
 
 :no_sample
 		ply ; restore y
@@ -376,7 +385,7 @@ ModPlayerTick mx %11
 		adc <mod_row_size ;#4*4 or #8*4
 		sta <mod_p_current_pattern
 		bcc :no_carry
-		inc <mod_p_current_pattern+2
+		inc <mod_p_current_pattern+1
 :no_carry
 		rts
 
@@ -434,21 +443,30 @@ ModPlay mx %00
 	rts
 
 ;------------------------------------------------------------------------------
+;
+; Map in the current pattern
+;
 ModSetPatternPtr mx %00
 	ldy <mod_pattern_index
-	lda [mod_p_pattern_dir],y
+
+	lda <mod_p_pattern_dir+2  ; map in pattern block
+	sta <mmu3
+
+	lda (mod_p_pattern_dir),y
 	and #$7F
-	asl
-	asl
 	tax
-	lda |mod_patterns,x
+
+	lda |mod_patterns_l,x
 	sta <mod_p_current_pattern
-	lda |mod_patterns+2,x
+	lda |mod_patterns_m,x
+	sta <mod_p_current_pattern+1
+	lda |mod_patterns_b,x
 	sta <mod_p_current_pattern+2
+	sta <mmu3
+	inc
+	sta <mmu4
 
 	rts
-
-	fin
 
 ;------------------------------------------------------------------------------
 ;
@@ -707,11 +725,12 @@ ModInit
 
 		jsr :inc_pSource
 
+		;$$JGA FIXME
 		ldax :pSourceInst
 		stax mod_p_pattern_dir
 
 		lda <mmu3
-		sta mod_p_pattern_dir+1
+		sta mod_p_pattern_dir+2
 
 		; initialize pattern index
 		stz <mod_pattern_index
@@ -1255,7 +1274,7 @@ CPU_CLOCK_RATE equ 6293750
 bpm_tick_table_l
 ]bpm = 0
 		lup 256
-]hz = {{2*]bpm}/5}
+]hz = {{{2*]bpm}/5}/4}
 		do ]hz
 		db <{CPU_CLOCK_RATE/]hz}
 		else
@@ -1267,7 +1286,7 @@ bpm_tick_table_l
 bpm_tick_table_m
 ]bpm = 0
 		lup 256
-]hz = {{2*]bpm}/5}
+]hz = {{{2*]bpm}/5}/4}
 		do ]hz
 		db >{CPU_CLOCK_RATE/]hz}
 		else
@@ -1279,7 +1298,7 @@ bpm_tick_table_m
 bpm_tick_table_h
 ]bpm = 0
 		lup 256
-]hz = {{2*]bpm}/5}
+]hz = {{{2*]bpm}/5}/4}
 		do ]hz
 		db ^{CPU_CLOCK_RATE/]hz}
 		else

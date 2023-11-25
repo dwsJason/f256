@@ -151,7 +151,7 @@ my_irq_handler
 		beq :not_sof
 		; SOF interrupt
 		inc <jiffy
-		bne :not_sof
+		bne :not_sof  	; we probably don't actually need 16 bit jiffy
 		inc <jiffy+1
 :not_sof
 
