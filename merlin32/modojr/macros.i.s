@@ -68,6 +68,7 @@ cmpax mac
 	cmp ]1
 @done
 	fin
+	<<<
 
 ; 16 bit push / pop
 phax

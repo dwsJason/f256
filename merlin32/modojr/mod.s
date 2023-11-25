@@ -339,7 +339,7 @@ ModPlayerTick mx %11
 		stz <osc_state ; stop the oscillator, while we futz with it
 
 		; Instrument Definitions have their pointers in system
-		; memory format $$TODO - pre-convert the information
+		; use pre-converted versions of the information
 		; into block + offset address mmu format, to save some cpu
 		; cycles here
 
@@ -457,7 +457,7 @@ ModPlayerTick mx %11
 ;------------------------------------------------------------------------------
 ; ModPlay (play the current Mod)
 ;
-ModPlay mx %00
+ModPlay mx %11
 ; stop existing song
 	stz <SongIsPlaying
 
@@ -479,7 +479,7 @@ ModPlay mx %00
 ;
 ; Map in the current pattern
 ;
-ModSetPatternPtr mx %00
+ModSetPatternPtr mx %11
 	ldy <mod_pattern_index
 
 	lda <mod_p_pattern_dir+2  ; map in pattern block
@@ -509,7 +509,6 @@ ModSetPatternPtr mx %00
 ; needs to be on an 8k boundary, aligned to a multiple of $2000
 ;
 ModInit
-
 :pSourceInst = temp0
 :loopCount   = temp0+2
 :pInst       = temp1
@@ -1187,6 +1186,60 @@ ModInit
 		bcc ]print
 
 ;------------------------------------------------------------------------------
+
+		ldx #0
+		ldy #25
+		jsr TermSetXY
+		ldax #txt_massage_wave
+		jsr TermPUTS
+
+		stz <:loopCount
+
+]massage_loop
+
+		; Pointer to the destination Instrument
+		lda <:loopCount
+		asl
+		tax
+		lda |inst_address_table,x
+		sta <:pInst
+		lda |inst_address_table+1,x
+		sta <:pInst+1
+
+		lda <:loopCount
+		jsr TermPrintAI
+
+		ldy #i_sample_start_addr
+		jsr :print_addr
+
+		ldy #i_sample_loop_end
+		jsr :print_addr
+
+		ldy #i_sample_start_badr
+		jsr :print_addr
+
+		ldy #i_sample_loop_bend
+		jsr :print_addr
+
+		jsr TermCR
+
+
+		lda <:loopCount
+		inc
+		sta <:loopCount
+		cmp mod_num_instruments
+		bcc ]massage_loop
+
+		rts
+
+:print_addr
+		jsr :get_temp
+
+		lda #' '
+		jsr TermCOUT
+
+		ldaxy :temp
+		jsr TermPrintAXYH
 
 		rts
 

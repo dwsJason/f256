@@ -157,6 +157,8 @@ start
 		jsr InstallIRQ
 		cli
 
+;;		jsr ModPlay -- Are you Crazy!!?@?#@
+
 ]main_loop
 		jsr WaitVBL
 
@@ -634,7 +636,8 @@ txt_decompress asc 'decompress_pixels'
 txt_decompress_map asc 'decompress_map'
 		db 13,0
 
-txt_unsupported asc 'ERROR Unsupported Mod Type = '
+txt_unsupported db 13
+		asc 'ERROR Unsupported Mod Type = '
 		db 0
 
 txt_instruments asc ' Instruments'
@@ -647,6 +650,9 @@ txt_song_length cstr 'Length:'
 txt_patterns cstr 'Patterns:'
 txt_sampler cstr 'Mixer:16khz'
 txt_L cstr ' L'
+
+txt_massage_wave asc 'Massage the instruments'
+		db 13,0
 
 
 ;------------------------------------------------------------------------------
