@@ -267,11 +267,9 @@ ModPlayerTick mx %11
 		tax
 		lda |bpm_tick_table_l,x    	; changing from 50hz to, who knows what
 		sei
-		sta |TM0_CMP_L
-		lda |bpm_tick_table_m,x
-		sta |TM0_CMP_M
+		sta <mod_jiffy_rate
 		lda |bpm_tick_table_h,x
-		sta |TM0_CMP_H
+		sta <mod_jiffy_rate+1
 		cli
 		plx
 
@@ -1207,7 +1205,7 @@ ModInit
 		lda |inst_address_table+1,x
 		sta <:pInst+1
 
-		do 0     			; make me feel good, to see stuff happening
+		do 1     			; make me feel good, to see stuff happening
 		lda <:loopCount
 		jsr TermPrintAI
 
@@ -1476,25 +1474,14 @@ ModIsSupported
 
 ;------------------------------------------------------------------------------
 ; tick rate table
-CPU_CLOCK_RATE equ 6293750
+;CPU_CLOCK_RATE equ 6293750
+TIMER_TICK_RATE = 16000
 bpm_tick_table_l
 ]bpm = 0
 		lup 256
 ]hz = {{{2*]bpm}/5}/4}
 		do ]hz
-		db <{CPU_CLOCK_RATE/]hz}
-		else
-		db 0
-		fin
-]bpm = ]bpm+1
-		--^
-
-bpm_tick_table_m
-]bpm = 0
-		lup 256
-]hz = {{{2*]bpm}/5}/4}
-		do ]hz
-		db >{CPU_CLOCK_RATE/]hz}
+		db <{TIMER_TICK_RATE/]hz}
 		else
 		db 0
 		fin
@@ -1506,7 +1493,7 @@ bpm_tick_table_h
 		lup 256
 ]hz = {{{2*]bpm}/5}/4}
 		do ]hz
-		db ^{CPU_CLOCK_RATE/]hz}
+		db >{TIMER_TICK_RATE/]hz}
 		else
 		db 0
 		fin

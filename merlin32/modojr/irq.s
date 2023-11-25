@@ -40,7 +40,7 @@ InstallIRQ
 ;
 ; Setup the Hi Rate Timer for 16Khz
 ; 
-;CPU_CLOCK_RATE equ 6293750  ; this is 1/4th clock rate
+CPU_CLOCK_RATE equ 6293750  ; this is 1/4th clock rate
 ;RATE     equ 25175000/16000 ; system clock rate, timer is tied to this
 RATE     equ CPU_CLOCK_RATE/4000
 MODRATE  equ 16000/50
