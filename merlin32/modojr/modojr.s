@@ -150,12 +150,18 @@ start
 		; - 50hz timer, for the Mod Sequencer
 		; - 16Khz timer, for the PCM player
 		jsr InstallIRQ
-		cli
 
-;		jsr ModPlay ;;-- Are you Crazy!!?@?#@
+		cli
+		jsr ModPlay		;; Are you Crazy ?#@!
+
+
+TEST_VOICE equ VOICE3 ; all 4 voices work
 
 		do 0
-		lda #0
+
+:pInst = temp0
+
+		lda #1
 		asl
 		tax
 		lda |inst_address_table,x
@@ -163,46 +169,45 @@ start
 		lda |inst_address_table+1,x
 		sta <:pInst+1
 
+		stz TEST_VOICE+osc_pWave
 		ldy #i_sample_start_badr
 		lda (:pInst),y
-		sta VOICE0+osc_pWave
+		sta TEST_VOICE+osc_pWave+1
 		iny
 		lda (:pInst),y
-		sta VOICE0+osc_pWave+1
+		sta TEST_VOICE+osc_pWave+2
 		iny
 		lda (:pInst),y
-		sta VOICE0+osc_pWave+2
-		iny
-		lda (:pInst),y
-		sta VOICE0+osc_pWave+3
+		sta TEST_VOICE+osc_pWave+3
 
-		stz VOICE0+osc_frequency
-		lda #1
-		sta VOICE0+osc_frequency+1
+;		ldax #$100
+; 8363.42*256/16000
+;
+		ldax #134
+		stax TEST_VOICE+osc_frequency
 
 		ldy #i_sample_loop_bend
 		lda (:pInst),y
-		sta VOICE0+osc_pWaveEnd
+		sta TEST_VOICE+osc_pWaveEnd
 		iny
 		lda (:pInst),y
-		sta VOICE0+osc_pWaveEnd+1
+		sta TEST_VOICE+osc_pWaveEnd+1
 		iny
 		lda (:pInst),y
-		sta VOICE0+osc_pWaveEnd+2
+		sta TEST_VOICE+osc_pWaveEnd+2
 
-		; tell the oscillator to go!
-		lda #os_playing_singleshot
-		sta VOICE0+osc_state
+;		; tell the oscillator to go!
+;		lda #os_playing_singleshot
+;		sta VOICE0+osc_state
 		fin
 
-		do 1
+		do 0
 		; This actually works, and sounds ok
 seadragon_test
 
 :pInst     = temp0
 :pStart    = temp1
 :iLength   = temp2
-TEST_VOICE equ VOICE3 ; all 4 voices work
 
 		ldaxy #sfx_waves_start
 		jsr set_read_address
@@ -252,17 +257,60 @@ TEST_VOICE equ VOICE3 ; all 4 voices work
 		ldax #176		 ; why not try for 11khz
 		stax TEST_VOICE+osc_frequency
 
-		lda #os_playing_singleshot
-		sta TEST_VOICE+osc_state
+;		lda #os_playing_singleshot
+;		sta TEST_VOICE+osc_state
 
 		fin
+
+
+		do 0
+; before we single shot
+; print some debug info
+
+
+		ldaxy TEST_VOICE+osc_pWave+1
+		stax pSource
+		sty  READ_MMU
+
+		jsr TermPrintAXYH
+		lda #' '
+		jsr TermCOUT
+
+		ldaxy TEST_VOICE+osc_pWaveEnd
+		stax pDest
+		sty WRITE_MMU
+
+		jsr TermPrintAXYH
+		jsr TermCR
+
+		jsr get_read_address
+		jsr TermPrintAXYH
+		lda #' '
+		jsr TermCOUT
+
+		jsr get_write_address
+		jsr TermPrintAXYH
+		jsr TermCR
+
+		ldax TEST_VOICE+osc_frequency
+		jsr TermPrintAXH
+		jsr TermCR
+
+
+; before we single shot
+; lets print some stuff out, for my own sanity
+
+		lda #os_playing_singleshot
+		sta TEST_VOICE+osc_state
+		fin
+
 
 ]main_loop
 		jsr WaitVBL
 
 		do 1
-		ldx #0
-		ldy #35
+		ldx #63
+		ldy #25
 		jsr TermSetXY
 
 		ldax jiffy

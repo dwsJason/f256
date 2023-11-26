@@ -69,29 +69,29 @@ ModPlayerTick mx %11
 		ldx #mixer_voices
 		stx <:osc_x
 
-		ldy #0
-]lp
-		lda |mod_channel_pan,y    ; left
-		sta <:vol
-		lda |mod_channel_pan+1,y  ; right
-		sta <:vol+1
-
 		; map
 		lda mod_p_current_pattern+2
 		sta mmu3	;
 		inc  		; $$TODO NOTE, I COULD FIX THIS BY ALIGNING PATTERN DATA
 		sta mmu4	;
 
+		ldy #0
+]lp
+		; $$JGA TODO, add volume support, right now there is NONE!
+		;lda |mod_channel_pan,y    ; left
+		;sta <:vol
+		;lda |mod_channel_pan+1,y  ; right
+		;sta <:vol+1
+
 		lda (mod_p_current_pattern),y
+		iny
 		sta <:note_sample
 		and #$0F
 		sta <:note_period+1
 
-		iny
 		lda (mod_p_current_pattern),y
-		sta <:note_period
-
 		iny
+		sta <:note_period
 
 		lda #$0F
 		trb <:note_sample		; :note_sample has the instrument index
@@ -190,7 +190,7 @@ ModPlayerTick mx %11
 :porta_vol_slide
 :vibrato_vol_slide
 :tremolo
-		bra :after_effect
+;		bra :after_effect
 :pan
 ; Dual Mod Player
 ;00 = far left
@@ -202,7 +202,7 @@ ModPlayerTick mx %11
 
 ; how can you know?  (I guess I would analyze all the pan settings in the whole)
 ; tune, ahead of time, and see what the range is.  Yuck
-		bra :after_effect
+;		bra :after_effect
 :sample_offset
 :vol_slide
 		bra :after_effect
@@ -244,6 +244,8 @@ ModPlayerTick mx %11
 		ldx <:osc_x
 		lda <:vol  		; left/right volume (3f max)
 		sta <osc_left_vol,x
+		lda <:vol+1
+		sta <osc_right_vol,x
 		bra :after_effect
 
 :pattern_break
@@ -290,9 +292,9 @@ ModPlayerTick mx %11
 		stax |DIVU_NUM_L
 
 		; frequency
-		sei
 		ldx <:osc_x
 		lda |QUOU_LL
+		sei
 		sta <osc_frequency,x
 		lda |QUOU_LH
 		sta <osc_frequency+1,x
@@ -334,7 +336,7 @@ ModPlayerTick mx %11
 		;lda |i_fine_tune,y
 		;lda |i_volume,y
 
-		stz <osc_state ; stop the oscillator, while we futz with it
+		stz <osc_state,x ; stop the oscillator, while we futz with it
 
 		; Instrument Definitions have their pointers in system
 		; use pre-converted versions of the information
@@ -342,8 +344,9 @@ ModPlayerTick mx %11
 		; cycles here
 
 		; wave pointer 24.8
+		stz <osc_pWave,x		; zero out the fraction
+
 		ldy #i_sample_start_badr
-		stz <osc_pWave,x
 		lda (:pInst),y
 		sta <osc_pWave+1,x
 		iny
@@ -378,7 +381,7 @@ ModPlayerTick mx %11
 		ldy #i_loop
 		lda (:pInst),y
 		inc 					; 1=single shot, 2=loop
-		sta <osc_state			; re-enable the osc
+		sta <osc_state,x		; re-enable the osc
 
 :no_sample
 		ply ; restore y
@@ -391,9 +394,6 @@ ModPlayerTick mx %11
 		adc #sizeof_osc  ; next oscillator, for the next track
 		tax
 		stx <:osc_x
-
-		iny
-		iny
 		cpy <mod_row_size ; 4*4 or 8*4 or 6*4 or 7*4
 		bccl ]lp
 
@@ -1526,8 +1526,8 @@ mod_patterns_b  ; block
 
 mod_instruments ds sizeof_inst*32  ; Really a normal mod only has 31 of them
 
-mod_last_sample ds 4*8 ; up to 8 channels
-mod_channel_pan ds 4*8 ; up to 8 channels
-mod_pump_vol    ds 4*8 ; up to 8 channels, pump bar data
+mod_last_sample ds 4*16 ; up to 8 channels
+mod_channel_pan ds 4*16 ; up to 8 channels
+mod_pump_vol    ds 4*16 ; up to 8 channels, pump bar data
 
 mod_local_end
