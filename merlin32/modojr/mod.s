@@ -190,7 +190,7 @@ ModPlayerTick mx %11
 :porta_vol_slide
 :vibrato_vol_slide
 :tremolo
-;		bra :after_effect
+		bra :after_effect
 :pan
 ; Dual Mod Player
 ;00 = far left
@@ -213,39 +213,39 @@ ModPlayerTick mx %11
 		sta <:jump_order
 		bra :after_effect  ; if a break is encountered after this in the row, it change the the jump_row, which is the same as the break row
 :set_volume
-		ldax <:vol
-		phax		   ; temp save left,right vol on stack
-
-		lda <:effect_parm ; 0-$40
-		lsr
-		cmp #$20
-		bcc :vol_range_ok
-		lda #$20   ; clamp
-:vol_range_ok
-		sta <:vol     ; left
-		sta <:vol+1   ; right (until we take into account pan)
-
-		plax
-		cmpax #$0820
-		beq :dim_right
-
-		; dim_left
-		lsr <:vol
-		lsr <:vol
-
-		bra :not_right
-:dim_right
-
-		lsr <:vol+1
-		lsr <:vol+1
-
-:not_right
-
-		ldx <:osc_x
-		lda <:vol  		; left/right volume (3f max)
-		sta <osc_left_vol,x
-		lda <:vol+1
-		sta <osc_right_vol,x
+;		ldax <:vol
+;		phax		   ; temp save left,right vol on stack
+;
+;		lda <:effect_parm ; 0-$40
+;		lsr
+;		cmp #$20
+;		bcc :vol_range_ok
+;		lda #$20   ; clamp
+;:vol_range_ok
+;		sta <:vol     ; left
+;		sta <:vol+1   ; right (until we take into account pan)
+;
+;		plax
+;		cmpax #$0820
+;		beq :dim_right
+;
+;		; dim_left
+;		lsr <:vol
+;		lsr <:vol
+;
+;		bra :not_right
+;:dim_right
+;
+;		lsr <:vol+1
+;		lsr <:vol+1
+;
+;:not_right
+;
+;		ldx <:osc_x
+;		lda <:vol  		; left/right volume (3f max)
+;		sta <osc_left_vol,x
+;		lda <:vol+1
+;		sta <osc_right_vol,x
 		bra :after_effect
 
 :pattern_break
@@ -493,9 +493,9 @@ ModSetPatternPtr mx %11
 	sta <mod_p_current_pattern+1
 	lda |mod_patterns_b,x
 	sta <mod_p_current_pattern+2
-	sta <mmu3
-	inc
-	sta <mmu4
+	;sta <mmu3
+	;inc
+	;sta <mmu4
 
 	rts
 
