@@ -139,12 +139,7 @@ start
 ; Trying to be friendly, in case we can friendly exit
 ;
 
-		;jsr InstallJiffy		 ; SOF timer
-		;jsr InstallModJiffy     ; 50hz timer
-		;jsr InstallMixerJiffy   ; 16k mixer
-
 		jsr MixerInit   ; init those OSCilattors
-
 
 		; hey needs to start on an 8k boundary
 		ldaxy #mod_song
@@ -157,11 +152,115 @@ start
 		jsr InstallIRQ
 		cli
 
-;;		jsr ModPlay -- Are you Crazy!!?@?#@
+;		jsr ModPlay ;;-- Are you Crazy!!?@?#@
+
+		do 0
+		lda #0
+		asl
+		tax
+		lda |inst_address_table,x
+		sta <:pInst
+		lda |inst_address_table+1,x
+		sta <:pInst+1
+
+		ldy #i_sample_start_badr
+		lda (:pInst),y
+		sta VOICE0+osc_pWave
+		iny
+		lda (:pInst),y
+		sta VOICE0+osc_pWave+1
+		iny
+		lda (:pInst),y
+		sta VOICE0+osc_pWave+2
+		iny
+		lda (:pInst),y
+		sta VOICE0+osc_pWave+3
+
+		stz VOICE0+osc_frequency
+		lda #1
+		sta VOICE0+osc_frequency+1
+
+		ldy #i_sample_loop_bend
+		lda (:pInst),y
+		sta VOICE0+osc_pWaveEnd
+		iny
+		lda (:pInst),y
+		sta VOICE0+osc_pWaveEnd+1
+		iny
+		lda (:pInst),y
+		sta VOICE0+osc_pWaveEnd+2
+
+		; tell the oscillator to go!
+		lda #os_playing_singleshot
+		sta VOICE0+osc_state
+		fin
+
+		do 1
+		; This actually works, and sounds ok
+seadragon_test
+
+:pInst     = temp0
+:pStart    = temp1
+:iLength   = temp2
+TEST_VOICE equ VOICE3 ; all 4 voices work
+
+		ldaxy #sfx_waves_start
+		jsr set_read_address
+		ldaxy #sfx_waves_start
+		jsr set_write_address
+
+		ldaxy #sfx_waves_end-sfx_waves_start
+		sta <:iLength
+
+		ldx <:iLength
+		ldy <:iLength+1
+
+]mloop
+		jsr readbyte
+		eor #$FF
+		lsr
+		lsr
+		lsr
+		lsr
+		jsr writebyte
+
+		dex
+		bne ]mloop
+
+		dey
+		bpl ]mloop
+
+		ldaxy #sfx_waves_start
+		jsr set_read_address
+
+		; start of wave to play
+		ldax pSource
+		stax TEST_VOICE+osc_pWave+1
+		lda READ_MMU
+		sta TEST_VOICE+osc_pWave+3
+
+		ldaxy #sfx_waves_end
+		jsr set_read_address
+
+		; end of wave to play
+		ldax pSource
+		stac TEST_VOICE+osc_pWaveEnd
+		lda READ_MMU
+		sta TEST_VOICE+osc_pWaveEnd+2
+
+		;ldax #{11025*256/16000}		 ; why not try for 11khz
+		ldax #176		 ; why not try for 11khz
+		stax TEST_VOICE+osc_frequency
+
+		lda #os_playing_singleshot
+		sta TEST_VOICE+osc_state
+
+		fin
 
 ]main_loop
 		jsr WaitVBL
 
+		do 1
 		ldx #0
 		ldy #35
 		jsr TermSetXY
@@ -174,6 +273,7 @@ start
 
 		ldax mod_jiffy
 		jsr TermPrintAXH
+		fin
 
 		jmp ]main_loop
 

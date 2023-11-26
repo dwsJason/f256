@@ -80,9 +80,24 @@ AUDIO_FREQ = 0
 		sta |psg_l
 		sta |psg_r
 
+		; Stop playing the note tone 1
+		lda #$80.$10.$0f
+		sta psg_l
+		sta psg_r
+
+		; Stop playing the note tone 2
+		lda #$80.$30.$0f
+		sta psg_l
+		sta psg_r
+
+		; Stop playing the note tone 3
+		lda #$80.$50.$0f
+		sta psg_l
+		sta psg_r
+
+
 		pla
 		sta <io_ctrl
-
 
 		rts
 

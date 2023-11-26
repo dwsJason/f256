@@ -63,6 +63,15 @@ code2_end
 		ERR    *-1/$C000      ; Error if PC > $C000
 
 		org $0
+		adr sfx_waves_start
+		adr sfx_waves_end-sfx_waves_start
+
+		org $30000
+sfx_waves_start
+sea_wave putbin data/seadragon11k.raw
+sfx_waves_end
+
+		org $0
 		adr mod_data_start
 		adr mod_data_end-mod_data_start ; 72144      ;mod_end-mod_start  ; labels only work here, if data below is less than 64K
 ;		org $100000 - expansion RAM  (this works!)

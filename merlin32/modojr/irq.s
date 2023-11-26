@@ -111,12 +111,11 @@ my_irq_handler
 		pha  ; preserve the interrupts that happened
 
 		; mixer / DAC service
-		;lda mmu3
-		;pha
-		;jsr MixerMix
-		;pla
-		;sta mmu3
-
+		lda mmu3
+		pha
+		jsr MixerMix
+		pla
+		sta mmu3
 
 		; it's slow
 		; we have to manually count off 16000/50 interrupts :(

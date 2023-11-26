@@ -78,9 +78,9 @@ ModPlayerTick mx %11
 
 		; map
 		lda mod_p_current_pattern+2
-		sta mmu3
-		inc  		; NOTE, I COULD FIX THIS BY ALIGNING PATTERN DATA
-		sta mmu4
+		sta mmu3	;
+		inc  		; $$TODO NOTE, I COULD FIX THIS BY ALIGNING PATTERN DATA
+		sta mmu4	;
 
 		lda (mod_p_current_pattern),y
 		sta <:note_sample
@@ -1189,8 +1189,8 @@ ModInit
 		ldx #0
 		ldy #25
 		jsr TermSetXY
-		ldax #txt_massage_wave
-		jsr TermPUTS
+		;ldax #txt_massage_wave
+		;jsr TermPUTS
 
 		stz <:loopCount
 
@@ -1205,7 +1205,7 @@ ModInit
 		lda |inst_address_table+1,x
 		sta <:pInst+1
 
-		do 1     			; make me feel good, to see stuff happening
+		do 0     			; make me feel good, to see stuff happening
 		lda <:loopCount
 		jsr TermPrintAI
 
@@ -1258,7 +1258,7 @@ ModInit
 :process_sample
 
 		lda (:temp)
-		eor #$FF
+		eor #$7F 		; eor #$80 + #$FF
 		lsr
 		lsr
 		lsr
@@ -1479,7 +1479,7 @@ TIMER_TICK_RATE = 16000
 bpm_tick_table_l
 ]bpm = 0
 		lup 256
-]hz = {{{2*]bpm}/5}/4}
+]hz = {{2*]bpm}/5}
 		do ]hz
 		db <{TIMER_TICK_RATE/]hz}
 		else
@@ -1491,7 +1491,7 @@ bpm_tick_table_l
 bpm_tick_table_h
 ]bpm = 0
 		lup 256
-]hz = {{{2*]bpm}/5}/4}
+]hz = {{2*]bpm}/5}
 		do ]hz
 		db >{TIMER_TICK_RATE/]hz}
 		else
