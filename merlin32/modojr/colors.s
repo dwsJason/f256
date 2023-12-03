@@ -64,7 +64,9 @@ initColors
 		sta io_ctrl
 
 		ldx #0
-		lda #$F2	; white on blue
+;		lda #$F2	; white on blue
+		lda #$F0	; white on transparent
+;		lda #0
 ]lp
 		sta $C000,x
 		sta $C100,x
