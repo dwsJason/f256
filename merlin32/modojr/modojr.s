@@ -308,6 +308,8 @@ seadragon_test
 ]main_loop
 		jsr WaitVBL
 
+		jsr UpdateMarker
+
 		do 1
 		ldx #63
 		ldy #25
@@ -323,7 +325,125 @@ seadragon_test
 		jsr TermPrintAXH
 		fin
 
+		ldx #0
+		ldy #25
+		jsr TermSetXY
+
+		lda mod_pattern_index
+		jsr TermPrintAI
+		jsr TermCR
+
+		lda mod_current_row
+		jsr TermPrintAI
+		lda #' '
+		jsr TermCOUT
+
 		jmp ]main_loop
+
+UpdateMarker
+
+:pColor = temp0
+:color = temp1
+
+		ldx |:current
+	    cpx <mod_pattern_index
+		bne :update
+		rts
+:update
+		lda #3
+		sta io_ctrl		; color matrix
+
+		; block # in x
+
+		;lda #$F2		; white on, blue for erase
+		lda #$F0		; white on transparent
+		sta <:color
+
+		jsr :draw_color
+
+		ldx <mod_pattern_index
+		stx |:current
+
+		lda #$F1        ; white on red
+		sta <:color
+
+		jsr :draw_color
+
+		lda #2
+		sta <io_ctrl	; text matrix
+		rts
+
+
+:draw_color
+		lda :table_l,x
+		sta :pColor
+		lda :table_h,x
+		sta :pColor+1
+
+		ldy #3
+		lda <:color
+]lp		sta (:pColor),y
+		dey
+		bpl ]lp
+
+		rts
+
+]base = $C000+{19*80}
+
+:table_l
+]ct = 0
+		lup 26
+		db <{]base+{]ct*3}}
+]ct = ]ct+1
+		--^
+]base = ]base+80
+]ct = 0
+		lup 26
+		db <{]base+{]ct*3}}
+]ct = ]ct+1
+		--^
+]base = ]base+80
+]ct = 0
+		lup 26
+		db <{]base+{]ct*3}}
+]ct = ]ct+1
+		--^
+]base = ]base+80
+]ct = 0
+		lup 26
+		db <{]base+{]ct*3}}
+]ct = ]ct+1
+		--^
+
+
+]base = $C000+{19*80}
+:table_h
+]ct = 0
+		lup 26
+		db >{]base+{]ct*3}}
+]ct = ]ct+1
+		--^
+]base = ]base+80
+]ct = 0
+		lup 26
+		db >{]base+{]ct*3}}
+]ct = ]ct+1
+		--^
+]base = ]base+80
+]ct = 0
+		lup 26
+		db >{]base+{]ct*3}}
+]ct = ]ct+1
+		--^
+]base = ]base+80
+]ct = 0
+		lup 26
+		db >{]base+{]ct*3}}
+]ct = ]ct+1
+		--^
+
+:current db $7f
+
 
 
 ;----------------------------------------------------------------------------
@@ -581,6 +701,7 @@ init320x240_bitmap
 		;lda #6
 		;lda #1 ; clock_70
 		lda #0
+		;lda #%10000   ; Font Overlay Mode - BG color can be on top
 		sta VKY_MSTR_CTRL_1
 
 		; layer stuff - take from Jr manual
