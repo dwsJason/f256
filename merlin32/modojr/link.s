@@ -79,7 +79,7 @@ sfx_waves_end
 mod_data_start
 mod_song
 ;		putbin data/dru.mod
-		putbin data/el_gondo.mod
+;		putbin data/el_gondo.mod
 ;		putbin data/tomsdine.mod
 ;		putbin data/savage.mod
 ;		putbin data/bm1992.mod
@@ -93,15 +93,15 @@ mod_song
 ;		putbin data/xmas/estrayk_-_xmas.mod ; jingle bells, but a lot of static
 ;		putbin data/xmas/scott_cribbs_-_xmass.mod ; I like this one
 ;		putbin data/xmas/xmas1995.mod  ; fun
-;		putbin data/xmas/xmas_93.mod ; I don't like it
+		putbin data/xmas/xmas_93.mod ; I don't like it
 ;		putbin data/xmas/xmas.mod
 ;		putbin data/xmas/spirit_-_xmasmix.mod
 		; this is the one
 ;		putbin data/xmas/xmas_remix.mod  ; contendor (up there)
-;		putbin data/xmas/xmas_hit_collection.mod ; (maybe) becomes unpleasant (could be crash)
+;		putbin data/xmas/xmas_hit_collection.mod ; (maybe) becomes unpleasant
 ;		putbin data/xmas/tdk-xmas_spirits_2.mod  ; no
 ;		putbin data/xmas/amixmas.mod ; not terrible
-;		putbin data/xmas/xmas_melondy.mod ; crashes quick
+;		putbin data/xmas/xmas_melondy.mod ; crashes
 ;		putbin data/xmas/xmas_mix_92.mod ; I dig it
 ;		putbin data/xmas/xmas_break.mod ; very cool, but crashes
 mod_data_end
