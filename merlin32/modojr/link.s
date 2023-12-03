@@ -66,7 +66,7 @@ code2_end
 		adr sfx_waves_start
 		adr sfx_waves_end-sfx_waves_start
 
-		org $30000
+		org $28000
 sfx_waves_start
 sea_wave putbin data/seadragon11k.raw
 sfx_waves_end
@@ -75,11 +75,35 @@ sfx_waves_end
 		adr mod_data_start
 		adr mod_data_end-mod_data_start ; 72144      ;mod_end-mod_start  ; labels only work here, if data below is less than 64K
 ;		org $100000 - expansion RAM  (this works!)
-		org $40000
+		org $30000
 mod_data_start
 mod_song
-	   putbin data/dru.mod
-;       putbin data/tomsdine.mod
+;		putbin data/dru.mod
+		putbin data/el_gondo.mod
+;		putbin data/tomsdine.mod
+;		putbin data/savage.mod
+;		putbin data/bm1992.mod
+;		putbin data/bizarrel.mod
+;		putbin data/xmas/goto80-xmas.mod ;- crashes fast
+;		putbin data/xmas/rush_-_xmas.mod  ; not bad
+;		putbin data/xmas/xmas_1.mod
+;		putbin data/xmas/nutcase_-_xmastune.mod  ; good, not particularly xmas-ee
+;		putbin data/xmas/xmas_again.mod  ; good but 45 seconds
+;		putbin data/xmas/xmas_orgy.mod  ; no
+;		putbin data/xmas/estrayk_-_xmas.mod ; jingle bells, but a lot of static
+;		putbin data/xmas/scott_cribbs_-_xmass.mod ; I like this one
+;		putbin data/xmas/xmas1995.mod  ; fun
+;		putbin data/xmas/xmas_93.mod ; I don't like it
+;		putbin data/xmas/xmas.mod
+;		putbin data/xmas/spirit_-_xmasmix.mod
+		; this is the one
+;		putbin data/xmas/xmas_remix.mod  ; contendor (up there)
+;		putbin data/xmas/xmas_hit_collection.mod ; (maybe) becomes unpleasant (could be crash)
+;		putbin data/xmas/tdk-xmas_spirits_2.mod  ; no
+;		putbin data/xmas/amixmas.mod ; not terrible
+;		putbin data/xmas/xmas_melondy.mod ; crashes quick
+;		putbin data/xmas/xmas_mix_92.mod ; I dig it
+;		putbin data/xmas/xmas_break.mod ; very cool, but crashes
 mod_data_end
 
 
