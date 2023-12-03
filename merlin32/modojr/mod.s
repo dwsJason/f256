@@ -202,7 +202,7 @@ ModPlayerTick mx %11
 
 ; how can you know?  (I guess I would analyze all the pan settings in the whole)
 ; tune, ahead of time, and see what the range is.  Yuck
-;		bra :after_effect
+		bra :after_effect
 :sample_offset
 :vol_slide
 		bra :after_effect
@@ -939,7 +939,7 @@ ModInit
 ; i_sample_start_addr
 ; i_sample_length
 ; i_sample_loop_start
-; i_sample_loop_end
+; i_sample_loop_end   ; contains the loop length
 ;
 
 		; change out each pcm sample, to be unsigned
@@ -1025,8 +1025,29 @@ ModInit
 		ldy #i_sample_loop_start
 		jsr :get_add_store
 
+		lda <:pCurInst		; save cur inst pointer
+		pha
+		lda <:pCurInst+1
+		pha
+		lda <:pCurInst+2
+		pha
+
+		lda <:temp     		; we want our length added to the loop address
+		sta <:pCurInst
+		lda <:temp+1
+		sta <:pCurInst+1
+		lda <:temp+2
+		sta <:pCurInst+2
+
 		ldy #i_sample_loop_end
 		jsr :get_add_store
+
+		pla 			   	; restore cur inst
+		sta <:pCurInst+2
+		pla
+		sta <:pCurInst+1
+		pla
+		sta <:pCurInst
 
 		ldy #i_loop
 		lda #1
@@ -1046,7 +1067,7 @@ ModInit
 		sta <:pCurInst+2
 
 		; if the instrument is single shot, here's our chance to
-		; set he i_sample_loop_end to the end of the single shot
+		; set the i_sample_loop_end to the end of the single shot
 		; to make the mod player note-on code a little more simple
 		ldy #i_loop
 		lda (:pInst),y
@@ -1205,17 +1226,23 @@ ModInit
 		lda |inst_address_table+1,x
 		sta <:pInst+1
 
-		do 0     			; make me feel good, to see stuff happening
+		do 1     			; make me feel good, to see stuff happening
 		lda <:loopCount
 		jsr TermPrintAI
 
 		ldy #i_sample_start_addr
 		jsr :print_addr
 
+		ldy #i_sample_loop_start
+		jsr :print_addr
+
 		ldy #i_sample_loop_end
 		jsr :print_addr
 
 		ldy #i_sample_start_badr
+		jsr :print_addr
+
+		ldy #i_sample_loop_badr
 		jsr :print_addr
 
 		ldy #i_sample_loop_bend
@@ -1280,7 +1307,7 @@ ModInit
 		inc
 		sta <:loopCount
 		cmp mod_num_instruments
-		bcc ]massage_loop
+		bccl ]massage_loop
 
 		rts
 
