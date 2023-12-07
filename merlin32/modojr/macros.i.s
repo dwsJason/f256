@@ -42,8 +42,23 @@ ldax mac
 	ldx ]1+1
 
 	fin
-
 	<<<
+
+; 16 bit load
+ldxy mac
+	if #=]1
+
+	ldx #<]1
+	ldy #>]1
+
+	else
+
+	ldx ]1
+	ldy ]1+1
+
+	fin
+	<<<
+
 
 ; 16 bit store
 stax mac
@@ -71,16 +86,25 @@ cmpax mac
 	<<<
 
 ; 16 bit push / pop
-phax
+phax mac
 	pha
 	phx
 	<<<
 
-plax
+plax mac
 	plx
 	pla
 	<<<
 
+
+; 16 bit dec
+dexy mac
+	dex
+	bne skip
+	dey
+	cpy #$FF
+skip
+	<<<
 
 ; Long Conditional Branches
 

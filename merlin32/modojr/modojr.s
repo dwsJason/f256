@@ -69,6 +69,8 @@ mod_temp3			ds 4
 mod_temp4			ds 4
 mod_temp5			ds 4
 
+irq_num ds 2
+
 
 SongIsPlaying ds 1 ; flag for if a song is playing
 
@@ -77,13 +79,33 @@ SongIsPlaying ds 1 ; flag for if a song is playing
 ; Jiffy Alias
 dpJiffy = jiffy
 
+
+;
+; Let's do some memory management
+;
+; Frame Buffer at $01/0000 - 320x240 = 76,800, end address 02/2C00
+;
+; 2k gap at 02/2C00
+; Pump Bars, 2 pump bar sprites.
+;
+; 44*33*2 = 3k 2,904 bytes
+; Map Data for 8x8 tile-map, need 3k for the static screen
+; $02/3400 -> $02/4000 - 3k
+;
+; $02/4000->$02/7FFF = 256 8x8 tiles
+;
+; $02/8000 -> $07/DFFF - space for songs 352,256 (max song size) $5/6000
+
 PIXEL_DATA = $010000
 
-MAP_DATA0  = $010000
-TILE_DATA0 = $012000 
+PUMPBAR_SPRITE0 = $022C00
+PUMPBAR_SPRITE1 = $023000
+
+MAP_DATA0  = $023400
+TILE_DATA0 = $024000
 
 ; tiles are 16k for 256 in 8x8 mode
-TILE_SIZE = {16*16*256}
+TILE_SIZE = {8*8*256}
 TILE_DATA1 = TILE_DATA0+TILE_SIZE
 TILE_DATA2 = TILE_DATA1+TILE_SIZE
 TILE_DATA3 = TILE_DATA2+TILE_SIZE
@@ -93,7 +115,7 @@ TILE_DATA6 = TILE_DATA5+TILE_SIZE
 TILE_DATA7 = TILE_DATA6+TILE_SIZE
 TILE_DATA8 = TILE_DATA7+TILE_SIZE
 
-CLUT_DATA  = $007C00
+CLUT_DATA  = $006000
 
 ;
 ; This will copy the color table into memory, then set the video registers
@@ -103,13 +125,16 @@ CLUT_DATA  = $007C00
 start
 		sei
 
-; Jr Vicky can't see above this
-;		jsr init320x240_fireplace
 		jsr mmu_unlock
 
-		jsr init320x240_bitmap
+		jsr init320x240_video
 
 		jsr initColors    	; copy GS colors over into the font LUT, and the LUT0 for the bitmap
+
+		jsr initFont
+
+		jsr initBackground
+		jsr initPumpBars
 
 		jsr TermInit
 
@@ -127,7 +152,8 @@ start
 ;------------------------------------------------------------------------------
 ; bitmap demo
 ;
-		lda #2  	; Fill Color
+		lda #2  	; Fill Color - opaque (easier debugging)
+;		lda #0  	; Transparent
 		jsr DmaClear
 
 ;------------------------------------------------------------------------------
@@ -304,11 +330,33 @@ seadragon_test
 		sta TEST_VOICE+osc_state
 		fin
 
+		ldax #:txt
+		jsr TermPUTS
+
+		jmp forward
+
+:txt    db $C0,$C1,$C2,$C3,$C4,$C5,$C6,$C7,$C8,$C9,$CA,$CB,$CC,$CD,$CE,$CF,
+		db $D0,$D1,$D2,$D3,$D4,$D5,$D6,$D7,$D8,$D9,$DA,$DB,$DC,$DD,$DE,$DF,13
+		db $E0,$E1,$E2,$E3,$E4,$E5,$E6,$E7,$E8,$E9,$EA,$EB,$EC,$ED,$EE,$EF,
+		db $F0,$F1,$F2,$F3,$F4,$F5,$F6,$F7,$F8,$F9,$FA,$FB,$FC,$FD,$FE,$FF,13
+		db 0
+
+forward
+
 
 ]main_loop
 		jsr WaitVBL
 
+		;JSR SCNKEY      ;SCAN KEYBOARD
+        ;JSR GETIN       ;GET CHARACTER
+		;CMP #0          ;IS IT NULL?
+        ;BEQ :no_key
+		;jsr TermCOUT
+  
+:no_key
 		jsr UpdateMarker
+
+		jsr PatternRender
 
 		do 1
 		ldx #63
@@ -339,6 +387,9 @@ seadragon_test
 		jsr TermCOUT
 
 		jmp ]main_loop
+
+PatternRender
+		rts
 
 UpdateMarker
 
@@ -445,246 +496,140 @@ UpdateMarker
 :current db $7f
 
 
-
 ;----------------------------------------------------------------------------
-		lda #<CLUT_DATA
-		ldx #>CLUT_DATA
-		ldy #^CLUT_DATA
+;
+; Decompress the Background onto TileMap0
+; use CLUT 1
+;
+initBackground
+
+; Decompress the CLUT
+		ldaxy #CLUT_DATA
 		jsr set_write_address
 
-		lda #<txt_setaddr
-		ldx #>txt_setaddr
-		jsr TermPUTS
-
-PICNUM = 0   ; fireplace picture
-
-		ldx #PICNUM ; picture #
-		jsr set_pic_address
-
-		lda #<txt_setpicaddr
-		ldx #>txt_setpicaddr
-		jsr TermPUTS
-
-		jsr get_read_address
-		phx
-		pha
-		tya
-		jsr TermPrintAH
-		pla
-		plx
-		jsr TermPrintAXH
-		lda #13
-		jsr TermCOUT
-
-		jsr get_write_address
-		phx
-		pha
-		tya
-		jsr TermPrintAH
-		pla
-		plx
-		jsr TermPrintAXH
-		lda #13
-		jsr TermCOUT
+		ldaxy #background
+		jsr set_read_address
 
 		jsr decompress_clut
-		bcc :good
 
-		jsr TermPrintAI
-		lda #13
-		jsr TermCOUT
-
-:good
-		lda #<txt_decompress_clut
-		ldx #>txt_decompress_clut
-		jsr TermPUTS
-
+; Copy CLUT into Color Memory
 		php
 		sei
 
-		; set access to vicky CLUTs
+		lda io_ctrl
+		pha
+
 		lda #1
-		sta io_ctrl
+		sta io_ctrl ; access LUT data
+
 		; copy the clut up there
 		ldx #0
-]lp		lda CLUT_DATA,x
-		sta VKY_GR_CLUT_0,x
-		lda CLUT_DATA+$100,x
-		sta VKY_GR_CLUT_0+$100,x
-		lda CLUT_DATA+$200,x
-		sta VKY_GR_CLUT_0+$200,x
-		lda CLUT_DATA+$300,x
-		sta VKY_GR_CLUT_0+$300,x
+]lp		lda WRITE_BLOCK,x
+		sta VKY_GR_CLUT_3,x
+		lda WRITE_BLOCK+$100,x
+		sta VKY_GR_CLUT_3+$100,x
+		lda WRITE_BLOCK+$200,x
+		sta VKY_GR_CLUT_3+$200,x
+		lda WRITE_BLOCK+$300,x
+		sta VKY_GR_CLUT_3+$300,x
 		dex
 		bne ]lp
 
-		; set access back to text buffer, for the text stuff
-		lda #2
+		pla
 		sta io_ctrl
-
 		plp
 
-		lda #<txt_copy_clut
-		ldx #>txt_copy_clut
-		jsr TermPUTS
-
-		lda #<TILE_DATA0
-		ldx #>TILE_DATA0
-		ldy #^TILE_DATA0
+		; Decompress the tile data
+		ldaxy #TILE_DATA0
 		jsr set_write_address
 
-		ldx #PICNUM
-		jsr set_pic_address
-
-		; read + write address for pixels
-		jsr get_read_address
-		phx
-		pha
-		tya
-		jsr TermPrintAH
-		pla
-		plx
-		jsr TermPrintAXH
-		lda #13
-		jsr TermCOUT
-
-		jsr get_write_address
-		phx
-		pha
-		tya
-		jsr TermPrintAH
-		pla
-		plx
-		jsr TermPrintAXH
-		lda #13
-		jsr TermCOUT
-
-		php
-		sei
+		ldaxy #background
+		jsr set_read_address
 
 		jsr decompress_pixels
 
-		plp
-
-		lda #<txt_decompress
-		ldx #>txt_decompress
-		jsr TermPUTS
-
-;-----------------------------------------------
-
-		ldx #PICNUM ; picture #
-		jsr set_pic_address
-
+		; Decompress the map data
 		lda #<MAP_DATA0
 		ldx #>MAP_DATA0
 		ldy #^MAP_DATA0
 		jsr set_write_address
 
+		ldaxy #background
+		jsr set_read_address
+
 		jsr decompress_map
 
-		lda #<txt_decompress_map
-		ldx #>txt_decompress_map
-		jsr TermPUTS
-;-----------------------------------------------
+		do 1
+		; map is 44x34
+		
+		ldaxy #MAP_DATA0
+		jsr set_read_address
+		jsr get_read_address
+		jsr set_write_address
 
-; Going to image at $01/0000
-; Going to put palette at $03/0000 
+		ldxy #1496 ;{44*34}
+]loop
+		jsr readbyte
+		jsr writebyte
 
+		jsr readbyte
+		ora #{8*3}		; remap to palette index 3
+		jsr writebyte
 
-		sei
+		dexy
+		bne ]loop
+		fin
 
-		stz io_ctrl
-		stz xpos
-		stz xpos+1
-		stz ping
-
-		stz frame_number
-
-]wait 
-		jsr WaitVBL
-
-		dec <ping		; 10 FPS update
-		bpl ]wait
-
-		lda #6
-		sta <ping
-
-		lda frame_number
-		inc 
-		cmp #10
-		bcc :ok
-
-		lda #0
-
-:ok
-		sta frame_number
-
-		asl
-		tax
-		lda |:vregister,x
-		sta |VKY_TM0_POS_Y_L
-
-		lda |:vregister+1,x
-		sta |VKY_TM0_POS_Y_H
-
-		bra ]wait
-
-:vregister
-		dw  16+{240*0}
-		dw  16+{240*1}
-		dw  16+{240*2}
-		dw  16+{240*3}
-		dw  16+{240*4}
-		dw  16+{240*5}
-		dw  16+{240*6}
-		dw  16+{240*7}
-		dw  16+{240*8}
-		dw  16+{240*9}
-
-
-WaitVBL_poll
-LINE_NO = 241*2
-		lda #<LINE_NO
-		ldx #>LINE_NO
-]wait
-		cpx $D01B
-		beq ]wait
-]wait
-		cmp $D01A
-		beq ]wait
-
-]wait
-		cpx $D01B
-		bne ]wait
-]wait
-		cmp $D01A
-		bne ]wait
 		rts
 
 
-;
-; X = offset to picture to set
-; 
-set_pic_address
-		lda :pic_table_h,x
-		tay
-		lda :pic_table_m,x
+initPumpBars
+
+		; Decompress the tile data
+		ldaxy #PUMPBAR_SPRITE0
+		jsr set_write_address
+
+		ldaxy #pump_bars
+		jsr set_read_address
+
+		jsr decompress_pixels
+
+		php
+		sei
+
+		lda io_ctrl
 		pha
-		lda :pic_table_l,x
-		plx
 
-		jmp set_read_address
+		stz io_ctrl
 
-; memory bus addresses
-:pic_table_l
-		db <pic1
-:pic_table_m
-		db >pic1
-:pic_table_h
-		db ^pic1
+		lda #%00000101
+		sta VKY_SP0_CTRL
+		sta VKY_SP1_CTRL
+
+		ldaxy #PUMPBAR_SPRITE0
+		staxy VKY_SP0_AD_L
+
+		ldax #320-24
+		stax VKY_SP0_POS_X_L
+		ldax #240
+		stax VKY_SP0_POS_Y_L
+
+		ldaxy #PUMPBAR_SPRITE1
+		staxy VKY_SP1_AD_L
+
+		ldax #320
+		stax VKY_SP1_POS_X_L
+		ldax #240
+		stax VKY_SP1_POS_Y_L
+
+		pla
+		sta io_ctrl
+		plp
+
+		rts
 
 ;------------------------------------------------------------------------------
-init320x240_bitmap
+init320x240_video
 		php
 		sei
 
@@ -697,7 +642,6 @@ init320x240_bitmap
 		lda #%01111111  ; all the things
 		sta VKY_MSTR_CTRL_0
 		;lda #%110       ; text in 40 column when it's enabled
-		;sta $D001
 		;lda #6
 		;lda #1 ; clock_70
 		lda #0
@@ -705,21 +649,19 @@ init320x240_bitmap
 		sta VKY_MSTR_CTRL_1
 
 		; layer stuff - take from Jr manual
-;		lda #$54
-		lda #$10
-		sta VKY_LAYER_CTRL_0  ; tile map layers
-;		lda #$06
-		lda #$02
-		sta VKY_LAYER_CTRL_1  ; tile map layers
+		; 0,1, and 2 are bitmap layers
+		; 4,5, and 6 are tilemap layers
 
-		; Tile Map 0
+		lda #$40		      ; bitmap0 on top of tilemap 0
+		sta VKY_LAYER_CTRL_0
+		lda #$05
+		sta VKY_LAYER_CTRL_1  ; tile map layer 2
+
+		; Tile Map Enable/Disable
 		lda #$11
-		sta $D200 ; tile size 8x8 + enable
-
-		; Tile Map Disable
-		stz VKY_TM0_CTRL
-		stz VKY_TM1_CTRL
-		stz VKY_TM2_CTRL
+		sta VKY_TM0_CTRL  ; enable 8x8
+		stz VKY_TM1_CTRL  ; disable
+		stz VKY_TM2_CTRL  ; disable
 
 		; bitmap disables
 		lda #1
@@ -736,6 +678,35 @@ init320x240_bitmap
 		lda #^PIXEL_DATA
 		sta VKY_BM0_ADDR_H
 
+		;
+		; Initialize Tile Map 0
+		;
+		ldaxy #MAP_DATA0
+		staxy VKY_TM0_ADDR_L
+
+		ldax #44
+		stax VKY_TM0_SIZE_X
+		ldax #34
+		stax VKY_TM0_SIZE_Y
+
+		ldax #0
+		stax VKY_TM0_POS_X_L
+		ldax #32
+		stax VKY_TM0_POS_Y_L
+
+		;
+		; Catalog Address
+		;
+		ldaxy #TILE_DATA0
+		staxy VKY_TS0_ADDR_L
+		staxy VKY_TS1_ADDR_L
+		staxy VKY_TS2_ADDR_L
+		staxy VKY_TS3_ADDR_L
+		staxy VKY_TS4_ADDR_L
+		staxy VKY_TS5_ADDR_L
+		staxy VKY_TS6_ADDR_L
+		staxy VKY_TS7_ADDR_L
+
 		lda #2
 		sta io_ctrl
 		plp
@@ -744,143 +715,6 @@ init320x240_bitmap
 
 ;------------------------------------------------------------------------------
 
-init320x240_fireplace
-		php
-		sei
-
-		; Access to vicky generate registers
-		stz io_ctrl
-
-		; enable the graphics mode
-;;		lda #%00001111	; gamma + bitmap + graphics + overlay + text
-;		lda #%00000001	; text
-		lda #%01111111
-		sta $D000
-		;lda #%110       ; text in 40 column when it's enabled
-		;sta $D001
-		stz $D001
-
-		; layer stuff - take from Jr manual
-		lda #$54
-		sta $D002  ; tile map layers
-		lda #$06
-		sta $D003  ; tile map layers
-
-		; Tile Map 0
-;		lda #$11  ; 8x8 + enabled
-		lda #$01  ; enabled
-		sta $D200 ; tile size
-
-		lda #<MAP_DATA0
-		sta $D201
-		lda #>MAP_DATA0
-		sta $D202
-		lda #^MAP_DATA0
-		sta $D203
-
-		lda #{320+32}/16			; pixels into tiles
-		sta $D204  ; map size X
-		stz $D205  ; reserved
-
-		lda #2432/16
-		sta $D206  ; map size y
-		stz $D207  ; reserved
-		stz $D208  ; scroll x lo
-		stz $D209  ; scroll x hi
-		stz $D20A  ; scroll y lo
-		stz $D20B  ; scroll y hi
-
-		; Tile Map 1
-		;lda #$11
-		stz $D20C ; disabled
-
-;		lda #<MAP_DATA1
-;		sta $D20D
-;		lda #>MAP_DATA1
-;		sta $D20E
-;		lda #^MAP_DATA1
-;		sta $D20F
-
-		lda #512/8
-		sta $D210  ; map size X
-		stz $D211  ; reserved
-		;lda #232/8
-		sta $D212  ; map size y
-		stz $D213  ; reserved
-		stz $D214  ; scroll x lo
-		stz $D215  ; scroll x hi
-		;lda #1
-		stz $D216  ; scroll y lo
-		stz $D217  ; scroll y hi
-
-		; tile map 2
-		stz $D218 ; disable
-
-		; bitmap disables
-		stz $D100  ; disable
-		stz $D108  ; disable
-		stz $D110  ; disable
-
-		; tiles locations
-		lda #<TILE_DATA0
-		sta $D280
-		lda #>TILE_DATA0
-		sta $D281
-		lda #^TILE_DATA0
-		sta $D282
-		stz $D283
-
-		lda #<TILE_DATA1
-		sta $D284
-		lda #>TILE_DATA1
-		sta $D285
-		lda #^TILE_DATA1
-		sta $D286
-		stz $D287
-
-		lda #<TILE_DATA2
-		sta $D288
-		lda #>TILE_DATA2
-		sta $D289
-		lda #^TILE_DATA2
-		sta $D28A
-		stz $D28B
-
-		lda #<TILE_DATA3
-		sta $D28C
-		lda #>TILE_DATA3
-		sta $D28D
-		lda #^TILE_DATA3
-		sta $D28E
-		stz $D28F
-
-
-	    do 0
-;		stz $D002  ; layer ctrl 0
-;		stz $D003  ; layer ctrl 3
-
-
-		; set address of image, since image uncompressed, we just display it
-		; where we loaded it.
-		lda #<PIXEL_DATA
-		sta $D101
-		lda #>PIXEL_DATA
-		sta $D102
-		lda #^PIXEL_DATA
-		sta $D103
-
-		lda #1
-		sta $D100  ; bitmap enable, use clut 0
-		sta $D108  ; disable
-		stz $D110  ; disable
-		fin
-
-		lda #2
-		sta io_ctrl
-		plp
-
-		rts
-;------------------------------------------------------------------------------
 txt_modo asc 'ModoJr'
 		db 13,0
 

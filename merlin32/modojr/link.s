@@ -20,6 +20,10 @@
 
 ;------------------------------------------------------------------------------
 
+;		put ..\jr\open_kernal.i.s
+
+;------------------------------------------------------------------------------
+
 		use macros.i
 		use mixer.i
 
@@ -56,11 +60,24 @@ code2_start
 		put term.s
 		put lzsa2.s
 		put file256.s
-		put colors.s
 		put mixer.s
+		put colors.s
+		put font.s
 code2_end
 
 		ERR    *-1/$C000      ; Error if PC > $C000
+
+
+		org $0
+		adr cdata_start
+		adr cdata_end-cdata_start
+
+		org $10000
+cdata_start
+led_font   putbin data/led_font.font
+pump_bars  putbin data/pumpbars.256
+background putbin data/background.256
+cdata_end
 
 		org $0
 		adr sfx_waves_start
