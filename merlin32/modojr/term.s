@@ -14,6 +14,7 @@ term_y      ds 1
 term_ptr    ds 2
 term_temp0  ds 4
 term_temp1  ds 4
+term_temp2  ds 2
 	dend
 
 ;TermCOUT       - COUT, prints character in A, right now only special character code #13 is supported <cr>
@@ -216,7 +217,7 @@ Term80Table_hi
 
 ;------------------------------------------------------------------------------
 TermPUTS
-:pString = term_temp0
+:pString = term_temp2
 		sta :pString
 		stx :pString+1
 
