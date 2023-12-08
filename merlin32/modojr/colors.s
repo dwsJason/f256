@@ -28,21 +28,10 @@ initColors
 		ldx #2
 ]lp
 		lda |gs_colors+{4*2},x ; Dark Blue index 2
-		stz |VKY_BKG_COL_B,x
+		sta |VKY_BKG_COL_B,x
 		sta |VKY_BRDR_COL_B,x
 		dex
 		bpl ]lp
-
-		; setup border?
-;		lda #1
-;		sta |VKY_BRDR_CTRL
-
-;		lda #20*2
-;		sta VKY_BRDR_VERT	; take from 240 down to 200
-
-;		lda #$3F
-;		sta VKY_BRDR_HORI 	; take from 320 down to 258
-
 
 		; copy the first 16 colors up into the normal graphics luts
 
