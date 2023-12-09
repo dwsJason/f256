@@ -28,6 +28,9 @@ frame_number ds 1
 
 	dend
 
+SPRITE_MAP   ds 120   ; 10x6x2 bytes (120 bytes), this can fit anywhere probably
+SPRITE_TILES = $50000 ; could be up to 64k worth, but will be less
+
 MAP_DATA0  = $010000
 TILE_DATA0 = $012000 
 
@@ -206,8 +209,10 @@ PICNUM = 0   ; fireplace picture
 ; Going to image at $01/0000
 ; Going to put palette at $03/0000 
 
-
 		sei
+
+		jsr InitSpriteFont
+
 
 		stz io_ctrl
 		stz xpos

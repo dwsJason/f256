@@ -20,6 +20,10 @@
 
 ;------------------------------------------------------------------------------
 
+		use macros.i
+
+;------------------------------------------------------------------------------
+
 		mx %11
 		org $0
 		dsk xmas.pgz
@@ -37,6 +41,7 @@ main_code_start
 		put mmu.s
 		put lzsa2.s
 		put file256.s
+		put spritefont.s
 main_code_end
 
 		org $0
@@ -47,6 +52,7 @@ main_code_end
 ;;		put data0.s
 image2_start
 pic1	putbin data\fireplace.256
+f6font  putbin data\32x32-F6.256
 image2_end
 
 
