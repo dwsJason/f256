@@ -54,7 +54,7 @@ MODRATE  equ 16000/50
 		sta <mod_jiffy_rate+1
 
 		; High Res Timer0 
-
+		do 1
 		;lda #TM_CTRL_CLEAR.TM_CTRL_UP_DOWN.TM_CTRL_ENABLE.TM_CTRL_INTEN
 		stz |TM0_CTRL
 
@@ -68,6 +68,10 @@ MODRATE  equ 16000/50
 		lda #^RATE
 		sta |TM0_CMP_H
 
+		stz |TM0_VALUE_L
+		stz |TM0_VALUE_M
+		stz |TM0_VALUE_H
+
 		lda #TM_CTRL_UP_DOWN.TM_CTRL_ENABLE.TM_CTRL_INTEN
 		sta |TM0_CTRL
   
@@ -77,6 +81,29 @@ MODRATE  equ 16000/50
 		lda #$FF
 		sta |INT_PEND_0 	; clear any pending interrupts
 		sta |INT_PEND_1
+
+		; polarity + edge
+		sta |$D664
+		sta |$D668
+		else
+
+		lda #{INT00_VKY_SOF.INT01_VKY_SOL}!$FF  ; clear mask for SOF, and fast timer
+		sta |INT_MASK_0 	; enable some interrupts
+
+		lda #$FF
+		sta |INT_PEND_0 	; clear any pending interrupts
+		sta |INT_PEND_1
+
+
+		fin
+
+		stz VKY_LINE_NBR_L
+		stz VKY_LINE_NBR_H
+		stz irq_num
+		stz irq_num+1
+
+		lda #VKY_LINE_ENABLE
+		sta |VKY_LINE_CTRL 	; enable line interrupts
 
 		pla
 		sta io_ctrl
@@ -105,7 +132,7 @@ my_irq_handler
 		lda INT_PEND_0
 		sta INT_PEND_0 			; clear all interrupts
 
-		bit #INT04_TIMER_0
+		bit #INT04_TIMER_0.INT01_VKY_SOL
 		beq :not_mixer
 
 		pha  ; preserve the interrupts that happened
@@ -116,6 +143,28 @@ my_irq_handler
 		jsr MixerMix
 		pla
 		sta mmu3
+
+		; stuff for the K
+		do 0
+;		inc irq_num
+;		bne :no_hi_irq_num
+;		inc irq_num+1
+		lda irq_num
+		inc
+		cmp #$F0
+		bcc :no_hi_irq_num
+		lda #0
+:no_hi_irq_num
+		sta irq_num
+
+;		lda irq_num
+		asl
+		sta VKY_LINE_NBR_L
+		lda irq_num+1
+		rol
+		sta VKY_LINE_NBR_H
+		fin
+		; end stuff for the K
 
 		; it's slow
 		; we have to manually count off 16000/50 interrupts :(

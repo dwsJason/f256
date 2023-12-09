@@ -89,7 +89,8 @@ border_colors
 ;------------------------------------------------------------------------------
 gs_colors
 	adrl $ff000000  ;0 Black
-	adrl $ffdd0033	;1 Deep Red
+	adrl $ffff0033
+	;adrl $ffdd0033	;1 Deep Red
 	adrl $ff000099	;2 Dark Blue
 	adrl $ffdd22dd	;3 Purple
 	adrl $ff007722	;4 Dark Green
@@ -105,5 +106,60 @@ gs_colors
 	adrl $ff55ff99	;E Aquamarine
 	adrl $ffffffff	;F White
 
-
 ;------------------------------------------------------------------------------
+
+vu_colors_off
+	adrl $ff002000
+	adrl $ff002000
+	adrl $ff002000
+	adrl $ff002000
+	adrl $ff002000
+	adrl $ff002000
+	adrl $ff002000
+	adrl $ff002000
+	adrl $ff002000
+	adrl $ff002000
+
+	adrl $ff200000
+	adrl $ff200000
+	adrl $ff200000
+	adrl $ff200000
+	adrl $ff200000
+
+vu_colors_on
+	adrl $ff20FF20
+	adrl $ff20FF20
+	adrl $ff20FF20
+	adrl $ff20FF20
+	adrl $ff20FF20
+	adrl $ff20FF20
+	adrl $ff20FF20
+	adrl $ff20FF20
+	adrl $ff20FF20
+	adrl $ff20FF20
+
+	adrl $ffff2020
+	adrl $ffff2020 
+	adrl $ffff2020 
+	adrl $ffff2020 
+	adrl $ffff2020 
+
+vu_colors_peak
+	adrl $ff101010
+	adrl $ff101010
+	adrl $ff101010
+	adrl $ff101010
+	adrl $ff101010
+
+	adrl $ff101010
+	adrl $ff101010
+	adrl $ff101010
+	adrl $ff101010
+	adrl $ff101010
+
+	adrl $ff101010
+	adrl $ff101010
+	adrl $ff101010
+	adrl $ff101010
+	adrl $ff101010
+

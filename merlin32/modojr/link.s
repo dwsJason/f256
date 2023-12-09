@@ -95,7 +95,7 @@ sfx_waves_end
 		org $30000
 mod_data_start
 mod_song
-;		putbin data/dru.mod
+		putbin data/dru.mod
 ;		putbin data/el_gondo.mod
 ;		putbin data/tomsdine.mod
 ;		putbin data/savage.mod
@@ -110,7 +110,7 @@ mod_song
 ;		putbin data/xmas/estrayk_-_xmas.mod ; jingle bells, but a lot of static
 ;		putbin data/xmas/scott_cribbs_-_xmass.mod ; I like this one
 ;		putbin data/xmas/xmas1995.mod  ; fun
-		putbin data/xmas/xmas_93.mod ; I don't like it
+;		putbin data/xmas/xmas_93.mod ; I don't like it
 ;		putbin data/xmas/xmas.mod
 ;		putbin data/xmas/spirit_-_xmasmix.mod
 		; this is the one
@@ -125,15 +125,15 @@ mod_data_end
 
 
 
-		org $0
-		adr image2_start
-		adr image2_end-image2_start  ; labels only work here, if data below is less than 64K
-		org $70000
+;		org $0
+;		adr image2_start
+;		adr image2_end-image2_start  ; labels only work here, if data below is less than 64K
+;		org $70000
 
 ;;		put data0.s
-image2_start
-pic1	;putbin data\fireplace.256
-image2_end
+;image2_start
+;pic1	;putbin data\fireplace.256
+;image2_end
 
 
 ; Launch Address

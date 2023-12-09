@@ -79,7 +79,8 @@ ModPlayerTick mx %11
 ]lp
 		; $$JGA TODO, add volume support, right now there is NONE!
 		;lda |mod_channel_pan,y    ; left
-		;sta <:vol
+		lda #64 				   ; for now, save some clocks
+		sta <:vol
 		;lda |mod_channel_pan+1,y  ; right
 		;sta <:vol+1
 
@@ -216,7 +217,8 @@ ModPlayerTick mx %11
 ;		ldax <:vol
 ;		phax		   ; temp save left,right vol on stack
 ;
-;		lda <:effect_parm ; 0-$40
+		lda <:effect_parm ; 0-$40
+		sta <:vol
 ;		lsr
 ;		cmp #$20
 ;		bcc :vol_range_ok
@@ -301,9 +303,9 @@ ModPlayerTick mx %11
 		cli
 
 		lda <:vol  		; left/right volume (3f max)
-		sta <osc_left_vol,x
-		lda <:vol+1
-		sta <osc_right_vol,x
+		;sta <osc_left_vol,x  ; save some clocks since we don't use this
+		;lda <:vol+1
+		;sta <osc_right_vol,x
 
 		;---- start - this might be a good spot to update the pumpbar out
 
@@ -540,6 +542,14 @@ ModInit
 
 		lda #6						; default 6
 		sta <mod_speed
+		
+		do 0					    ; needs to happen after the memory is zero below
+		lda #$40				 	; default volumes 
+		sta |mod_channel_pan
+		sta |mod_channel_pan+{4*1}
+		sta |mod_channel_pan+{4*2}
+		sta |mod_channel_pan+{4*3}
+		fin
 
 		; check to see if we support his kind of mod
 		jsr ModIsSupported
@@ -1226,7 +1236,7 @@ ModInit
 		lda |inst_address_table+1,x
 		sta <:pInst+1
 
-		do 1     			; make me feel good, to see stuff happening
+		do 0     			; make me feel good, to see stuff happening
 		lda <:loopCount
 		jsr TermPrintAI
 
@@ -1556,5 +1566,10 @@ mod_instruments ds sizeof_inst*32  ; Really a normal mod only has 31 of them
 mod_last_sample ds 4*16 ; up to 8 channels
 mod_channel_pan ds 4*16 ; up to 8 channels
 mod_pump_vol    ds 4*16 ; up to 8 channels, pump bar data
+
+pump_bar_levels ds 2*8 	   ; for current rendering
+pump_bar_peaks  ds 2*8 	   ; peaks hang on for 1 second
+pump_bar_last_peak ds 2*8  ; only for peaks, make the draw code "smarter"
+pump_bar_peak_timer ds 2*8 ; peak gets cleared to 0, when timer hits 0
 
 mod_local_end

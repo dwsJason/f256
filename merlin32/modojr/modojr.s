@@ -334,8 +334,8 @@ seadragon_test
 		jsr TermPUTS
 
 		jmp forward
-
-:txt    db $C0,$C1,$C2,$C3,$C4,$C5,$C6,$C7,$C8,$C9,$CA,$CB,$CC,$CD,$CE,$CF,
+:txt    db 13,13
+        db $C0,$C1,$C2,$C3,$C4,$C5,$C6,$C7,$C8,$C9,$CA,$CB,$CC,$CD,$CE,$CF,
 		db $D0,$D1,$D2,$D3,$D4,$D5,$D6,$D7,$D8,$D9,$DA,$DB,$DC,$DD,$DE,$DF,13
 		db $E0,$E1,$E2,$E3,$E4,$E5,$E6,$E7,$E8,$E9,$EA,$EB,$EC,$ED,$EE,$EF,
 		db $F0,$F1,$F2,$F3,$F4,$F5,$F6,$F7,$F8,$F9,$FA,$FB,$FC,$FD,$FE,$FF,13
@@ -343,9 +343,13 @@ seadragon_test
 
 forward
 
+		; So the pattern has colors
+		jsr PatternRenderInit
 
 ]main_loop
 		jsr WaitVBL
+
+		jsr PumpBarRender
 
 		;JSR SCNKEY      ;SCAN KEYBOARD
         ;JSR GETIN       ;GET CHARACTER
@@ -387,8 +391,151 @@ forward
 		jsr TermCOUT
 
 		jmp ]main_loop
+;
+; Setup the Display with color regions for the text
+;
+PatternRenderInit
+
+		lda io_ctrl
+		pha
+
+		lda #3     	; have term write to color
+		sta io_ctrl
+
+		; colors
+		ldx #16
+		ldy #30
+]lp		phy 			 	; 1 line loop
+		jsr TermSetXY
+
+		ldy #47
+]inlp	lda |:colors,y   	; stash colors
+		sta (term_ptr),y
+		dey
+		bpl ]inlp
+
+		ply
+		iny
+		cpy #60
+		bcc ]lp
+
+		pla 		  	 ; restore io_ctrl bank
+		sta io_ctrl
+
+		rts
+
+:colors ; Row Number
+		db $10,$10,$10
+
+		lup 4
+		db $70,$70,$70 ; Note Color
+		db $D0,$D0     ; Instrument # 1-31
+		db $C0,$C0,$C0 ; Volume v00-v64
+		db $90,$90,$90 ; Effect
+		--^
+
+		db 0
+
+
 
 PatternRender
+
+:pPattern = temp0
+:row_num  = temp0+2
+:raw      = temp1
+
+		sei
+		; snap shot data, with interrupt off
+		ldaxy mod_p_current_pattern
+		sta :pPattern
+		lda mod_current_row
+		cli
+		sta :row_num
+		stx :pPattern+1
+		sty mmu3
+
+		cmp |:last_row
+		bne :render
+
+		rts
+:render
+		sta |:last_row
+
+		; move the cursor to where we want to write stuff
+		ldx #17
+		ldy #44
+		jsr TermSetXY
+; Current Row
+		;lda :row_num
+		;jsr TermPrintAH
+
+		; Row Number
+		ldx :row_num
+		lda tbl_dec99_hi,x
+		sta (term_ptr)
+
+		ldy #1
+		lda tbl_dec99_lo,x
+		sta (term_ptr),y
+
+		; get the note info for track 0
+		jsr :get_byte
+		sta :raw
+		jsr :get_byte
+		sta :raw+1
+		jsr :get_byte
+		sta :raw+2
+		jsr :get_byte
+		sta :raw+3
+
+; lets print out the note
+
+		lda :raw+0
+		lsr
+		ror :raw+1
+		lsr
+		ror :raw+1
+
+		; now :raw+1 is the period value / 4 (so it fits in a table less than 256 entries)
+
+		iny
+		ldx :raw+1
+
+		lda tbl_note_letter,x  	; B
+		sta (term_ptr),y
+
+		iny
+		lda tbl_note_mid,x  	; -
+		sta (term_ptr),y
+
+		iny
+		lda tbl_octave,x	    ; 6
+		sta (term_ptr),y
+
+
+
+
+		rts
+
+:last_row ds 2
+
+;:test_this
+;		asc 'C#606V64D00C#606V64D00......................'
+;		db 13
+;		db 0
+
+
+
+:get_byte
+		lda (:pPattern)
+		inc :pPattern
+		bne :rts
+		inc :pPattern+1
+		bpl :rts
+		lda #>READ_BLOCK
+		sta :pPattern+1
+		inc mmu3
+:rts
 		rts
 
 UpdateMarker
@@ -582,6 +729,7 @@ initBackground
 
 		rts
 
+;------------------------------------------------------------------------------
 
 initPumpBars
 
@@ -602,7 +750,7 @@ initPumpBars
 
 		stz io_ctrl
 
-		lda #%00000101
+		lda #%00000101  	; LUT#2
 		sta VKY_SP0_CTRL
 		sta VKY_SP1_CTRL
 
@@ -621,6 +769,34 @@ initPumpBars
 		stax VKY_SP1_POS_X_L
 		ldax #240
 		stax VKY_SP1_POS_Y_L
+
+		; initialize some of those LUT Colors
+
+		lda #1
+		sta io_ctrl
+
+		; verify the backdrop color
+		ldaxy #0
+		staxy VKY_GR_CLUT_2+{16*4}
+
+
+		ldx #{15*4}-1       ; 15 colors
+]lp		lda vu_colors_off,x
+		sta VKY_GR_CLUT_2+{1*4},x		
+		sta VKY_GR_CLUT_2+{17*4},x		
+		sta VKY_GR_CLUT_2+{33*4},x		
+		sta VKY_GR_CLUT_2+{49*4},x
+
+		lda vu_colors_peak,x
+		sta VKY_GR_CLUT_2+{65*4},x		
+		sta VKY_GR_CLUT_2+{81*4},x		
+		sta VKY_GR_CLUT_2+{97*4},x		
+		sta VKY_GR_CLUT_2+{113*4},x
+
+		dex
+		bpl ]lp
+
+
 
 		pla
 		sta io_ctrl
@@ -1090,4 +1266,521 @@ PlotXY
 
 ;------------------------------------------------------------------------------
 
+PumpBarRender mx %11
 
+:levels = temp0
+:max_lit = temp1
+
+		php
+		sei
+		; grab samples
+		lda |mod_pump_vol+{4*1}
+		stz |mod_pump_vol+{4*1}
+		sta <:levels+0
+		lda |mod_pump_vol+{4*2}
+		stz |mod_pump_vol+{4*2}
+		sta <:levels+1
+		lda |mod_pump_vol+{4*3}
+		stz |mod_pump_vol+{4*3}
+		sta <:levels+2
+		lda |mod_pump_vol+{4*4}
+		stz |mod_pump_vol+{4*4}
+		sta <:levels+3
+		plp
+
+]ct = 0
+		lup 4
+		lda <:levels+]ct 			; no value
+		beq :no_new_value
+
+		; here would be a good place to scale + clamp, if we want that
+		lsr  ; this will make them move 2x speed (1/2 second to empty the bar)
+
+		cmp |pump_bar_levels+]ct	; new value is less than what we have, so ignore
+		bcc :no_new_value
+
+		sta |pump_bar_levels+]ct    ; new level, since it's >=
+		cmp |pump_bar_peaks+]ct     ; check to see if it's a new peak
+		bcc :no_new_value
+
+		sta |pump_bar_peaks+]ct		; set new peak
+		lda #20	; hang time for new peak  (1/3) of a second
+		sta |pump_bar_peak_timer+]ct
+
+:no_new_value
+
+		lda |pump_bar_peak_timer+]ct
+		beq :skip_peak_timer
+		dec
+		sta |pump_bar_peak_timer+]ct
+		bne :skip_peak_timer
+		stz |pump_bar_peaks+]ct
+:skip_peak_timer
+		lda |pump_bar_levels+]ct
+		beq :skip_level
+		dec
+		sta |pump_bar_levels+]ct
+:skip_level
+]ct = ]ct+1
+		--^
+
+		lda io_ctrl
+		pha
+
+		lda #1			; page in the palettes
+		sta io_ctrl
+
+	    do 1
+; render the colors
+]ct = 0
+		lup 4
+
+		lda |pump_bar_levels+]ct
+		lsr
+		cmp #15
+		bcc :no_clamp
+		lda #15
+:no_clamp
+
+		ldx #0
+
+		asl
+		asl
+		sta :max_lit
+		beq :colors_off
+:colors_on
+		lda |vu_colors_on,x
+		sta VKY_GR_CLUT_2+{1*4}+{]ct*64},x
+		inx
+		cpx :max_lit
+		bcc :colors_on
+		bra :check_end
+:colors_off
+		lda |vu_colors_off,x
+		sta VKY_GR_CLUT_2+{1*4}+{]ct*64},x
+		inx
+:check_end
+		cpx #15*4
+		bcc :colors_off
+:done
+]ct = ]ct+1
+		--^
+		fin
+
+; Render the Peak Meters
+		do 1
+
+]ct = 0
+		lup 4
+
+		lda pump_bar_last_peak+]ct
+		cmp pump_bar_peaks+]ct
+		beq :next_peak				; no change, leave alone
+
+		; erase old peak
+		and #%11111110
+		cmp #30
+		bcc :eok
+		lda #30
+:eok
+		asl
+		tax
+
+		lda #$10
+		sta VKY_GR_CLUT_2+$100+{]ct*64}+0,x
+		sta VKY_GR_CLUT_2+$100+{]ct*64}+1,x
+		sta VKY_GR_CLUT_2+$100+{]ct*64}+2,x
+
+		; draw new peak
+		lda pump_bar_peaks+]ct
+		sta pump_bar_last_peak+]ct
+
+
+		and #%11111110
+		cmp #30
+		bcc :drawok
+		lda #30
+:drawok
+
+		asl
+		tax
+
+		lda #$F0
+		sta VKY_GR_CLUT_2+$100+{]ct*64}+0,x
+		sta VKY_GR_CLUT_2+$100+{]ct*64}+1,x
+		sta VKY_GR_CLUT_2+$100+{]ct*64}+2,x
+:next_peak
+]ct = ]ct+1
+		--^
+
+		fin
+
+		pla
+		sta io_ctrl
+
+			 
+		do 0   ; visual verify volume data coming through
+		ldx #0
+		ldy #49
+		jsr TermSetXY
+
+		ldx #0
+]lp		phx
+		lda |mod_pump_vol,x
+		jsr TermPrintAH
+		plx
+		inx
+		cpx #32
+		bcc ]lp
+		fin
+
+		do 0   ; visual verify volume data coming through
+		ldx #0
+		ldy #50
+		jsr TermSetXY
+
+		ldx #0
+]lp		phx
+		lda |pump_bar_levels,x
+		jsr TermPrintAH
+		plx
+		inx
+		cpx #32
+		bcc ]lp
+		fin
+
+
+		rts
+
+;------------------------------------------------------------------------------
+;
+; Fast ATOI, for 00-99
+;
+tbl_dec99_hi
+]var = 0
+		lup 100
+		db {{]var/10}+'0'+$A0}
+]var = ]var+1
+		--^
+
+tbl_dec99_lo
+		lup 10
+		db $D0,$D1,$D2,$D3,$D4,$D5,$D6,$D7,$D8,$D9
+		--^
+
+;------------------------------------------------------------------------------
+;
+; Fast pattern render tables
+;
+; C,C#,D,D#,E,F,F#,G,G#,A,A#,B
+;
+; Tuning 0, Normal
+;	dc.w 856,808,762,720,678,640,604,570,538,508,480,453 ; C-1 to B-1
+;	dc.w 428,404,381,360,339,320,302,285,269,254,240,226 ; C-2 to B-2
+;	dc.w 214,202,190,180,170,160,151,143,135,127,120,113 ; C-3 to B-3
+
+]A = $A0
+tbl_note_letter
+
+	db 'B'+]A ; index 56
+	db 'A'+]A ; index 60
+	db 'A'+]A ; index 63
+	db 'G'+]A ; index 67
+	db 'G'+]A ; index 71
+	db 'F'+]A ; index 75
+	db 'F'+]A ; index 80
+	db 'E'+]A ; index 85
+	db 'D'+]A ; index 90
+	db 'D'+]A ; index 95
+	db 'C'+]A ; index 101
+	db 'C'+]A ; index 107
+
+	db 'B'+]A ; index 113 
+	db 'A'+]A ; index 120
+	db 'A'+]A ; index 127
+	db 'G'+]A ; index 135
+	db 'G'+]A ; index 143
+	db 'F'+]A ; index 151
+	db 'F'+]A ; index 160
+	db 'E'+]A ; index 170
+	db 'D'+]A ; index 180
+	db 'D'+]A ; index 190
+	db 'C'+]A ; index 202
+	db 'C'+]A ; index 214
+
+; should go out to 225, since highest number in tuning table is 900
+;------------------------------------------------------------------------------
+
+tbl_note_mid
+
+	db '-'+]A ; index 56 
+	db '#'+]A ; index 60 
+	db '-'+]A ; index 63 
+	db '#'+]A ; index 67 
+	db '-'+]A ; index 71 
+	db '#'+]A ; index 75 
+	db '-'+]A ; index 80 
+	db '-'+]A ; index 85 
+	db '#'+]A ; index 90 
+	db '-'+]A ; index 95 
+	db '#'+]A ; index 101
+	db '-'+]A ; index 107
+
+	db '-'+]A ; index 113
+	db '#'+]A ; index 120
+	db '-'+]A ; index 127
+	db '#'+]A ; index 135
+	db '-'+]A ; index 143
+	db '#'+]A ; index 151
+	db '-'+]A ; index 160
+	db '-'+]A ; index 170
+	db '#'+]A ; index 180
+	db '-'+]A ; index 190
+	db '#'+]A ; index 202
+	db '-'+]A ; index 214
+
+; should go out to 225, since highest number in tuning table is 900
+;------------------------------------------------------------------------------
+
+
+tbl_octave
+
+	db '6'+]A ; index 0
+	db '6'+]A ; index 1
+	db '6'+]A ; index 2
+
+	db '5'+]A ; index 3 
+	db '5'+]A ; index 4 
+	db '5'+]A ; index 5 
+	db '5'+]A ; index 6
+
+	db '5'+]A ; index 7 
+	db '5'+]A ; index 8 
+	db '5'+]A ; index 9 
+	db '5'+]A ; index 10 
+	db '5'+]A ; index 11 
+	db '5'+]A ; index 12
+	db '5'+]A ; index 13
+
+	db '4'+]A ; index 14 
+	db '4'+]A ; index 15 
+	db '4'+]A ; index 16 
+	db '4'+]A ; index 17 
+	db '4'+]A ; index 18 
+	db '4'+]A ; index 19 
+	db '4'+]A ; index 20 
+	db '4'+]A ; index 21 
+	db '4'+]A ; index 22 
+	db '4'+]A ; index 23 
+	db '4'+]A ; index 24 
+	db '4'+]A ; index 25
+	db '4'+]A ; index 26
+
+	db '4'+]A ; index 27
+
+	db '3'+]A ; index 28 
+	db '3'+]A ; index 29 
+	db '3'+]A ; index 30 
+	db '3'+]A ; index 31 
+	db '3'+]A ; index 32 
+	db '3'+]A ; index 33 
+	db '3'+]A ; index 34 
+	db '3'+]A ; index 35 
+	db '3'+]A ; index 36 
+	db '3'+]A ; index 37 
+	db '3'+]A ; index 38 
+	db '3'+]A ; index 39 
+	db '3'+]A ; index 40 
+	db '3'+]A ; index 41 
+	db '3'+]A ; index 42 
+	db '3'+]A ; index 43 
+	db '3'+]A ; index 44
+	db '3'+]A ; index 45 
+	db '3'+]A ; index 46 
+	db '3'+]A ; index 47 
+	db '3'+]A ; index 48 
+	db '3'+]A ; index 49 
+	db '3'+]A ; index 50
+	db '3'+]A ; index 51
+	db '3'+]A ; index 52
+	db '3'+]A ; index 53
+
+	db '3'+]A ; index 54
+	db '2'+]A ; index 55
+
+	db '2'+]A ; index 56 
+	db '2'+]A ; index 57 
+	db '2'+]A ; index 58 
+	db '2'+]A ; index 59 
+	db '2'+]A ; index 60 
+	db '2'+]A ; index 61 
+	db '2'+]A ; index 62 
+	db '2'+]A ; index 63 
+	db '2'+]A ; index 64 
+	db '2'+]A ; index 65 
+	db '2'+]A ; index 66 
+	db '2'+]A ; index 67 
+	db '2'+]A ; index 68 
+	db '2'+]A ; index 69 
+	db '2'+]A ; index 70 
+	db '2'+]A ; index 71 
+	db '2'+]A ; index 72 
+	db '2'+]A ; index 73
+	db '2'+]A ; index 74
+	db '2'+]A ; index 75 
+	db '2'+]A ; index 76 
+	db '2'+]A ; index 77 
+	db '2'+]A ; index 78
+	db '2'+]A ; index 79 
+	db '2'+]A ; index 80 
+	db '2'+]A ; index 81
+	db '2'+]A ; index 82
+	db '2'+]A ; index 83
+	db '2'+]A ; index 84
+	db '2'+]A ; index 85 
+	db '2'+]A ; index 86 
+	db '2'+]A ; index 87 
+	db '2'+]A ; index 88 
+	db '2'+]A ; index 89 
+	db '2'+]A ; index 90 
+	db '2'+]A ; index 91 
+	db '2'+]A ; index 92 
+	db '2'+]A ; index 93 
+	db '2'+]A ; index 94 
+	db '2'+]A ; index 95 
+	db '2'+]A ; index 96 
+	db '2'+]A ; index 97 
+	db '2'+]A ; index 98 
+	db '2'+]A ; index 99 
+	db '2'+]A ; index 100 
+	db '2'+]A ; index 101
+	db '2'+]A ; index 102
+	db '2'+]A ; index 103
+	db '2'+]A ; index 104
+	db '2'+]A ; index 105
+	db '2'+]A ; index 106
+	db '2'+]A ; index 107
+
+	db '2'+]A ; index 108
+	db '2'+]A ; index 109
+	db '2'+]A ; index 110
+	db '1'+]A ; index 111
+	db '1'+]A ; index 112
+
+	db '1'+]A ; index 113
+	db '1'+]A ; index 114
+	db '1'+]A ; index 115
+	db '1'+]A ; index 116
+	db '1'+]A ; index 117
+	db '1'+]A ; index 118
+	db '1'+]A ; index 119
+	db '1'+]A ; index 120
+	db '1'+]A ; index 121
+	db '1'+]A ; index 122
+	db '1'+]A ; index 123
+	db '1'+]A ; index 124
+	db '1'+]A ; index 125
+	db '1'+]A ; index 126
+	db '1'+]A ; index 127
+	db '1'+]A ; index 128
+	db '1'+]A ; index 129
+	db '1'+]A ; index 130
+	db '1'+]A ; index 131
+	db '1'+]A ; index 132
+	db '1'+]A ; index 133
+	db '1'+]A ; index 134
+	db '1'+]A ; index 135
+	db '1'+]A ; index 136
+	db '1'+]A ; index 137
+	db '1'+]A ; index 138
+	db '1'+]A ; index 139
+	db '1'+]A ; index 140
+	db '1'+]A ; index 141
+	db '1'+]A ; index 142
+	db '1'+]A ; index 143
+	db '1'+]A ; index 144
+	db '1'+]A ; index 145
+	db '1'+]A ; index 146
+	db '1'+]A ; index 147
+	db '1'+]A ; index 148
+	db '1'+]A ; index 149
+	db '1'+]A ; index 150
+	db '1'+]A ; index 151
+	db '1'+]A ; index 152
+	db '1'+]A ; index 153
+	db '1'+]A ; index 154
+	db '1'+]A ; index 155
+	db '1'+]A ; index 156
+	db '1'+]A ; index 157
+	db '1'+]A ; index 158
+	db '1'+]A ; index 159
+	db '1'+]A ; index 160
+	db '1'+]A ; index 161
+	db '1'+]A ; index 162
+	db '1'+]A ; index 163
+	db '1'+]A ; index 164
+	db '1'+]A ; index 165
+	db '1'+]A ; index 166
+	db '1'+]A ; index 167
+	db '1'+]A ; index 168
+	db '1'+]A ; index 169
+	db '1'+]A ; index 170
+	db '1'+]A ; index 171
+	db '1'+]A ; index 172
+	db '1'+]A ; index 173
+	db '1'+]A ; index 174
+	db '1'+]A ; index 175
+	db '1'+]A ; index 176
+	db '1'+]A ; index 177
+	db '1'+]A ; index 178
+	db '1'+]A ; index 179
+	db '1'+]A ; index 180
+	db '1'+]A ; index 181
+	db '1'+]A ; index 182
+	db '1'+]A ; index 183
+	db '1'+]A ; index 184
+	db '1'+]A ; index 185
+	db '1'+]A ; index 186
+	db '1'+]A ; index 187
+	db '1'+]A ; index 188
+	db '1'+]A ; index 189
+	db '1'+]A ; index 190
+	db '1'+]A ; index 191
+	db '1'+]A ; index 192
+	db '1'+]A ; index 193
+	db '1'+]A ; index 194
+	db '1'+]A ; index 195
+	db '1'+]A ; index 196
+	db '1'+]A ; index 197
+	db '1'+]A ; index 198
+	db '1'+]A ; index 199
+	db '1'+]A ; index 200
+	db '1'+]A ; index 201
+	db '1'+]A ; index 202
+	db '1'+]A ; index 203
+	db '1'+]A ; index 204
+	db '1'+]A ; index 205
+	db '1'+]A ; index 206
+	db '1'+]A ; index 207
+	db '1'+]A ; index 208
+	db '1'+]A ; index 209
+	db '1'+]A ; index 210
+	db '1'+]A ; index 211
+	db '1'+]A ; index 212
+	db '1'+]A ; index 213
+	db '1'+]A ; index 214
+
+	db '1'+]A ; index 215
+	db '1'+]A ; index 216
+	db '1'+]A ; index 217
+	db '1'+]A ; index 218
+	db '1'+]A ; index 219
+	db '1'+]A ; index 220
+	db '1'+]A ; index 221
+	db '1'+]A ; index 222
+	db '1'+]A ; index 223
+	db '1'+]A ; index 224
+	db '1'+]A ; index 225
+
+; should go out to 225, since highest number in tuning table is 900
+;------------------------------------------------------------------------------
