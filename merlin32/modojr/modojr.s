@@ -506,7 +506,7 @@ PatternRender
 		iny
 		ldx :raw+1
 
-		lda tbl_note_letter,x  	; B
+		lda tbl_note_letter,x  	; B  ;ha period plots as spaces if it's zero!
 		sta (term_ptr),y
 
 		iny
@@ -517,12 +517,84 @@ PatternRender
 		lda tbl_octave,x	    ; 6
 		sta (term_ptr),y
 
+		; now 2 digit instrument number, in decimal
+		lda :raw+0
+		and #$F0
+		sta :raw+0
 
+		lda :raw+2
+		lsr
+		lsr
+		lsr
+		lsr
+		ora :raw+0
+		bne :digit
+		lda #' '	   		; place spaces if inst is 0
+		iny
+		sta (term_ptr),y 
+		iny
+		sta (term_ptr),y 
+		bra :keep_going_brother
+:digit
+		tax
+		lda tbl_dec99_hi,x
+		iny
+		sta (term_ptr),y
+		lda tbl_dec99_lo,x
+		iny
+		sta (term_ptr),y
+:keep_going_brother
+		; time to plot effect, or spaces if its 000
 
+		lda :raw+2
+		and #$0f
+		ora :raw+3
+		bne :plot_it
+
+		lda #' '
+		iny
+		sta (term_ptr),y
+		iny
+		sta (term_ptr),y
+		iny
+		sta (term_ptr),y
+
+		bra :done_draw
+:plot_it
+		lda :raw+2
+		and #$0F
+		tax
+		lda :effect,x
+		iny
+		sta (term_ptr),y
+		lda :raw+3
+		lsr
+		lsr
+		lsr
+		lsr
+		tax
+		lda :effect,x
+		iny
+		sta (term_ptr),y
+		lda :raw+3
+		and #$0F
+		tax
+		lda :effect,x
+		iny
+		sta (term_ptr),y
+
+:done_draw
 
 		rts
 
 :last_row ds 2
+
+]A = $A0
+
+:effect db '0'+]A,'1'+]A,'2'+]A,'3'+]A
+		db '4'+]A,'5'+]A,'6'+]A,'7'+]A
+		db '8'+]A,'9'+]A,'A'+]A,'B'+]A
+		db 'C'+]A,'D'+]A,'E'+]A,'F'+]A
 
 ;:test_this
 ;		asc 'C#606V64D00C#606V64D00......................'
@@ -1501,70 +1573,473 @@ tbl_dec99_lo
 ]A = $A0
 tbl_note_letter
 
-	db 'B'+]A ; index 56
-	db 'A'+]A ; index 60
-	db 'A'+]A ; index 63
-	db 'G'+]A ; index 67
-	db 'G'+]A ; index 71
-	db 'F'+]A ; index 75
-	db 'F'+]A ; index 80
-	db 'E'+]A ; index 85
-	db 'D'+]A ; index 90
-	db 'D'+]A ; index 95
-	db 'C'+]A ; index 101
-	db 'C'+]A ; index 107
+	db ' '
+;	db 'C'+]A ; index 0
+	db 'B'+]A ; index 1
+	db 'E'+]A ; index 2
+	db 'B'+]A ; index 3
+	db 'G'+]A ; index 4
+	db 'E'+]A ; index 5
+	db 'C'+]A ; index 6
 
+	db 'A'+]A ; index 7
+	db 'G'+]A ; index 8
+	db 'F'+]A ; index 9
+	db 'E'+]A ; index 10
+	db 'D'+]A ; index 11
+	db 'C'+]A ; index 12
+	db 'C'+]A ; index 13
+
+	db 'B'+]A ; index 14
+	db 'A'+]A ; index 15
+	db 'G'+]A ; index 16
+	db 'G'+]A ; index 17
+	db 'F'+]A ; index 18
+	db 'F'+]A ; index 19
+	db 'F'+]A ; index 20
+	db 'E'+]A ; index 21
+	db 'D'+]A ; index 22
+	db 'D'+]A ; index 23
+	db 'D'+]A ; index 24
+	db 'C'+]A ; index 25
+	db 'C'+]A ; index 26
+	db 'C'+]A ; index 27
+
+	db 'B'+]A ; index 28
+	db 'B'+]A ; index 29
+	db 'A'+]A ; index 30
+	db 'A'+]A ; index 31
+	db 'A'+]A ; index 32
+	db 'G'+]A ; index 33
+	db 'G'+]A ; index 34
+	db 'G'+]A ; index 35
+	db 'G'+]A ; index 36
+	db 'F'+]A ; index 37
+	db 'F'+]A ; index 38
+	db 'F'+]A ; index 39
+	db 'F'+]A ; index 40
+	db 'E'+]A ; index 41
+	db 'E'+]A ; index 42
+	db 'E'+]A ; index 43
+	db 'D'+]A ; index 44
+	db 'D'+]A ; index 45
+	db 'D'+]A ; index 46
+	db 'D'+]A ; index 47
+	db 'D'+]A ; index 48
+	db 'C'+]A ; index 49
+	db 'C'+]A ; index 50
+	db 'C'+]A ; index 51
+	db 'C'+]A ; index 52
+	db 'C'+]A ; index 53
+	db 'C'+]A ; index 54
+
+	db 'B'+]A ; index 55
+	db 'B'+]A ; index 56
+	db 'B'+]A ; index 57
+	db 'B'+]A ; index 58
+	db 'A'+]A ; index 59
+	db 'A'+]A ; index 60
+	db 'A'+]A ; index 61
+	db 'A'+]A ; index 62
+	db 'A'+]A ; index 63
+	db 'A'+]A ; index 64
+	db 'A'+]A ; index 65
+	db 'G'+]A ; index 66
+	db 'G'+]A ; index 67
+	db 'G'+]A ; index 68
+	db 'G'+]A ; index 69
+	db 'G'+]A ; index 70
+	db 'G'+]A ; index 71
+	db 'G'+]A ; index 72
+	db 'G'+]A ; index 73
+	db 'F'+]A ; index 74
+	db 'F'+]A ; index 75
+	db 'F'+]A ; index 76
+	db 'F'+]A ; index 77
+	db 'F'+]A ; index 78
+	db 'F'+]A ; index 79
+	db 'F'+]A ; index 80
+	db 'F'+]A ; index 81
+	db 'F'+]A ; index 82
+	db 'E'+]A ; index 83
+	db 'E'+]A ; index 84
+	db 'E'+]A ; index 85
+	db 'E'+]A ; index 86
+	db 'E'+]A ; index 87
+	db 'D'+]A ; index 88
+	db 'D'+]A ; index 89
+	db 'D'+]A ; index 90
+	db 'D'+]A ; index 91
+	db 'D'+]A ; index 92
+	db 'D'+]A ; index 93
+	db 'D'+]A ; index 94
+	db 'D'+]A ; index 95
+	db 'D'+]A ; index 96
+	db 'D'+]A ; index 97
+	db 'D'+]A ; index 98
+	db 'C'+]A ; index 99
+	db 'C'+]A ; index 100
+	db 'C'+]A ; index 101
+	db 'C'+]A ; index 102
+	db 'C'+]A ; index 103
+	db 'C'+]A ; index 104
+	db 'C'+]A ; index 105
+	db 'C'+]A ; index 106
+	db 'C'+]A ; index 107
+	db 'C'+]A ; index 108
+	db 'C'+]A ; index 109
+	db 'C'+]A ; index 110
+
+	db 'B'+]A ; index 111
+	db 'B'+]A ; index 112
 	db 'B'+]A ; index 113 
+	db 'B'+]A ; index 114 
+	db 'B'+]A ; index 115 
+	db 'B'+]A ; index 116 
+	db 'A'+]A ; index 117
+	db 'A'+]A ; index 118
+	db 'A'+]A ; index 119
 	db 'A'+]A ; index 120
+	db 'A'+]A ; index 121
+	db 'A'+]A ; index 122
+	db 'A'+]A ; index 123
+	db 'A'+]A ; index 124
+	db 'A'+]A ; index 125
+	db 'A'+]A ; index 126
 	db 'A'+]A ; index 127
+	db 'A'+]A ; index 128
+	db 'A'+]A ; index 129
+	db 'A'+]A ; index 130
+	db 'G'+]A ; index 131
+	db 'G'+]A ; index 132
+	db 'G'+]A ; index 133
+	db 'G'+]A ; index 134
 	db 'G'+]A ; index 135
+	db 'G'+]A ; index 136
+	db 'G'+]A ; index 137
+	db 'G'+]A ; index 138
+	db 'G'+]A ; index 139
+	db 'G'+]A ; index 140
+	db 'G'+]A ; index 141
+	db 'G'+]A ; index 142
 	db 'G'+]A ; index 143
+	db 'G'+]A ; index 144
+	db 'G'+]A ; index 145
+	db 'G'+]A ; index 146
+	db 'G'+]A ; index 147
+	db 'F'+]A ; index 148
+	db 'F'+]A ; index 149
+	db 'F'+]A ; index 150
 	db 'F'+]A ; index 151
 	db 'F'+]A ; index 160
+	db 'F'+]A ; index 161
+	db 'F'+]A ; index 162
+	db 'F'+]A ; index 163
+	db 'F'+]A ; index 164
+	db 'F'+]A ; index 165
+	db 'E'+]A ; index 166
+	db 'E'+]A ; index 167
+	db 'E'+]A ; index 168
+	db 'E'+]A ; index 169
 	db 'E'+]A ; index 170
+	db 'E'+]A ; index 171
+	db 'E'+]A ; index 172
+	db 'E'+]A ; index 173
+	db 'E'+]A ; index 174
+	db 'E'+]A ; index 175
+	db 'D'+]A ; index 176
+	db 'D'+]A ; index 177
+	db 'D'+]A ; index 178
+	db 'D'+]A ; index 179
 	db 'D'+]A ; index 180
+	db 'D'+]A ; index 181
+	db 'D'+]A ; index 182
+	db 'D'+]A ; index 183
+	db 'D'+]A ; index 184
+	db 'D'+]A ; index 185
+	db 'D'+]A ; index 186
+	db 'D'+]A ; index 187
+	db 'D'+]A ; index 188
+	db 'D'+]A ; index 189
 	db 'D'+]A ; index 190
+	db 'D'+]A ; index 191
+	db 'D'+]A ; index 192
+	db 'D'+]A ; index 193
+	db 'D'+]A ; index 194
+	db 'D'+]A ; index 195
+	db 'C'+]A ; index 196
+	db 'C'+]A ; index 197
+	db 'C'+]A ; index 198
+	db 'C'+]A ; index 199
+	db 'C'+]A ; index 200
+	db 'C'+]A ; index 201
 	db 'C'+]A ; index 202
+	db 'C'+]A ; index 203
+	db 'C'+]A ; index 204
+	db 'C'+]A ; index 205
+	db 'C'+]A ; index 206
+	db 'C'+]A ; index 207
+	db 'C'+]A ; index 208
+	db 'C'+]A ; index 209
+	db 'C'+]A ; index 210
+	db 'C'+]A ; index 211
+	db 'C'+]A ; index 212
+	db 'C'+]A ; index 213
 	db 'C'+]A ; index 214
+	db 'C'+]A ; index 215
+	db 'C'+]A ; index 216
+	db 'C'+]A ; index 217
+	db 'C'+]A ; index 218
+	db 'C'+]A ; index 219
+	db 'C'+]A ; index 220
+	db 'C'+]A ; index 221
+	db 'C'+]A ; index 222
+	db 'C'+]A ; index 223
+	db 'C'+]A ; index 224
+	db 'C'+]A ; index 225
 
 ; should go out to 225, since highest number in tuning table is 900
 ;------------------------------------------------------------------------------
 
 tbl_note_mid
+	db ' '
+;	db '-'+]A ; index 0 
+	db '#'+]A ; index 1 
+	db '#'+]A ; index 2 
+	db '-'+]A ; index 3 
+	db '#'+]A ; index 4 
+	db '#'+]A ; index 4 
+	db '-'+]A ; index 5 
+	db '#'+]A ; index 6
 
+	db '-'+]A ; index 7 
+	db '#'+]A ; index 8 
+	db '#'+]A ; index 9 
+	db '-'+]A ; index 10 
+	db '#'+]A ; index 11 
+	db '#'+]A ; index 12
+	db '-'+]A ; index 13
+
+	db '-'+]A ; index 14 
+	db '#'+]A ; index 15 
+	db '#'+]A ; index 16 
+	db '-'+]A ; index 17 
+	db '#'+]A ; index 18 
+	db '#'+]A ; index 19
+	db '-'+]A ; index 20 
+	db '-'+]A ; index 21 
+	db '#'+]A ; index 22 
+	db '-'+]A ; index 23 
+	db '-'+]A ; index 24 
+	db '#'+]A ; index 25
+	db '-'+]A ; index 26
+	db '-'+]A ; index 27
+
+	db '-'+]A ; index 28 
+	db '-'+]A ; index 29 
+	db '#'+]A ; index 30 
+	db '-'+]A ; index 31 
+	db '-'+]A ; index 32 
+	db '#'+]A ; index 33 
+	db '#'+]A ; index 34 
+	db '-'+]A ; index 35 
+	db '-'+]A ; index 36 
+	db '#'+]A ; index 37 
+	db '#'+]A ; index 38 
+	db '-'+]A ; index 39 
+	db '-'+]A ; index 40 
+	db '-'+]A ; index 41 
+	db '-'+]A ; index 42 
+	db '-'+]A ; index 43 
+	db '#'+]A ; index 44
+	db '#'+]A ; index 45 
+	db '#'+]A ; index 46 
+	db '-'+]A ; index 47 
+	db '-'+]A ; index 48 
+	db '#'+]A ; index 49
+	db '#'+]A ; index 50
+	db '#'+]A ; index 51
+	db '-'+]A ; index 52
+	db '-'+]A ; index 53
+	db '-'+]A ; index 54
+	db '-'+]A ; index 55
 	db '-'+]A ; index 56 
+	db '-'+]A ; index 57 
+	db '-'+]A ; index 58 
+	db '#'+]A ; index 59 
 	db '#'+]A ; index 60 
+	db '#'+]A ; index 61 
+	db '-'+]A ; index 62 
 	db '-'+]A ; index 63 
+	db '-'+]A ; index 64 
+	db '-'+]A ; index 65
+	db '#'+]A ; index 66 
 	db '#'+]A ; index 67 
+	db '#'+]A ; index 68 
+	db '#'+]A ; index 69 
+	db '-'+]A ; index 70 
 	db '-'+]A ; index 71 
+	db '-'+]A ; index 72 
+	db '-'+]A ; index 73 
+	db '#'+]A ; index 74 
 	db '#'+]A ; index 75 
+	db '#'+]A ; index 76 
+	db '#'+]A ; index 77 
+	db '-'+]A ; index 78
+	db '-'+]A ; index 79
 	db '-'+]A ; index 80 
+	db '-'+]A ; index 81 
+	db '-'+]A ; index 82 
+	db '-'+]A ; index 83 
+	db '-'+]A ; index 84 
 	db '-'+]A ; index 85 
+	db '-'+]A ; index 86
+	db '-'+]A ; index 87
+	db '#'+]A ; index 88
+	db '#'+]A ; index 89
 	db '#'+]A ; index 90 
+	db '#'+]A ; index 91
+	db '#'+]A ; index 92
+	db '-'+]A ; index 93
+	db '-'+]A ; index 94
 	db '-'+]A ; index 95 
+	db '-'+]A ; index 96 
+	db '-'+]A ; index 97 
+	db '-'+]A ; index 98 
+	db '#'+]A ; index 99
+	db '#'+]A ; index 100
 	db '#'+]A ; index 101
+	db '#'+]A ; index 102
+	db '#'+]A ; index 103
+	db '#'+]A ; index 104
+	db '-'+]A ; index 105
+	db '-'+]A ; index 106
 	db '-'+]A ; index 107
-
+	db '-'+]A ; index 108
+	db '-'+]A ; index 109
+	db '-'+]A ; index 110
+	db '-'+]A ; index 111
+	db '-'+]A ; index 112
 	db '-'+]A ; index 113
+	db '-'+]A ; index 114
+	db '-'+]A ; index 115
+	db '-'+]A ; index 116
+	db '#'+]A ; index 117
+	db '#'+]A ; index 118
+	db '#'+]A ; index 119
 	db '#'+]A ; index 120
+	db '#'+]A ; index 121
+	db '#'+]A ; index 122
+	db '#'+]A ; index 123
+	db '-'+]A ; index 124
+	db '-'+]A ; index 125
+	db '-'+]A ; index 126
 	db '-'+]A ; index 127
+	db '-'+]A ; index 128
+	db '-'+]A ; index 129
+	db '-'+]A ; index 130
+	db '-'+]A ; index 131
+	db '#'+]A ; index 132
+	db '#'+]A ; index 133
+	db '#'+]A ; index 134
 	db '#'+]A ; index 135
+	db '#'+]A ; index 136
+	db '#'+]A ; index 137
+	db '#'+]A ; index 138
+	db '-'+]A ; index 139
+	db '-'+]A ; index 140
+	db '-'+]A ; index 141
+	db '-'+]A ; index 142
 	db '-'+]A ; index 143
+	db '-'+]A ; index 144
+	db '-'+]A ; index 145
+	db '-'+]A ; index 147
+	db '#'+]A ; index 148
+	db '#'+]A ; index 149
+	db '#'+]A ; index 150
 	db '#'+]A ; index 151
+	db '#'+]A ; index 152
+	db '#'+]A ; index 153
+	db '#'+]A ; index 154
+	db '#'+]A ; index 155
+	db '-'+]A ; index 156
+	db '-'+]A ; index 157
+	db '-'+]A ; index 158
+	db '-'+]A ; index 159
 	db '-'+]A ; index 160
+	db '-'+]A ; index 161
+	db '-'+]A ; index 162
+	db '-'+]A ; index 163
+	db '-'+]A ; index 164
+	db '-'+]A ; index 165
+	db '-'+]A ; index 166
+	db '-'+]A ; index 167
+	db '-'+]A ; index 168
+	db '-'+]A ; index 169
 	db '-'+]A ; index 170
+	db '-'+]A ; index 171
+	db '-'+]A ; index 172
+	db '-'+]A ; index 173
+	db '-'+]A ; index 174
+	db '-'+]A ; index 175
+	db '#'+]A ; index 176
+	db '#'+]A ; index 177
+	db '#'+]A ; index 178
+	db '#'+]A ; index 179
 	db '#'+]A ; index 180
+	db '#'+]A ; index 181
+	db '#'+]A ; index 182
+	db '#'+]A ; index 183
+	db '#'+]A ; index 184
+	db '-'+]A ; index 185
+	db '-'+]A ; index 186
+	db '-'+]A ; index 187
+	db '-'+]A ; index 188
+	db '-'+]A ; index 189
 	db '-'+]A ; index 190
+	db '-'+]A ; index 191
+	db '-'+]A ; index 192
+	db '-'+]A ; index 193
+	db '-'+]A ; index 194
+	db '-'+]A ; index 195
+	db '-'+]A ; index 196
+	db '#'+]A ; index 197
+	db '#'+]A ; index 198
+	db '#'+]A ; index 199
+	db '#'+]A ; index 200
+	db '#'+]A ; index 201
 	db '#'+]A ; index 202
+	db '#'+]A ; index 203
+	db '#'+]A ; index 204
+	db '#'+]A ; index 205
+	db '#'+]A ; index 206
+	db '#'+]A ; index 207
+	db '#'+]A ; index 208
+	db '-'+]A ; index 209
+	db '-'+]A ; index 210
+	db '-'+]A ; index 211
+	db '-'+]A ; index 212
+	db '-'+]A ; index 213
 	db '-'+]A ; index 214
+	db '-'+]A ; index 215
+	db '-'+]A ; index 216
+	db '-'+]A ; index 217
+	db '-'+]A ; index 218
+	db '-'+]A ; index 219
+	db '-'+]A ; index 220
+	db '-'+]A ; index 221
+	db '-'+]A ; index 222
+	db '-'+]A ; index 223
+	db '-'+]A ; index 224
+	db '-'+]A ; index 225
 
 ; should go out to 225, since highest number in tuning table is 900
 ;------------------------------------------------------------------------------
 
 
 tbl_octave
-
-	db '6'+]A ; index 0
+	db ' '
+;	db '6'+]A ; index 0
 	db '6'+]A ; index 1
 	db '6'+]A ; index 2
 
