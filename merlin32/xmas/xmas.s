@@ -26,6 +26,8 @@ ping ds 2
 
 frame_number ds 1
 
+p_sprite_message ds 2
+
 	dend
 
 SPRITE_MAP   ds 120   ; 10x6x2 bytes (120 bytes), this can fit anywhere probably
@@ -223,6 +225,8 @@ PICNUM = 0   ; fireplace picture
 
 ]wait 
 		jsr WaitVBL
+
+;		jsr ShowSpriteFont
 
 		dec <ping		; 10 FPS update
 		bpl ]wait
