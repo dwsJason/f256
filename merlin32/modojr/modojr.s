@@ -330,6 +330,7 @@ seadragon_test
 		sta TEST_VOICE+osc_state
 		fin
 
+		do 0 ; glyph test
 		ldax #:txt
 		jsr TermPUTS
 
@@ -342,6 +343,7 @@ seadragon_test
 		db 0
 
 forward
+		fin
 
 		; So the pattern has colors
 		jsr PatternRenderInit
@@ -363,7 +365,7 @@ forward
 		jsr PatternRender
 
 		do 1
-		ldx #63
+		ldx #53
 		ldy #25
 		jsr TermSetXY
 
@@ -377,13 +379,16 @@ forward
 		jsr TermPrintAXH
 		fin
 
-		ldx #0
+		ldx #16
 		ldy #25
 		jsr TermSetXY
 
 		lda mod_pattern_index
 		jsr TermPrintAI
-		jsr TermCR
+
+		ldx #16
+		ldy #26
+		jsr TermSetXY
 
 		lda mod_current_row
 		jsr TermPrintAI
