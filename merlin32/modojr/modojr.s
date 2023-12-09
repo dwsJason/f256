@@ -152,8 +152,8 @@ start
 ;------------------------------------------------------------------------------
 ; bitmap demo
 ;
-		lda #2  	; Fill Color - opaque (easier debugging)
-;		lda #0  	; Transparent
+;		lda #2  	; Fill Color - opaque (easier debugging)
+		lda #0  	; Transparent
 		jsr DmaClear
 
 ;------------------------------------------------------------------------------
@@ -425,7 +425,7 @@ PatternRenderInit
 		rts
 
 :colors ; Row Number
-		db $10,$10,$10
+		db 0,$10,$10
 
 		lup 4
 		db $70,$70,$70 ; Note Color
@@ -751,24 +751,38 @@ initPumpBars
 		stz io_ctrl
 
 		lda #%00000101  	; LUT#2
-		sta VKY_SP0_CTRL
-		sta VKY_SP1_CTRL
+		sta VKY_SP0_CTRL	; vu 1-2, right
+		sta VKY_SP1_CTRL	; vu 3-4, right
+		sta VKY_SP2_CTRL	; vu 1-2, left
+		sta VKY_SP3_CTRL	; vu 3-4, left
 
 		ldaxy #PUMPBAR_SPRITE0
 		staxy VKY_SP0_AD_L
+		staxy VKY_SP2_AD_L
+
+;]ypos = 240
+YPOS = 132
 
 		ldax #320-24
 		stax VKY_SP0_POS_X_L
-		ldax #240
+		ldax #64-24
+		stax VKY_SP2_POS_X_L
+
+		ldax #YPOS
 		stax VKY_SP0_POS_Y_L
+		stax VKY_SP2_POS_Y_L
 
 		ldaxy #PUMPBAR_SPRITE1
 		staxy VKY_SP1_AD_L
+		staxy VKY_SP3_AD_L
 
 		ldax #320
 		stax VKY_SP1_POS_X_L
-		ldax #240
+		ldax #64
+		stax VKY_SP3_POS_X_L
+		ldax #YPOS
 		stax VKY_SP1_POS_Y_L
+		stax VKY_SP3_POS_Y_L
 
 		; initialize some of those LUT Colors
 
