@@ -226,7 +226,7 @@ PICNUM = 0   ; fireplace picture
 ]wait 
 		jsr WaitVBL
 
-;		jsr ShowSpriteFont
+		jsr ShowSpriteFont
 
 		dec <ping		; 10 FPS update
 		bpl ]wait

@@ -4,11 +4,21 @@
 
 ; Define some structures
 
-sprite_message asc 'DAGEN IS COOL!! TEXT SCROLLER MESSAGE, WITH GREETZ AND ALL THAT KIND OF '
+sprite_message 
+			   asc '0123456789'
+			   asc 'ABCDEFGHIJ'
+			   asc 'KLMNOPQRST'
+			   asc 'UVWXYZ!+-.'
+			   asc '..........'
+			   asc '=========='
+			   asc ';;;;;;;;;;'
+
+			   asc 'DAGEN IS COOL!!'
+			   asc ' TEXT SCROLLER MESSAGE, WITH GREETZ AND ALL THAT KIND OF '
                asc 'STUFF, BECAUSE WE ARE SO LEET....'
 			   db 0
 
-SPRITE_SPAWN_TIME = 60 ; once per second
+SPRITE_SPAWN_TIME = 7 ; 8x per second
 
 
 ; My own copy of the hardware sprite structure
@@ -42,14 +52,14 @@ MAX_NUM_SPRITES = 64
 ;
 ;  I know this way of doing isn't the best for 6502
 ;
-sprites_ram ds 64*sizeof_spr
+sprites_ram ds MAX_NUM_SPRITES*sizeof_spr
 
 ;
 ; pointers to our high level objects
 ;
 sprites_obj_addresses
 ]start = 0
-		lup 64
+		lup MAX_NUM_SPRITES
 		da sprites_ram+{]start*sizeof_spr}
 ]start = ]start+1
 		--^
@@ -58,15 +68,16 @@ sprites_obj_addresses
 ;
 hw_sprites_obj_addresses
 ]start = 0
-		lup 64
+		lup MAX_NUM_SPRITES
 		da VKY_SP0_CTRL+{]start*8}
+]start = ]start+1
 		--^
 
 ; Sprite allocator memory
-num_available_sprites db 64
+num_available_sprites db MAX_NUM_SPRITES
 
 available_sprites
-		lup 64
+		lup MAX_NUM_SPRITES
 		db ]no
 ]no = ]no+1
 		--^
@@ -75,12 +86,15 @@ available_sprites
 ; and detect when they "die"
 ;
 in_use_sprites_count db 0
-in_use_sprites ds 64
+in_use_sprites ds MAX_NUM_SPRITES
 
 ;------------------------------------------------------
-; A is the index in the list that must die
+; A is the sprite number
+;
 ; preserve y
+; destroy x
 RemoveActiveSprite
+
 			ldx in_use_sprites_count
 			dex
 			stx in_use_sprites_count ; make list 1 shorted
@@ -206,7 +220,7 @@ AllocSprite
 ;
 FreeSprite
 		ldx num_available_sprites
-		cpx #64
+		cpx #MAX_NUM_SPRITES
 		bcc :run
 		; It's bad if we hit this, don't do it!
 		rts
@@ -224,6 +238,10 @@ FreeSprite
 ; This assumes we get called once per frame
 ;
 ShowSpriteFont
+
+		do 1
+		; some debug stuff
+		fin
 
 		jsr MoveSprites
 
@@ -274,7 +292,7 @@ ShowSpriteFont
 		pla
 		sta (:pSprite)  ; spr_number
 
-		ldy #1
+		ldy #spr_glyph
 		jsr :get_glyph ; we have the ASCII CHARACTER, lets translate it into an index
 		               ; we only have 60 or so possible sprites with the current setup
 		sec
@@ -303,7 +321,9 @@ ShowSpriteFont
 		lda #0
 		sta (:pSprite),y ; ypos.8
 		iny
+		lda #32
 		sta (:pSprite),y ; ypos lo
+		lda #0
 		iny
 		sta (:pSprite),y ; ypos hi
 		iny
@@ -381,7 +401,7 @@ ShowSpriteFont
 		lda (p_sprite_message)
 		inc p_sprite_message
 		bne :rts
-		inc p_sprite_message
+		inc p_sprite_message+1
 :rts
 		rts
 
@@ -424,54 +444,46 @@ MoveSprites
 		lda io_ctrl
 		pha
 
-		stz :dead_count
+		stz io_ctrl
 
-		ldx in_use_sprites
+		ldx in_use_sprites_count
 		beq :done
 		dex
 ]loop   lda in_use_sprites,x
 
 		phx
-
+		pha
 		jsr UpdateSprite
+		pla
 		bcc :happy
 		; c=1 - the sprite has died
 
-		pla
-		pha
+		jsr FreeSprite
 
-		ldx :dead_count
-		sta :dead_queue,x
-		inx
-		stx :dead_count
+		plx
+		phx
 
+		ldy in_use_sprites_count
+		dey
+		sty in_use_sprites_count
+		beq :happy
+
+		lda in_use_sprites,y
+		sta in_use_sprites,x
 
 :happy
 		plx
 
+
 		dex
 		bpl ]loop
 
-; here we need to take out our dead, the last piece of this puzzle
-; we just need them out of the active list, and back in the free list
-
-		ldy :dead_count
-		beq :done
-		dey
-:dq		lda :dead_count,y
-		pha
-		jsr RemoveActiveSprite
-		pla
-		jsr FreeSprite
-		dey
-		bpl :dq
 :done
-		stz io_ctrl
+		pla
+		sta io_ctrl
 
 		rts
 
-:dead_queue ds 64
-:dead_count db 0
 
 ;------------------------------------------------------------------------------
 ;
@@ -503,12 +515,12 @@ UpdateSprite
 		sec
 		lda (:pSprite),y
 		sbc #WIND
-		sta (:pSprite),y
+		;sta (:pSprite),y
 		sta <:vx
 		iny
 		lda (:pSprite),y
 		sbc #0
-		sta (:pSprite),y
+		;sta (:pSprite),y
 		sta <:vx+1
 
 		; apply gravity
@@ -516,12 +528,12 @@ UpdateSprite
 		clc
 		lda (:pSprite),y
 		adc #GRAVITY
-		sta (:pSprite),y
+		;sta (:pSprite),y
 		sta <:vy
 		iny
 		lda (:pSprite),y
 		adc #0
-		sta (:pSprite),y
+		;sta (:pSprite),y
 		sta <:vy+1
 
 		; adjust sprite positions
@@ -646,6 +658,22 @@ UpdateSprite
 		iny
 		lda :ypos+2
 		sta (:pSprite),y
+
+		; copy the vx and vy back into the object
+		ldy #spr_vel_X
+		lda <:vx
+		sta (:pSprite),y
+		iny
+		lda <:vx+1
+		sta (:pSprite),y
+
+		ldy #spr_vel_y
+		lda <:vy
+		sta (:pSprite),y
+		iny
+		lda <:vy+1
+		sta (:pSprite),y
+
 
 		; update the hardware sprite
 		ldy #vky_sp_posx
