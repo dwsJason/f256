@@ -466,6 +466,11 @@ PatternRender
 :render
 		sta |:last_row
 
+;
+; 1 idea is to have a strike line in the middle, but it's easier to have it
+; up-top
+;
+
 		; move the cursor to where we want to write stuff
 		ldx #17
 		ldy #44
@@ -973,6 +978,16 @@ init320x240_video
 		staxy VKY_TS5_ADDR_L
 		staxy VKY_TS6_ADDR_L
 		staxy VKY_TS7_ADDR_L
+
+		;
+		; Disable all the sprites
+		;
+		ldx #0
+]lp		stz VKY_SP0_CTRL,x
+		stz VKY_SP0_CTRL+$100,x
+		dex
+		bne ]lp
+
 
 		lda #2
 		sta io_ctrl
