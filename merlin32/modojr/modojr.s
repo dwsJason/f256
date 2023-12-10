@@ -448,6 +448,8 @@ PatternRender
 :pPattern = temp0
 :row_num  = temp0+2
 :raw      = temp1
+:track    = temp2
+:screen_y = temp2+1
 
 		sei
 		; snap shot data, with interrupt off
@@ -466,14 +468,20 @@ PatternRender
 :render
 		sta |:last_row
 
+		;lda #35
+		lda #50
+		sta :screen_y
+
 ;
 ; 1 idea is to have a strike line in the middle, but it's easier to have it
 ; up-top
 ;
+]row_loop
+		stz :track
 
 		; move the cursor to where we want to write stuff
 		ldx #17
-		ldy #44
+		ldy :screen_y
 		jsr TermSetXY
 ; Current Row
 		;lda :row_num
@@ -487,7 +495,7 @@ PatternRender
 		ldy #1
 		lda tbl_dec99_lo,x
 		sta (term_ptr),y
-
+]track_loop
 		; get the note info for track 0
 		jsr :get_byte
 		sta :raw
@@ -539,6 +547,12 @@ PatternRender
 		sta (term_ptr),y 
 		iny
 		sta (term_ptr),y 
+		iny
+		sta (term_ptr),y 
+		iny
+		sta (term_ptr),y 
+		iny
+		sta (term_ptr),y 
 		bra :keep_going_brother
 :digit
 		tax
@@ -548,7 +562,20 @@ PatternRender
 		lda tbl_dec99_lo,x
 		iny
 		sta (term_ptr),y
+
+		; volume
+		lda #'V'+$A0
+		iny
+		sta (term_ptr),y
+		lda #'6'+$A0
+		iny
+		sta (term_ptr),y
+		lda #'3'+$A0
+		iny
+		sta (term_ptr),y
+
 :keep_going_brother
+
 		; time to plot effect, or spaces if its 000
 
 		lda :raw+2
@@ -589,6 +616,39 @@ PatternRender
 		sta (term_ptr),y
 
 :done_draw
+;		iny
+		lda :track
+		inc
+		sta :track
+		;cmp mod_num_tracks
+		cmp #4
+		bccl ]track_loop
+
+		lda :screen_y
+		inc 
+		sta :screen_y
+		cmp #59
+		bcs :no_more_screen
+
+		lda :row_num
+		inc
+		sta :row_num
+		cmp #64
+		bccl ]row_loop
+
+:erase_row
+
+		ldx #17
+		ldy :screen_y
+		jsr TermSetXY
+
+		ldy #47
+		lda #' '
+]clear  sta (term_ptr),y
+		dey
+		bpl ]clear
+
+:no_more_screen
 
 		rts
 
