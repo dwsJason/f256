@@ -704,7 +704,8 @@ UpdateMarker
 		ldx <mod_pattern_index
 		stx |:current
 
-		lda #$F1        ; white on red
+		;lda #$F1        ; white on red
+		lda #$C1         ; green on red - FON_OVLY doesn't work
 		sta <:color
 
 		jsr :draw_color
