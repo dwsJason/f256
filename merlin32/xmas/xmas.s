@@ -35,9 +35,9 @@ TILE_DATA0 = $012000
 
 ; tiles are 16k for 256 in 8x8 mode
 TILE_SIZE = {16*16*256}
-TILE_DATA1 = TILE_DATA0+TILE_SIZE
-TILE_DATA2 = TILE_DATA1+TILE_SIZE
-TILE_DATA3 = TILE_DATA2+TILE_SIZE
+TILE_DATA1 = $22000 ;TILE_DATA0+TILE_SIZE
+TILE_DATA2 = $32000 ;TILE_DATA1+TILE_SIZE
+TILE_DATA3 = $42000 ;TILE_DATA2+TILE_SIZE
 TILE_DATA4 = TILE_DATA3+TILE_SIZE
 TILE_DATA5 = TILE_DATA4+TILE_SIZE
 TILE_DATA6 = TILE_DATA5+TILE_SIZE
@@ -321,8 +321,6 @@ init320x240
 		staxy VKY_TS0_ADDR_L
 		stz VKY_TS0_ADDR_H+1
 
-;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		do 0 	; !!!!!!!!!!!!!! THIS IS WHY SOME TILES ARE BORKED, the ldaxy macro failing here
 		ldaxy #TILE_DATA1
 		staxy VKY_TS1_ADDR_L
 		stz VKY_TS1_ADDR_H+1
@@ -334,7 +332,6 @@ init320x240
 		ldaxy #TILE_DATA3
 		staxy VKY_TS3_ADDR_L
 		stz VKY_TS3_ADDR_H+1
-		fin
 
 		lda #2 			; back to text mapping
 		sta io_ctrl
