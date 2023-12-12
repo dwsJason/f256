@@ -40,6 +40,7 @@ main_code_start
 		put lzsa2.s
 		put file256.s
 		put spritefont.s
+		put irq.s
 main_code_end
 
 

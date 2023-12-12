@@ -25,6 +25,8 @@ frame_number ds 1
 
 p_sprite_message ds 2
 
+jiffy ds 2 ; IRQ counts this up every VBL
+
 	dend
 
 SPRITE_MAP   ds 120   ; 10x6x2 bytes (120 bytes), this can fit anywhere probably
@@ -181,6 +183,9 @@ PICNUM = 0   ; fireplace picture
 
 		stz frame_number
 
+		jsr InstallIRQ
+		cli
+
 ]wait 
 		jsr WaitVBL
 
@@ -224,26 +229,16 @@ PICNUM = 0   ; fireplace picture
 		dw  16+{240*8}
 		dw  16+{240*9}
 
+;
+; Wait for VBL by waitching counter that changes with VBL IRQ
+;
 WaitVBL
-LINE_NO = 241*2
-		lda #<LINE_NO
-		ldx #>LINE_NO
-]wait
-		cpx $D01B
+		pha
+		lda <jiffy
+]wait   cmp <jiffy
 		beq ]wait
-]wait
-		cmp $D01A
-		beq ]wait
-
-]wait
-		cpx $D01B
-		bne ]wait
-]wait
-		cmp $D01A
-		bne ]wait
+		pla
 		rts
-
-
 ;
 ; X = offset to picture to set
 ; 
