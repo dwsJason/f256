@@ -1,10 +1,7 @@
-;
-; Merlin32 Compressed Bitmap example for Jr
-;
-; To Assemble "merlin32 -v . link.s"
-;
+; fnXmas demo
+; by two guys
+; december 2023
 		mx %11
-
 
 ; System Bus Pointer's
 ;pSource  equ $10
@@ -48,6 +45,7 @@ TILE_DATA7 = TILE_DATA6+TILE_SIZE
 TILE_DATA8 = TILE_DATA7+TILE_SIZE
 
 CLUT_DATA  = $007C00
+PIXEL_DATA = $010000
 
 ;
 ; This will copy the color table into memory, then set the video registers
@@ -56,6 +54,7 @@ CLUT_DATA  = $007C00
 
 start
 		sei
+	;	jsr IntroPix 	; <-- stubbing in my part here (db)
 
 ; Jr Vicky can't see above this
 		jsr init320x240
@@ -64,62 +63,41 @@ start
 
 		jsr mmu_unlock
 
-		lda #<txt_unlock
-		ldx #>txt_unlock
-		jsr TermPUTS
+		_TermPuts txt_unlock
+
+
 
 		lda #<CLUT_DATA
 		ldx #>CLUT_DATA
 		ldy #^CLUT_DATA
 		jsr set_write_address
 
-		lda #<txt_setaddr
-		ldx #>txt_setaddr
-		jsr TermPUTS
+		_TermPuts txt_setaddr
 
 PICNUM = 0   ; fireplace picture
 
-		ldx #PICNUM ; picture #
+		ldx #0 ; picture #
 		jsr set_pic_address
 
-		lda #<txt_setpicaddr
-		ldx #>txt_setpicaddr
-		jsr TermPUTS
-
+		_TermPuts txt_setpicaddr
+		
 		jsr get_read_address
-		phx
-		pha
-		tya
-		jsr TermPrintAH
-		pla
-		plx
-		jsr TermPrintAXH
-		lda #13
-		jsr TermCOUT
+		jsr TermPrintAXYH
+		_TermCR
 
 		jsr get_write_address
-		phx
-		pha
-		tya
-		jsr TermPrintAH
-		pla
-		plx
-		jsr TermPrintAXH
-		lda #13
-		jsr TermCOUT
+		jsr TermPrintAXYH
+		_TermCR
 
 		jsr decompress_clut
 		bcc :good
 
 		jsr TermPrintAI
-		lda #13
-		jsr TermCOUT
+		_TermCR
 
 :good
-		lda #<txt_decompress_clut
-		ldx #>txt_decompress_clut
-		jsr TermPUTS
-
+		_TermPuts txt_decompress_clut
+		
 		php
 		sei
 
@@ -145,10 +123,8 @@ PICNUM = 0   ; fireplace picture
 
 		plp
 
-		lda #<txt_copy_clut
-		ldx #>txt_copy_clut
-		jsr TermPUTS
-
+		_TermPuts txt_copy_clut
+		
 		lda #<TILE_DATA0
 		ldx #>TILE_DATA0
 		ldy #^TILE_DATA0
@@ -159,27 +135,13 @@ PICNUM = 0   ; fireplace picture
 
 		; read + write address for pixels
 		jsr get_read_address
-		phx
-		pha
-		tya
-		jsr TermPrintAH
-		pla
-		plx
-		jsr TermPrintAXH
-		lda #13
-		jsr TermCOUT
+		jsr TermPrintAXYH
+		_TermCR
 
 		jsr get_write_address
-		phx
-		pha
-		tya
-		jsr TermPrintAH
-		pla
-		plx
-		jsr TermPrintAXH
-		lda #13
-		jsr TermCOUT
-
+		jsr TermPrintAXYH
+		_TermCR
+		
 		php
 		sei
 
@@ -187,10 +149,8 @@ PICNUM = 0   ; fireplace picture
 
 		plp
 
-		lda #<txt_decompress
-		ldx #>txt_decompress
-		jsr TermPUTS
-
+		_TermPuts txt_decompress
+		
 ;-----------------------------------------------
 
 		ldx #PICNUM ; picture #
@@ -203,9 +163,7 @@ PICNUM = 0   ; fireplace picture
 
 		jsr decompress_map
 
-		lda #<txt_decompress_map
-		ldx #>txt_decompress_map
-		jsr TermPUTS
+		_TermPuts txt_decompress_map
 ;-----------------------------------------------
 
 ; Going to image at $01/0000
@@ -266,7 +224,6 @@ PICNUM = 0   ; fireplace picture
 		dw  16+{240*8}
 		dw  16+{240*9}
 
-
 WaitVBL
 LINE_NO = 241*2
 		lda #<LINE_NO
@@ -303,10 +260,13 @@ set_pic_address
 ; memory bus addresses
 :pic_table_l
 		db <pic1
+		db <pic2
 :pic_table_m
 		db >pic1
+		db >pic2
 :pic_table_h
 		db ^pic1
+		db ^pic2
 
 init320x240
 		php
@@ -465,5 +425,3 @@ txt_decompress asc 'decompress_pixels'
 
 txt_decompress_map asc 'decompress_map'
 		db 13,0
-
-

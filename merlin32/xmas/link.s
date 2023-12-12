@@ -1,8 +1,5 @@
-;
-; Generally a Merlin32 link file either produces several binary outputs
-; or an OMF
-;
-; This one attempts to produce a PGZ executable
+
+; Generic Merlin32 Link file set up to produce a PGZ executable
 ;
 
 ;------------------------------------------------------------------------------
@@ -37,6 +34,7 @@
 		org $200
 main_code_start
 		put xmas.s
+		put intro.s
 		put term.s
 		put mmu.s
 		put lzsa2.s
@@ -44,17 +42,16 @@ main_code_start
 		put spritefont.s
 main_code_end
 
+
 		org $0
 		adr image2_start
 		adr image2_end-image2_start  ; labels only work here, if data below is less than 64K
 		org $060000
-
-;;		put data0.s
 image2_start
 pic1	putbin data\fireplace.256
 f6font  putbin data\32x32-F6.256
+pic2    putbin data\intro.256
 image2_end
-
 
 ; Launch Address
 		adr start

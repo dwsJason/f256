@@ -63,6 +63,10 @@ TermSetXY
 		rts
 
 ;------------------------------------------------------------------------------
+_TermCR MAC
+		jsr TermCR
+		EOM
+
 TermCR  lda #13
 ;------------------------------------------------------------------------------
 TermCOUT
@@ -217,6 +221,13 @@ Term80Table_hi
 		--^
 
 ;------------------------------------------------------------------------------
+_TermPuts MAC
+		lda #<]1
+		ldx #>]1
+		jsr TermPUTS
+		EOM
+
+;------------------------------------------------------------------------------
 TermPUTS
 :pString = term_temp2
 		sta :pString
@@ -233,7 +244,7 @@ TermPUTS
 		rts
 
 ;------------------------------------------------------------------------------
-;TermPrintAXH   - print value in AX, as HEX  (it will end up XA, because high, then low)
+;TermPrintAXYH   - print value in AXY, as HEX  (it will end up YXA, because high, then low)
 TermPrintAXYH
 		pha
 		phx
