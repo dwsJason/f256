@@ -76,7 +76,7 @@ start
 
 PICNUM = 0   ; fireplace picture
 
-		ldx #0 ; picture #
+		ldx #PICNUM ; picture #
 		jsr set_pic_address
 
 		_TermPuts txt_setpicaddr
