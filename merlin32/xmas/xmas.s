@@ -54,7 +54,7 @@ PIXEL_DATA = $010000
 
 start
 		sei
-	;	jsr IntroPix 	; <-- stubbing in my part here (db)
+		jsr IntroPix 	; <-- stubbing in my part here (db)
 
 ; Jr Vicky can't see above this
 		jsr init320x240
@@ -276,130 +276,67 @@ init320x240
 		stz io_ctrl
 
 		; enable the graphics mode
-;;		lda #%00001111	; gamma + bitmap + graphics + overlay + text
-;		lda #%00000001	; text
-		lda #%01111111
-		sta $D000
-		;lda #%110       ; text in 40 column when it's enabled
-		;sta $D001
-		stz $D001
+		lda #%01111111  ; everything is enabled
+		sta VKY_MSTR_CTRL_0
+		stz VKY_MSTR_CTRL_1
 
 		; layer stuff - take from Jr manual
 		lda #$54
-		sta $D002  ; tile map layers
+		sta VKY_LAYER_CTRL_0  ; tile map layers
 		lda #$06
-		sta $D003  ; tile map layers
+		sta VKY_LAYER_CTRL_1  ; tile map layers
 
 		; Tile Map 0
-;		lda #$11  ; 8x8 + enabled
-		lda #$01  ; enabled
-		sta $D200 ; tile size
+		lda #$01  ; enabled + 16x16
+		sta VKY_TM0_CTRL ; tile size
 
-		lda #<MAP_DATA0
-		sta $D201
-		lda #>MAP_DATA0
-		sta $D202
-		lda #^MAP_DATA0
-		sta $D203
+		ldaxy #MAP_DATA0
+		staxy VKY_TM0_ADDR_L
 
-		lda #{320+32}/16			; pixels into tiles
-		sta $D204  ; map size X
-		stz $D205  ; reserved
+		lda #{320+32}/16	  ; pixels into tiles
+		sta VKY_TM0_SIZE_X    ; map size X
+		stz VKY_TM0_SIZE_X+1  ; reserved
 
 		lda #2432/16
-		sta $D206  ; map size y
-		stz $D207  ; reserved
-		stz $D208  ; scroll x lo
-		stz $D209  ; scroll x hi
-		stz $D20A  ; scroll y lo
-		stz $D20B  ; scroll y hi
+		sta VKY_TM0_SIZE_Y   ; map size y
+		stz VKY_TM0_SIZE_Y+1 ; reserved
+		stz VKY_TM0_POS_X_L  ; scroll x lo
+		stz VKY_TM0_POS_X_H  ; scroll x hi
+		stz VKY_TM0_POS_Y_L  ; scroll y lo
+		stz VKY_TM0_POS_Y_H  ; scroll y hi
 
 		; Tile Map 1
-		;lda #$11
-		stz $D20C ; disabled
-
-;		lda #<MAP_DATA1
-;		sta $D20D
-;		lda #>MAP_DATA1
-;		sta $D20E
-;		lda #^MAP_DATA1
-;		sta $D20F
-
-		lda #512/8
-		sta $D210  ; map size X
-		stz $D211  ; reserved
-		;lda #232/8
-		sta $D212  ; map size y
-		stz $D213  ; reserved
-		stz $D214  ; scroll x lo
-		stz $D215  ; scroll x hi
-		;lda #1
-		stz $D216  ; scroll y lo
-		stz $D217  ; scroll y hi
+		stz VKY_TM1_CTRL ; disabled
 
 		; tile map 2
-		stz $D218 ; disable
+		stz VKY_TM2_CTRL ; disable
 
 		; bitmap disables
-		stz $D100  ; disable
-		stz $D108  ; disable
-		stz $D110  ; disable
+		stz VKY_BM0_CTRL  ; disable
+		stz VKY_BM1_CTRL  ; disable
+		stz VKY_BM2_CTRL  ; disable
 
 		; tiles locations
-		lda #<TILE_DATA0
-		sta $D280
-		lda #>TILE_DATA0
-		sta $D281
-		lda #^TILE_DATA0
-		sta $D282
-		stz $D283
+		ldaxy #TILE_DATA0
+		staxy VKY_TS0_ADDR_L
+		stz VKY_TS0_ADDR_H+1
 
-		lda #<TILE_DATA1
-		sta $D284
-		lda #>TILE_DATA1
-		sta $D285
-		lda #^TILE_DATA1
-		sta $D286
-		stz $D287
+;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		do 0 	; !!!!!!!!!!!!!! THIS IS WHY SOME TILES ARE BORKED, the ldaxy macro failing here
+		ldaxy #TILE_DATA1
+		staxy VKY_TS1_ADDR_L
+		stz VKY_TS1_ADDR_H+1
 
-		lda #<TILE_DATA2
-		sta $D288
-		lda #>TILE_DATA2
-		sta $D289
-		lda #^TILE_DATA2
-		sta $D28A
-		stz $D28B
+		ldaxy #TILE_DATA2
+		staxy VKY_TS2_ADDR_L
+		stz VKY_TS2_ADDR_H+1
 
-		lda #<TILE_DATA3
-		sta $D28C
-		lda #>TILE_DATA3
-		sta $D28D
-		lda #^TILE_DATA3
-		sta $D28E
-		stz $D28F
-
-
-	    do 0
-;		stz $D002  ; layer ctrl 0
-;		stz $D003  ; layer ctrl 3
-
-
-		; set address of image, since image uncompressed, we just display it
-		; where we loaded it.
-		lda #<PIXEL_DATA
-		sta $D101
-		lda #>PIXEL_DATA
-		sta $D102
-		lda #^PIXEL_DATA
-		sta $D103
-
-		lda #1
-		sta $D100  ; bitmap enable, use clut 0
-		sta $D108  ; disable
-		stz $D110  ; disable
+		ldaxy #TILE_DATA3
+		staxy VKY_TS3_ADDR_L
+		stz VKY_TS3_ADDR_H+1
 		fin
 
-		lda #2
+		lda #2 			; back to text mapping
 		sta io_ctrl
 		plp
 
