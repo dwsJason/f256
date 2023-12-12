@@ -69,6 +69,11 @@ VKY_BM1_ADDR_L = $D109          ; Bitmap #1 Address bits 7..0
 VKY_BM1_ADDR_M = $D10A          ; Bitmap #1 Address bits 15..8
 VKY_BM1_ADDR_H = $D10B          ; Bitmap #1 Address bits 17..16
 
+VKY_BM2_CTRL = $D110            ; Bitmap #2 Control Register
+VKY_BM2_ADDR_L = $D111          ; Bitmap #2 Address bits 7..0
+VKY_BM2_ADDR_M = $D112          ; Bitmap #2 Address bits 15..8
+VKY_BM2_ADDR_H = $D113          ; Bitmap #2 Address bits 17..16
+
 VKY_TXT_FGLUT = $D800           ; Text foreground CLUT
 VKY_TXT_BGLUT = $D840           ; Text background CLUT
 
