@@ -51,7 +51,7 @@ main_code_end
 image2_start
 pic1	putbin data\fireplace.256
 f6font  putbin data\32x32-F6.256
-pic2    putbin data\intro.256
+pic2    putbin data\introtall.256
 image2_end
 
 ; Launch Address

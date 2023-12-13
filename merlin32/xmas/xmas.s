@@ -47,7 +47,7 @@ TILE_DATA7 = TILE_DATA6+TILE_SIZE
 TILE_DATA8 = TILE_DATA7+TILE_SIZE
 
 CLUT_DATA  = $007C00
-PIXEL_DATA = $010000
+PIXEL_DATA = $010000            ; @dwsJason - I may need to move this if you want to unpack at launch as you use it too
 
 ;
 ; This will copy the color table into memory, then set the video registers
