@@ -19,10 +19,11 @@ scratch = $80 ; to $8F?  I dunno.. just use ZP if ya like
 
         
 IntroPix    mx %11    
+
         lda #0                  ; clut 0
         jsr BlackoutClut   
         jsr introinit320x240
-        _ClutToColor #$00;#$22;#$FF
+        _ClutToColor #$00;#$22;#$BB
         jsr TermInit
         _TermPuts txt_intro_0
         jsr mmu_unlock
@@ -33,18 +34,18 @@ IntroPix    mx %11
         _TermPuts txt_intro_1
 :unpack_i256
         lda #<CLUT_DATA
-		ldx #>CLUT_DATA
-		ldy #^CLUT_DATA
-		jsr set_write_address
+        ldx #>CLUT_DATA
+        ldy #^CLUT_DATA
+        jsr set_write_address
 
-		ldx #1 ; picture #
-		jsr set_pic_address
+        ldx #1 ; picture #
+        jsr set_pic_address
 
-		jsr decompress_clut
-		bcc :good
+        jsr decompress_clut
+        bcc :good
         * NOPE
-		* jsr TermPrintAI   
-		* _TermCR
+        * jsr TermPrintAI   
+        * _TermCR
 :good   
         * _TermPuts txt_intro_clut_ok
 	
@@ -69,7 +70,7 @@ IntroPix    mx %11
         jsr decompress_pixels
 
         _TermPuts txt_intro_3
-        
+
 :fade   ldx #<CLUT_DATA
         ldy #>CLUT_DATA
         lda #0 ; clut 0
@@ -87,15 +88,14 @@ IntroPix    mx %11
         jsr WaitShorty
         jsr WaitShorty
         jsr WaitShorty
-        _SetIntroImgOffset PIXEL_DATA_TEST4
-        jsr WaitShorty
-        _SetIntroImgOffset PIXEL_DATA_TEST3
-        jsr WaitShorty
-        _SetIntroImgOffset PIXEL_DATA_TEST2
-        jsr WaitShorty
-        _SetIntroImgOffset PIXEL_DATA_TEST1
-        jsr WaitShorty
-        _SetIntroImgOffset PIXEL_DATA        
+        jsr BounceIntroPic
+
+        ldy #20
+:sound_stoppage        jsr WaitTiny
+        jsr BleepOffControl
+        dey
+        bne :sound_stoppage
+
         jsr Wait3Seconds
         lda #0
         jsr BlackoutClut
@@ -106,6 +106,80 @@ IntroPix    mx %11
         lda #3
         rts
 
+
+bounce_table_ptr = ptr0
+bounce_table_val = scratch
+BounceIntroPic
+        lda #<bounce_table
+        sta bounce_table_ptr
+        lda #>bounce_table
+        sta bounce_table_ptr+1
+:bounce_loop
+:fetchadr lda (bounce_table_ptr)
+        sta bounce_table_val
+        inc bounce_table_ptr
+        bne :nowrap
+:wrap   inc bounce_table_ptr+1 ; next page of memory
+:nowrap
+        lda (bounce_table_ptr) ; second byte
+        sta bounce_table_val+1
+        inc bounce_table_ptr
+        bne :nowrap2
+:wrap2  inc bounce_table_ptr+1 ; next page of memory
+:nowrap2
+        lda (bounce_table_ptr) ; third byte
+        sta bounce_table_val+2
+        inc bounce_table_ptr
+        bne :nowrap3
+:wrap3  inc bounce_table_ptr+1 ; next page of memory
+:nowrap3
+        lda bounce_table_val
+        cmp #$ff
+        bne :ok
+        lda bounce_table_val+1
+        cmp #$ff
+        bne :ok
+        lda bounce_table_val+2
+        cmp #$ff
+        bne :ok
+        rts                     ; <-- return is here
+:ok     
+        lda bounce_table_val+1  ; sound check!
+        bne :not_zero
+        jsr BleepOn
+        bra :cont
+:not_zero 
+        jsr BleepOffControl
+:cont        
+        stz io_ctrl
+        
+        lda #<PIXEL_DATA
+        clc
+        adc bounce_table_val
+        sta $d101
+
+        lda #>PIXEL_DATA
+        clc
+        adc bounce_table_val+1
+        sta $d102
+
+        lda #^PIXEL_DATA
+        clc
+        adc bounce_table_val+2
+        sta $d103
+
+        * _SetIntroImgOffset PIXEL_DATA        
+        * stz io_ctrl
+        * lda #<]1
+        * sta $D101
+        * lda #>]1
+        * sta $D102
+        * lda #^]1
+        * sta $D103
+        lda #2
+        sta io_ctrl
+        jsr WaitTiny
+        bra :bounce_loop
 
 
 introinit320x240
@@ -378,10 +452,44 @@ BlackoutClut
 
 
 
+BleepOn 
+        lda #10 
+        sta _bleepcontrol
 
+        stz io_ctrl
+        lda #$F0       ; %10010000 = Channel 3 attenuation = 0
+        * sta $D600    ; Send it to left PSG
+        * sta $D610    ; Send it to right PSG
+        sta $D608
+        
+        
+        lda #$E6       ; %11100100 = white noise, f = C/512
+        * sta $D600    ; Send it to left PSG
+        * sta $D610    ; Send it to right PSG
+        sta $D608
+        lda #2
+        sta io_ctrl
+        rts
 
+BleepOffControl
+        lda _bleepcontrol
+        beq :off
+        dec _bleepcontrol
+        beq :off
+        rts
+:off    jmp BleepOff
 
+BleepOff        
+        stz io_ctrl
+        lda #$FF
+        * sta $D600    ; Send it to left PSG
+        * sta $D610    ; Send it to right PSG
+        sta $D608
+        lda #2
+        sta io_ctrl
+        rts
 
+_bleepcontrol db 0
 
 
 * This is just for debug
@@ -396,6 +504,16 @@ _SetIntroImgOffset   mac
         lda #2
         sta io_ctrl
         eom
+
+WaitTiny lda #$10
+        sta _w1
+]outer  lda #$ff
+        sta _w2
+]inner	dec _w2
+        bne ]inner
+        dec _w1
+        bne ]outer
+        rts
 
 DumbWait lda #$ff
 		sta _w1
@@ -426,10 +544,44 @@ Wait3Seconds
 
 
 
-txt_intro_0 asc '  DreamOS v2.3 init !',0D,0D,00
-txt_intro_1 asc '    - decompressing snowflakes',0D,00
-txt_intro_2 asc '    - wrapping presents',0D,00
-txt_intro_3 asc '    - baking cookies',0D,00
+txt_intro_0 asc ' ',0D,0D,'    DreamOS v2.3 init !',0D,0D,00
+txt_intro_1 asc '       - decompressing snowflakes',0D,00
+txt_intro_2 asc '       - wrapping presents',0D,00
+txt_intro_3 asc '       - baking cookies',0D,00
 
-txt_intro_clut_ok asc '! CLUT  ok'
-        db 13,0
+txt_intro_clut_ok asc '! CLUT  ok',0D,00
+
+bounce_table
+  adr $012c00,$012ac0,$012ac0,$012980,$012980,$012840,$0125c0,$012480,$012200,$011f80
+  adr $011d00,$011940,$0116c0,$011300,$010f40,$010a40,$010680,$010180,$00fc80,$00f780
+  adr $00f280,$00ec40,$00e600,$00e100,$00d980,$00d340,$00cd00,$00c580,$00be00,$00b7c0
+  adr $00b040,$00a780,$00a000,$009880,$008fc0,$008700,$007f80,$0076c0,$006e00,$006540
+  adr $005c80,$005280,$0049c0,$004100,$003700,$002e40,$002580,$001b80,$0012c0,$0008c0
+  adr $000000,$000640,$000dc0,$001400,$001b80,$002300,$002940,$0030c0,$003700,$003e80
+  adr $0044c0,$004b00,$005280,$0058c0,$005f00,$006540,$006b80,$0071c0,$007800,$007e40
+  adr $008340,$008980,$008e80,$0094c0,$0099c0,$009ec0,$00a3c0,$00a8c0,$00ac80,$00b180
+  adr $00b540,$00b900,$00bcc0,$00c080,$00c440,$00c800,$00ca80,$00ce40,$00d0c0,$00d340
+  adr $00d5c0,$00d700,$00d980,$00dac0,$00dc00,$00dd40,$00de80,$00dfc0,$00dfc0,$00dfc0
+  adr $00e100,$00dfc0,$00dfc0,$00dfc0,$00de80,$00dd40,$00dc00,$00dac0,$00d980,$00d700
+  adr $00d5c0,$00d340,$00d0c0,$00ce40,$00ca80,$00c800,$00c440,$00c080,$00bcc0,$00b900
+  adr $00b540,$00b180,$00ac80,$00a8c0,$00a3c0,$009ec0,$0099c0,$0094c0,$008e80,$008980
+  adr $008340,$007e40,$007800,$0071c0,$006b80,$006540,$005f00,$0058c0,$005280,$004b00
+  adr $0044c0,$003e80,$003700,$0030c0,$002940,$002300,$001b80,$001400,$000dc0,$000640
+  adr $000000,$000500,$000a00,$000f00,$001400,$001900,$001e00,$002440,$002940,$002e40
+  adr $003340,$003700,$003c00,$004100,$004600,$0049c0,$004ec0,$0053c0,$005780,$005b40
+  adr $006040,$006400,$0067c0,$006b80,$006f40,$0071c0,$007580,$007940,$007bc0,$007e40
+  adr $0080c0,$008340,$0085c0,$008840,$008ac0,$008c00,$008e80,$008fc0,$009100,$009240
+  adr $009380,$009380,$0094c0,$0094c0,$0094c0,$009600,$0094c0,$0094c0,$0094c0,$009380
+  adr $009380,$009240,$009100,$008fc0,$008e80,$008c00,$008ac0,$008840,$0085c0,$008340
+  adr $0080c0,$007e40,$007bc0,$007940,$007580,$0071c0,$006f40,$006b80,$0067c0,$006400
+  adr $006040,$005b40,$005780,$0053c0,$004ec0,$0049c0,$004600,$004100,$003c00,$003700
+  adr $003340,$002e40,$002940,$002440,$001e00,$001900,$001400,$000f00,$000a00,$000500
+  adr $000000,$000280,$000500,$0008c0,$000b40,$000dc0,$001180,$001400,$001680,$001900
+  adr $001b80,$001f40,$0021c0,$002440,$0026c0,$002940,$002bc0,$002e40,$002f80,$003200
+  adr $003480,$003700,$003840,$003ac0,$003c00,$003d40,$003fc0,$004100,$004240,$004380
+  adr $0044c0,$004600,$004740,$004740,$004880,$004880,$0049c0,$0049c0,$0049c0,$0049c0
+  adr $004b00,$0049c0,$0049c0,$0049c0,$0049c0,$004880,$004880,$004740,$004740,$004600
+  adr $0044c0,$004380,$004240,$004100,$003fc0,$003d40,$003c00,$003ac0,$003840,$003700
+  adr $003480,$003200,$002f80,$002e40,$002bc0,$002940,$0026c0,$002440,$0021c0,$001f40
+  adr $001b80,$001900,$001680,$001400,$001180,$000dc0,$000b40,$0008c0,$000500,$000280
+  adr $000000,$FFFFFF
