@@ -458,15 +458,18 @@ BleepOn
 
         stz io_ctrl
         lda #$F0       ; %10010000 = Channel 3 attenuation = 0
-        * sta $D600    ; Send it to left PSG
-        * sta $D610    ; Send it to right PSG
         sta $D608
-        
-        
         lda #$E6       ; %11100100 = white noise, f = C/512
-        * sta $D600    ; Send it to left PSG
-        * sta $D610    ; Send it to right PSG
         sta $D608
+
+        lda #$90        ; %10010000 = Channel 1 attenuation = 0
+        sta $D608
+        lda #$8E        ; Set the low 4 bits of the frequency code
+        sta $D608
+
+        lda #$3F        ; %00001111 = Set the high 6 bits of the frequency
+        sta $D608
+
         lda #2
         sta io_ctrl
         rts
@@ -481,10 +484,11 @@ BleepOffControl
 
 BleepOff        
         stz io_ctrl
-        lda #$FF
-        * sta $D600    ; Send it to left PSG
-        * sta $D610    ; Send it to right PSG
+        lda #$FF 
+        sta $D608 
+        lda #$9F        ; %10011111 = Channel 1 attenuation = 15 (silence)
         sta $D608
+    
         lda #2
         sta io_ctrl
         rts
