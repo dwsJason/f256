@@ -19,6 +19,7 @@ scratch = $80 ; to $8F?  I dunno.. just use ZP if ya like
 
         
 IntroPix    mx %11    
+        lda #0                  ; clut 0
         jsr BlackoutClut   
         jsr introinit320x240
         _ClutToColor #$00;#$22;#$FF
@@ -64,36 +65,24 @@ IntroPix    mx %11
         ; jsr get_write_address
         ; jsr TermPrintAXYH
         ; _TermCR
-        
+
         jsr decompress_pixels
 
         _TermPuts txt_intro_3
         
+:fade   ldx #<CLUT_DATA
+        ldy #>CLUT_DATA
+        lda #0 ; clut 0
+        jsr FadeClutToClutPtrXy
+        bcc :done
+        ;jsr WaitShorty
+        bra :fade
+
+:done   ; we out - clear text  and start intro
+        jsr TermClearTextBuffer
+
         
-        php
 
-
-        ; set access to vicky CLUTs
-        lda #1
-        sta io_ctrl
-        ; copy the clut up there
-        ldx #0
-]lp     lda CLUT_DATA,x
-        sta VKY_GR_CLUT_0,x
-        lda CLUT_DATA+$100,x
-        sta VKY_GR_CLUT_0+$100,x
-        lda CLUT_DATA+$200,x
-        sta VKY_GR_CLUT_0+$200,x
-        lda CLUT_DATA+$300,x
-        sta VKY_GR_CLUT_0+$300,x
-        dex
-        bne ]lp
-
-        ; set access back to text buffer, for the text stuff
-        lda #2
-        sta io_ctrl
-
-        plp
         jsr WaitShorty
         jsr WaitShorty
         jsr WaitShorty
@@ -108,7 +97,13 @@ IntroPix    mx %11
         jsr WaitShorty
         _SetIntroImgOffset PIXEL_DATA        
         jsr Wait3Seconds
-
+        lda #0
+        jsr BlackoutClut
+        lda #1
+        jsr BlackoutClut
+        lda #2
+        jsr BlackoutClut
+        lda #3
         rts
 
 
@@ -151,29 +146,109 @@ introinit320x240
         plp
         rts
 
+
 * clut in a - final color table ptr in x/y
 * return carry clear = all done
 * return carry set   = more fades left
 FadeClutToClutPtrXy
+        * sec
+        * rts
+
+
         stx ptr0        ; setup all our pointers
+        stx ptr1
+        stx ptr2
+        stx ptr3
         sty ptr0+1
-        jsr SetClutPtrs ; sets ptr1-ptr4
+        iny
+        sty ptr1+1
+        iny
+        sty ptr2+1
+        iny 
+        sty ptr3+1
+
+        jsr SetClutPtrs ; sets ptr4-ptr7
                         ; but in this case we only use ptr1 and 
                         ; work our way through each value 1 by 1
-
+        
 
         lda #1
         sta _fctcpxy_not_done ; tracks doneness - zero will trigger more work
                               ; one means it IS done
-        
+
+        lda #1          
+        sta io_ctrl     ; <--- access vicky CLUTs
+
+        ; THIS IS IT!                      
+        ldy #0
+:cloop  
+        lda (ptr4),y      ; actual palette
+        cmp (ptr0),y
+        beq :p0done
+        stz _fctcpxy_not_done
+        bcs :p0over
+:p0und  inc
+        bra :p0save
+:p0over dec 
+:p0save sta (ptr4),y
+:p0done
+
+        lda (ptr5),y      ; actual palette
+        cmp (ptr1),y
+        beq :p1done
+        stz _fctcpxy_not_done
+        bcs :p1over
+:p1und  inc
+        bra :p1save
+:p1over dec 
+:p1save sta (ptr5),y
+:p1done
+
+        lda (ptr6),y      ; actual palette
+        cmp (ptr2),y
+        beq :p2done
+        stz _fctcpxy_not_done
+        bcs :p2over
+:p2und  inc
+        bra :p2save
+:p2over dec 
+:p2save sta (ptr6),y
+:p2done
 
 
-_fctcpxy_not_done db 0 
+        lda (ptr7),y      ; actual palette
+        cmp (ptr3),y
+        beq :p3done
+        stz _fctcpxy_not_done
+        bcs :p3over
+:p3und  inc
+        bra :p3save
+:p3over dec 
+:p3save sta (ptr7),y
+:p3done
+
+
+
+        iny
+        bne :cloop
+
+
+        lda #2          ; <--- access text IO
+        sta io_ctrl
+
+
+        lda _fctcpxy_not_done
+        beq :not_done
+        clc
+        rts
+:not_done   sec
+        rts
+
+_fctcpxy_not_done db 0 ; change to zp
 
 
 * clut in a - sets series of ptr4-ptr7 
 SetClutPtrs
-        tax
         tax ; clut
         lda ClutTblL,x
         sta ptr4        ; note this starts at 4, for clut 0
@@ -267,8 +342,9 @@ _ClutToColor MAC
         jsr SetClutToColorPtrXY
         EOM
 
-
+* clut in a
 BlackoutClut
+        sta :clut+1
         lda #$00
         sta scratch
         lda #$00
@@ -277,7 +353,7 @@ BlackoutClut
         sta scratch+2
         lda #$00
         sta scratch+3 
-        lda #0          ;-- vicky clut 0
+:clut   lda #0          ;-- vicky clut 0 (SMC)
         ldx #<scratch   ;\_ ptr to color (BGRA)
         ldy #>scratch   ;/ 
         jmp SetClutToColorPtrXY
@@ -298,6 +374,14 @@ BlackoutClut
 *         lda #2          ; <--- access text IO
 *         sta io_ctrl
 *         rts
+
+
+
+
+
+
+
+
 
 
 * This is just for debug
