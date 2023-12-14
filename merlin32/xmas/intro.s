@@ -4,17 +4,32 @@ PIXEL_DATA_TEST3 = PIXEL_DATA+320*144
 PIXEL_DATA_TEST2 = PIXEL_DATA+320*96
 PIXEL_DATA_TEST1 = PIXEL_DATA+320*48
 
-        mx %11
-IntroPix    jsr introinit320x240
+** ZERO PAGE / DIRECT PAGE AREA
+ptr0    = $20
+ptr1    = $22
+ptr2    = $24
+ptr3    = $26
+ptr4    = $28
+ptr5    = $2A
+ptr6    = $2C
+ptr7    = $2E
+scratch = $80 ; to $8F?  I dunno.. just use ZP if ya like
+
+
+
+        
+IntroPix    mx %11    
+        jsr BlackoutClut   
+        jsr introinit320x240
+        _ClutToColor #$00;#$22;#$FF
         jsr TermInit
-        _TermPuts txt_intro
-        
+        _TermPuts txt_intro_0
         jsr mmu_unlock
-        jsr BlackClut
 
-        _SetIntroImgOffset PIXEL_DATA_TEST5
 
-        
+        _SetIntroImgOffset PIXEL_DATA_TEST5 ; DEBUG STUFF - set image offset to bottom
+
+        _TermPuts txt_intro_1
 :unpack_i256
         lda #<CLUT_DATA
 		ldx #>CLUT_DATA
@@ -40,21 +55,23 @@ IntroPix    jsr introinit320x240
         ldx #1
         jsr set_pic_address     ; set write address to our i256 data
 
-        jsr get_read_address
-   		jsr TermPrintAXYH
-        _TermCR
-
-        jsr get_write_address
-        jsr TermPrintAXYH
-        _TermCR
-
-
+        _TermPuts txt_intro_2
+                                ; DEBUG - read/write addresses for pixel data 
+        ; jsr get_read_address  
+   		; jsr TermPrintAXYH
+        ; _TermCR
+        ;
+        ; jsr get_write_address
+        ; jsr TermPrintAXYH
+        ; _TermCR
+        
         jsr decompress_pixels
 
-        * _TermPuts txt_decompress
+        _TermPuts txt_intro_3
+        
         
         php
-        sei
+
 
         ; set access to vicky CLUTs
         lda #1
@@ -132,26 +149,156 @@ introinit320x240
         lda #2
         sta io_ctrl
         plp
-
         rts
 
-BlackClut
- ; set access to vicky CLUTs
+* clut in a - final color table ptr in x/y
+* return carry clear = all done
+* return carry set   = more fades left
+FadeClutToClutPtrXy
+        stx ptr0        ; setup all our pointers
+        sty ptr0+1
+        jsr SetClutPtrs ; sets ptr1-ptr4
+                        ; but in this case we only use ptr1 and 
+                        ; work our way through each value 1 by 1
+
+
         lda #1
-        sta io_ctrl
-        ; copy the clut up there
-        ldx #0
-]lp     stz VKY_GR_CLUT_0,x
-        stz VKY_GR_CLUT_0+$100,x
-        stz VKY_GR_CLUT_0+$200,x
-        stz VKY_GR_CLUT_0+$300,x
-        dex
-        bne ]lp
+        sta _fctcpxy_not_done ; tracks doneness - zero will trigger more work
+                              ; one means it IS done
+        
 
-        ; set access back to text buffer, for the text stuff
-        lda #2
+
+_fctcpxy_not_done db 0 
+
+
+* clut in a - sets series of ptr4-ptr7 
+SetClutPtrs
+        tax
+        tax ; clut
+        lda ClutTblL,x
+        sta ptr4        ; note this starts at 4, for clut 0
+        sta ptr5
+        sta ptr6
+        sta ptr7 
+        lda ClutTblH,x
+        sta ptr4+1
+        inc
+        sta ptr5+1      ; +$100
+        inc 
+        sta ptr6+1      ; +$200
+        inc 
+        sta ptr7+1      ; +$300
+        rts
+
+ClutTblL  db <VKY_GR_CLUT_0
+        db <VKY_GR_CLUT_1
+        db <VKY_GR_CLUT_2
+        db <VKY_GR_CLUT_3
+ClutTblH db >VKY_GR_CLUT_0
+        db >VKY_GR_CLUT_1
+        db >VKY_GR_CLUT_2
+        db >VKY_GR_CLUT_3
+
+* a = clut  x/y = ptr to color (BGRA)
+SetClutToColorPtrXY
+        stx ptr0        ; setup all our pointers
+        sty ptr0+1
+        jsr SetClutPtrs ; sets ptr1-ptr4
+        lda #1          
+        sta io_ctrl     ; <--- access vicky CLUTs
+
+        ldy #0
+        lda (ptr0),y    ; B
+:writeB sta (ptr4),y
+        sta (ptr5),y
+        sta (ptr6),y
+        sta (ptr7),y
+        iny
+        iny
+        iny
+        iny
+        bne :writeB
+
+        ldy #1
+        lda (ptr0),y    ; G
+:writeG sta (ptr4),y
+        sta (ptr5),y
+        sta (ptr6),y
+        sta (ptr7),y
+        iny
+        iny
+        iny
+        iny
+        cpy #1
+        bne :writeG
+
+        ldy #2
+        lda (ptr0),y    ; R
+:writeR sta (ptr4),y
+        sta (ptr5),y
+        sta (ptr6),y
+        sta (ptr7),y
+        iny
+        iny
+        iny
+        iny
+        cpy #2
+        bne :writeR
+
+        ; we ignore "A"lpha byte, doesn't seem to matter on f256k (dgb)
+
+        lda #2          ; <--- access text IO
         sta io_ctrl
         rts
+        
+; #RR;#GG;#BB
+_ClutToColor MAC
+        lda #]3
+        sta scratch
+        lda #]2
+        sta scratch+1
+        lda #]1
+        sta scratch+2
+        lda #$00
+        sta scratch+3 
+        lda #0          ;-- vicky clut 0
+        ldx #<scratch   ;\_ ptr to color (BGRA)
+        ldy #>scratch   ;/ 
+        jsr SetClutToColorPtrXY
+        EOM
+
+
+BlackoutClut
+        lda #$00
+        sta scratch
+        lda #$00
+        sta scratch+1
+        lda #$00
+        sta scratch+2
+        lda #$00
+        sta scratch+3 
+        lda #0          ;-- vicky clut 0
+        ldx #<scratch   ;\_ ptr to color (BGRA)
+        ldy #>scratch   ;/ 
+        jmp SetClutToColorPtrXY
+
+
+**** This wasn't generic but helps explain the logic of wiping a clut
+* BlackoutClutOG
+*         lda #1          
+*         sta io_ctrl     ; <--- access vicky CLUTs
+*         ; copy the clut up there
+*         ldx #0
+* ]lp     stz VKY_GR_CLUT_0,x
+*         stz VKY_GR_CLUT_0+$100,x
+*         stz VKY_GR_CLUT_0+$200,x
+*         stz VKY_GR_CLUT_0+$300,x
+*         dex
+*         bne ]lp
+*         lda #2          ; <--- access text IO
+*         sta io_ctrl
+*         rts
+
 
 * This is just for debug
 _SetIntroImgOffset   mac
@@ -195,8 +342,10 @@ Wait3Seconds
 
 
 
-txt_intro asc '! INTRO --------------------------------'
-		db 13,0
+txt_intro_0 asc '  DreamOS v2.3 init !',0D,0D,00
+txt_intro_1 asc '    - decompressing snowflakes',0D,00
+txt_intro_2 asc '    - wrapping presents',0D,00
+txt_intro_3 asc '    - baking cookies',0D,00
 
 txt_intro_clut_ok asc '! CLUT  ok'
         db 13,0
