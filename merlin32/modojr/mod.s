@@ -2,6 +2,8 @@
 ; ModoJr Mod Player
 ;
 
+DISPLAY_STUFF equ 1
+
 ; Instrument Definition Structure
 		dum 0
 i_name              ds 32   ; this should be 0 terminated, so max len is 31char
@@ -562,13 +564,16 @@ ModInit
 		sta mod_sig+4
 		stz mod_sig+5
 
+		do DISPLAY_STUFF
 		ldax #mod_sig
 		jsr TermPUTS
+		fin
 
 		sec
 		rts
 :yes
 ;----------- Display the Mod Signature ---------
+		do DISPLAY_STUFF
 		ldx #7
 		ldy #0
 		jsr TermSetXY
@@ -661,6 +666,8 @@ ModInit
 		jsr TermCOUT
 		dex
 		bpl ]lp
+
+		fin
 
 ;---------- Copy the instrument definition block, into a local instruments
 ; Lucky this is in the first 8k
@@ -800,7 +807,7 @@ ModInit
 ;-------------------- print out the pattern indexes
 
 ; top of screen stats
-
+		do DISPLAY_STUFF
 		ldy #0
 		ldx #41
 		jsr TermSetXY
@@ -846,6 +853,7 @@ ModInit
 		bcc ]lp
 
 		jsr TermCR
+		fin
 	   
 ;------------------------------------------------------------------------------
 	   
@@ -1118,6 +1126,7 @@ ModInit
 		cmp <mod_num_instruments
 		bccl ]iloop
 
+		do DISPLAY_STUFF
 		; dump out last address, so I can make sure it matches mod length
 		ldx #73
 		ldy #24
@@ -1125,10 +1134,13 @@ ModInit
 
 		ldaxy <:pCurInst
 		jsr TermPrintAXYH
+		fin
  
 
 ;------------------------------------------------------------------------------
 ; Dump the Instrument Data from the local instrument table
+
+		do DISPLAY_STUFF
 
 		stz <:loopCount
 ]print
@@ -1215,13 +1227,17 @@ ModInit
 		cmp mod_num_instruments
 		bcc ]print
 
+		fin
+
 ;------------------------------------------------------------------------------
 
+		do DISPLAY_STUFF
 		ldx #0
 		ldy #25
 		jsr TermSetXY
 		;ldax #txt_massage_wave
 		;jsr TermPUTS
+		fin
 
 		stz <:loopCount
 
