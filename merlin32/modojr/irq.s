@@ -54,7 +54,6 @@ MODRATE  equ 16000/50
 		sta <mod_jiffy_rate+1
 
 		; High Res Timer0 
-		do 1
 		;lda #TM_CTRL_CLEAR.TM_CTRL_UP_DOWN.TM_CTRL_ENABLE.TM_CTRL_INTEN
 		stz |TM0_CTRL
 
@@ -85,27 +84,6 @@ MODRATE  equ 16000/50
 		; polarity + edge
 		sta |$D664
 		sta |$D668
-		else
-
-		lda #{INT00_VKY_SOF.INT01_VKY_SOL}!$FF  ; clear mask for SOF, and fast timer
-		sta |INT_MASK_0 	; enable some interrupts
-
-		lda #$FF
-		sta |INT_PEND_0 	; clear any pending interrupts
-		sta |INT_PEND_1
-
-
-		fin
-
-		do 0
-		stz VKY_LINE_NBR_L
-		stz VKY_LINE_NBR_H
-		stz irq_num
-		stz irq_num+1
-
-		lda #VKY_LINE_ENABLE
-		sta |VKY_LINE_CTRL 	; enable line interrupts
-		fin
 
 		pla
 		sta io_ctrl
@@ -122,8 +100,6 @@ MODRATE  equ 16000/50
 my_irq_handler
 
 		pha
-		phx
-		phy
 
 		lda <MMU_IO_CTRL
 		pha
@@ -142,31 +118,9 @@ my_irq_handler
 		; mixer / DAC service
 		lda mmu3
 		pha
-		jsr MixerMix
+		jsr MixerMix   ; doesn't disturb X or Y
 		pla
 		sta mmu3
-
-		; stuff for the K
-		do 0
-;		inc irq_num
-;		bne :no_hi_irq_num
-;		inc irq_num+1
-		lda irq_num
-		inc
-		cmp #$F0
-		bcc :no_hi_irq_num
-		lda #0
-:no_hi_irq_num
-		sta irq_num
-
-;		lda irq_num
-		asl
-		sta VKY_LINE_NBR_L
-		lda irq_num+1
-		rol
-		sta VKY_LINE_NBR_H
-		fin
-		; end stuff for the K
 
 		; it's slow
 		; we have to manually count off 16000/50 interrupts :(
@@ -190,7 +144,11 @@ my_irq_handler
 		sta <mod_jiffy_countdown+1
 
 		cli
+		phx
+		phy
 		jsr ModPlayerTick
+		ply
+		plx
 
 :not_mod
 		pla
@@ -207,9 +165,6 @@ my_irq_handler
 
 		pla
 		sta <MMU_IO_CTRL
-
-		ply
-		plx
 
 		pla
 		rti
