@@ -1143,6 +1143,8 @@ ModInit
 ;------------------------------------------------------------------------------
 ; Dump the Instrument Data from the local instrument table
 
+		do DISPLAY_STUFF
+
 		stz <:loopCount
 ]print
 		; Pointer to the destination Instrument
@@ -1228,13 +1230,17 @@ ModInit
 		cmp mod_num_instruments
 		bcc ]print
 
+		fin
+
 ;------------------------------------------------------------------------------
 
+		do DISPLAY_STUFF
 		ldx #0
 		ldy #25
 		jsr TermSetXY
 		;ldax #txt_massage_wave
 		;jsr TermPUTS
+		fin
 
 		stz <:loopCount
 
