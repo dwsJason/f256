@@ -1,6 +1,8 @@
 ;------------------------------------------------------------------------------
 		mx %11
 
+;
+MAX_NUM_SPRITES = 20
 
 ; Define some structures
 
@@ -46,8 +48,6 @@ sizeof_spr  ds 0
 
 GRAVITY = $29       ; 9.8/60
 WIND    = $14   	; about half gravity?
-
-MAX_NUM_SPRITES = 64
 
 ;
 ;  I know this way of doing isn't the best for 6502
