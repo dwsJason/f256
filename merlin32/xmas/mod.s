@@ -525,8 +525,10 @@ ModInit
 		staxy <mod_start
 		jsr set_read_address
 
+		do DISPLAY_STUFF
 		lda #2
 		sta io_ctrl         ; swap in the text memory
+		fin
 
 		stz SongIsPlaying           ; default not playing
 
