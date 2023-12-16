@@ -97,6 +97,7 @@ MODRATE  equ 16000/50
 
 		fin
 
+		do 0
 		stz VKY_LINE_NBR_L
 		stz VKY_LINE_NBR_H
 		stz irq_num
@@ -104,6 +105,7 @@ MODRATE  equ 16000/50
 
 		lda #VKY_LINE_ENABLE
 		sta |VKY_LINE_CTRL 	; enable line interrupts
+		fin
 
 		pla
 		sta io_ctrl

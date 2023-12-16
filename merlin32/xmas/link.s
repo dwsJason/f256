@@ -18,6 +18,7 @@
 ;------------------------------------------------------------------------------
 
 		use macros.i
+		use mixer.i
 
 ;------------------------------------------------------------------------------
 
@@ -41,7 +42,17 @@ main_code_start
 		put file256.s
 		put spritefont.s
 		put irq.s
+		put mod.s
+		put mixer.s
 main_code_end
+
+		org $0
+		adr song_start
+		adr song_end-song_start
+		org $040000
+song_start
+mod_xmas putbin data\xmas_remix.mod
+song_end
 
 
 		org $0
@@ -53,6 +64,7 @@ pic1	putbin data\fireplace.256
 f6font  putbin data\32x32-F6.256
 pic2    putbin data\introtall.256
 image2_end
+
 
 ; Launch Address
 		adr start

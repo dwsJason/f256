@@ -45,10 +45,36 @@ CPU_CLOCK_RATE equ 6293750  ; this is 1/4th clock rate
 RATE     equ CPU_CLOCK_RATE/4000
 MODRATE  equ 16000/50
 
+		stz <SongIsPlaying
+
+		; MOD set to 50hz
+		lda #<MODRATE
+		sta <mod_jiffy_rate
+		lda #>MODRATE
+		sta <mod_jiffy_rate+1
+
 		; High Res Timer0 
+		;lda #TM_CTRL_CLEAR.TM_CTRL_UP_DOWN.TM_CTRL_ENABLE.TM_CTRL_INTEN
 		stz |TM0_CTRL
 
-		lda #INT00_VKY_SOF!$FF  ; clear mask for SOF
+		lda #TM_CMP_CTRL_CLR
+		sta |TM0_CMP_CTRL
+
+		lda #<RATE
+		sta |TM0_CMP_L
+		lda #>RATE
+		sta |TM0_CMP_M
+		lda #^RATE
+		sta |TM0_CMP_H
+
+		stz |TM0_VALUE_L
+		stz |TM0_VALUE_M
+		stz |TM0_VALUE_H
+
+		lda #TM_CTRL_UP_DOWN.TM_CTRL_ENABLE.TM_CTRL_INTEN
+		sta |TM0_CTRL
+  
+		lda #{INT00_VKY_SOF.INT04_TIMER_0}!$FF  ; clear mask for SOF, and fast timer
 		sta |INT_MASK_0 	; enable some interrupts
 
 		lda #$FF
@@ -62,8 +88,11 @@ MODRATE  equ 16000/50
 		pla
 		sta io_ctrl
 
+
 		stz jiffy
 		stz jiffy+1
+		stz mod_jiffy
+		stz mod_jiffy+1
 
 		plp
 		rts
@@ -83,6 +112,47 @@ my_irq_handler
 		lda INT_PEND_0
 		sta INT_PEND_0 			; clear all interrupts
 
+		bit #INT04_TIMER_0.INT01_VKY_SOL
+		beq :not_mixer
+
+		pha  ; preserve the interrupts that happened
+
+		; mixer / DAC service
+		lda mmu3
+		pha
+		jsr MixerMix
+		pla
+		sta mmu3
+
+		; it's slow
+		; we have to manually count off 16000/50 interrupts :(
+
+		lda <mod_jiffy_countdown
+		dec
+		sta <mod_jiffy_countdown
+		cmp #$FF
+		bne :not_hi
+		dec <mod_jiffy_countdown+1
+:not_hi
+		ora <mod_jiffy_countdown+1
+		bne :not_mod
+
+:do_mod_jiffy
+
+		; reset the count
+		lda <mod_jiffy_rate
+		sta <mod_jiffy_countdown
+		lda <mod_jiffy_rate+1
+		sta <mod_jiffy_countdown+1
+
+		cli
+		jsr ModPlayerTick
+
+:not_mod
+		pla
+
+
+:not_mixer
 		bit #INT00_VKY_SOF
 		beq :not_sof
 		; SOF interrupt

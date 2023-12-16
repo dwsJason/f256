@@ -27,6 +27,44 @@ p_sprite_message ds 2
 
 jiffy ds 2 ; IRQ counts this up every VBL
 
+;
+; mixer - variables - I'm hogging up like 64 bytes here
+; if need be, we could give mixer it's own DP (by using the mmu)
+;
+mixer_voices ds sizeof_osc*VOICES
+
+; mod player - variables
+mod_start ds 3
+mod_sig   ds 4   ; M.K. most common
+
+mod_num_tracks   ds 1  ; expects 4
+mod_pattern_size ds 2  ; expects 1024 (for 4 tracks)
+mod_row_size     ds 1  ; expects 4*4
+mod_bpm          ds 1  ; expects 125
+mod_speed        ds 1  ; default speed is 6
+
+mod_num_instruments ds 1 ; expected 31
+
+mod_song_length       ds 1     ; length in patterns
+mod_p_current_pattern ds 3     ; pointer to the current pattern
+mod_p_pattern_dir     ds 3	   ; pointer to directory of patterns (local ptr, and mmu block number)
+mod_current_row       ds 1     ; current row #
+mod_pattern_index     ds 1     ; current index into pattern directory
+mod_num_patterns      ds 1     ; total number of patterns
+
+mod_jiffy_rate        ds 2
+mod_jiffy_countdown   ds 2
+mod_jiffy             ds 2     ; mod player jiffy
+
+mod_temp0			ds 4
+mod_temp1           ds 4
+mod_temp2			ds 4
+mod_temp3			ds 4
+mod_temp4			ds 4
+mod_temp5			ds 4
+
+SongIsPlaying ds 1 ; flag for if a song is playing
+
 	dend
 
 SPRITE_MAP   ds 120   ; 10x6x2 bytes (120 bytes), this can fit anywhere probably
@@ -183,8 +221,15 @@ PICNUM = 0   ; fireplace picture
 
 		stz frame_number
 
+		jsr MixerInit
+
+		; hey needs to start on an 8k boundary
+		;ldaxy #mod_xmas
+		;jsr ModInit
+
 		jsr InstallIRQ
 		cli
+;		jsr ModPlay
 
 ]wait 
 		jsr WaitVBL
@@ -354,3 +399,9 @@ txt_decompress asc 'decompress_pixels'
 
 txt_decompress_map asc 'decompress_map'
 		db 13,0
+
+txt_unsupported asc 'unsuppored mod format'
+		db 13,0
+		
+;------------------------------------------------------------------------------
+
