@@ -60,8 +60,8 @@ song_end
 		adr image2_end-image2_start  ; labels only work here, if data below is less than 64K
 		org $060000
 image2_start
+f6font  putbin data\32x32-F6.256     ; decompresses on top of the fireplace, and introtall
 pic1	putbin data\fireplace.256
-f6font  putbin data\32x32-F6.256
 pic2    putbin data\introtall.256
 image2_end
 
