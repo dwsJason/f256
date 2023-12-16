@@ -69,7 +69,7 @@ SongIsPlaying ds 1 ; flag for if a song is playing
 
 SPRITE_MAP   ds 120   ; 10x6x2 bytes (120 bytes), this can fit anywhere probably
 ; we are stomping on some stuff here
-SPRITE_TILES = $70000 ; could be up to 64k worth, but will be less
+SPRITE_TILES = $60000 ; could be up to 64k worth, but will be less
 
 MAP_DATA0  = $010000
 TILE_DATA0 = $012000 
@@ -212,7 +212,7 @@ PICNUM = 0   ; fireplace picture
 
 		sei
 
-;		jsr InitSpriteFont
+		jsr InitSpriteFont
 
 		stz io_ctrl
 		stz xpos
@@ -240,7 +240,7 @@ PICNUM = 0   ; fireplace picture
 ]wait 
 		jsr WaitVBL
 
-;		jsr ShowSpriteFont
+		jsr ShowSpriteFont
 
 		dec <ping		; 10 FPS update
 		bpl ]wait
