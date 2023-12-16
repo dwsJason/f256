@@ -89,22 +89,17 @@ in_use_sprites_count db 0
 in_use_sprites ds MAX_NUM_SPRITES
 
 ;------------------------------------------------------
-; A is the sprite number
-;
-; preserve y
-; destroy x
-RemoveActiveSprite
+; So we can add more life into this
 
-			ldx in_use_sprites_count
-			dex
-			stx in_use_sprites_count ; make list 1 shorted
-			phy
-			tay
-			lda in_use_sprites,x	; grab the one off the end
-			sta in_use_sprites,y	; poke it into the deleted sprite position
-			ply
+MAX_TEXT_SPAWN_Y = 200
 
-			rts
+text_spawn_x dw 320+32  ; just off the right side of the screen
+text_spawn_y dw MAX_TEXT_SPAWN_Y
+
+text_up_down dw 0
+
+;text_spawn_vx dw 0
+;text_spawn_vy dw 0
 
 ;------------------------------------------------------
 AddActiveSprite
@@ -240,7 +235,39 @@ FreeSprite
 ShowSpriteFont
 
 		do 1
-		; some debug stuff
+; Animate the spawn point
+		lda <jiffy
+		and #3
+		bne :spawn_movement_done
+
+		lda text_up_down
+		beq :text_up
+
+; text down
+
+		lda text_spawn_y
+		inc
+		cmp #MAX_TEXT_SPAWN_Y
+		bcc :down_ok
+
+		lda #MAX_TEXT_SPAWN_Y
+		stz text_up_down ; change to going up
+
+:down_ok
+		sta text_spawn_y
+		bra :spawn_movement_done
+
+:text_up
+		lda text_spawn_y
+		bne :up_ok
+		inc text_up_down ; going down
+		sta text_spawn_y
+		bra :spawn_movement_done
+:up_ok
+		dec
+		sta text_spawn_y
+
+:spawn_movement_done
 		fin
 
 		jsr MoveSprites
@@ -307,25 +334,31 @@ ShowSpriteFont
 
 		sta (:pSprite),y ; spr_glyph
 
+; SPAWN LOCATION ON THE SCREEN
+
 		iny
 		lda #0
 		sta (:pSprite),y ; xpos .8
 		iny
-		lda #<{320+32}
+		lda text_spawn_x
 		sta (:pSprite),y ; xpos lo
 		iny
-		lda #>{320+32}
+		lda text_spawn_x+1
 		sta (:pSprite),y ; xpos hi
 		iny
 
 		lda #0
 		sta (:pSprite),y ; ypos.8
 		iny
-		lda #32
+		lda text_spawn_y
 		sta (:pSprite),y ; ypos lo
-		lda #0
+		lda text_spawn_y+1
 		iny
 		sta (:pSprite),y ; ypos hi
+
+; SPAWN VELOCITY
+
+		lda #0
 		iny
 		sta (:pSprite),y ; spr_vel_x
 		iny
