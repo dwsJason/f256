@@ -100,8 +100,6 @@ MODRATE  equ 16000/50
 my_irq_handler
 
 		pha
-		phx
-		phy
 
 		lda <MMU_IO_CTRL
 		pha
@@ -146,7 +144,11 @@ my_irq_handler
 		sta <mod_jiffy_countdown+1
 
 		cli
+		phx
+		phy
 		jsr ModPlayerTick
+		ply
+		plx
 
 :not_mod
 		pla
@@ -163,9 +165,6 @@ my_irq_handler
 
 		pla
 		sta <MMU_IO_CTRL
-
-		ply
-		plx
 
 		pla
 		rti
