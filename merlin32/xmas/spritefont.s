@@ -642,6 +642,8 @@ UpdateSprite
 		stax :ypos+1
 		stz  :ypos
 
+		; I think Dagen says this is better without the velocity cut
+		do 0
 		; cut vy in half
 		lda :vy+2
 		cmp #$80
@@ -649,6 +651,7 @@ UpdateSprite
 		sta :vy+2
 		ror :vy+1
 		ror :vy 
+		fin
 
 		; negate vy
 		lda :vy
