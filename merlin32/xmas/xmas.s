@@ -68,7 +68,8 @@ SongIsPlaying ds 1 ; flag for if a song is playing
 	dend
 
 SPRITE_MAP   ds 120   ; 10x6x2 bytes (120 bytes), this can fit anywhere probably
-SPRITE_TILES = $50000 ; could be up to 64k worth, but will be less
+; we are stomping on some stuff here
+SPRITE_TILES = $70000 ; could be up to 64k worth, but will be less
 
 MAP_DATA0  = $010000
 TILE_DATA0 = $012000 
@@ -211,8 +212,7 @@ PICNUM = 0   ; fireplace picture
 
 		sei
 
-		jsr InitSpriteFont
-
+;		jsr InitSpriteFont
 
 		stz io_ctrl
 		stz xpos
@@ -224,17 +224,23 @@ PICNUM = 0   ; fireplace picture
 		jsr MixerInit
 
 		; hey needs to start on an 8k boundary
-		;ldaxy #mod_xmas
-		;jsr ModInit
+		lda io_ctrl
+		pha
+
+		ldaxy #mod_xmas
+		jsr ModInit
 
 		jsr InstallIRQ
 		cli
-;		jsr ModPlay
+		jsr ModPlay
+
+		pla
+		sta io_ctrl
 
 ]wait 
 		jsr WaitVBL
 
-		jsr ShowSpriteFont
+;		jsr ShowSpriteFont
 
 		dec <ping		; 10 FPS update
 		bpl ]wait
@@ -402,6 +408,19 @@ txt_decompress_map asc 'decompress_map'
 
 txt_unsupported asc 'unsuppored mod format'
 		db 13,0
-		
+
+txt_instruments asc ' Instruments'
+		db 13,0
+
+txt_tracks asc ' Tracks'
+		db 13,0
+
+txt_song_length cstr 'Length:'
+txt_patterns cstr 'Patterns:'
+txt_sampler cstr 'Mixer:16khz'
+txt_L cstr ' L'
+
+txt_massage_wave asc 'Massage the instruments'
+		db 13,0
 ;------------------------------------------------------------------------------
 

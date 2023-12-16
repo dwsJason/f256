@@ -27,6 +27,8 @@
 		dsk xmas.pgz
 		db	'Z'   			; PGZ header upper case Z means 24 bit size/length fields
 
+;------------------------------------------------------------------------------
+
 ; Segment 0
 		org $0
 		adr main_code_start 			 	; Address to load into memory
@@ -46,6 +48,8 @@ main_code_start
 		put mixer.s
 main_code_end
 
+;------------------------------------------------------------------------------
+
 		org $0
 		adr song_start
 		adr song_end-song_start
@@ -54,19 +58,32 @@ song_start
 mod_xmas putbin data\xmas_remix.mod
 song_end
 
+;------------------------------------------------------------------------------
+
+		org $0
+		adr image1_start
+		adr image1_end-image1_start  ; labels only work here, if data below is less than 64K
+		org $060000
+image1_start
+pic1	putbin data\fireplace.256
+image1_end
+
+;------------------------------------------------------------------------------
 
 		org $0
 		adr image2_start
 		adr image2_end-image2_start  ; labels only work here, if data below is less than 64K
-		org $060000
+		org $070000
 image2_start
-f6font  putbin data\32x32-F6.256     ; decompresses on top of the fireplace, and introtall
-pic1	putbin data\fireplace.256
 pic2    putbin data\introtall.256
+f6font  putbin data\32x32-F6.256     ; decompresses on top of the fireplace, and introtall
 image2_end
 
+;------------------------------------------------------------------------------
 
 ; Launch Address
 		adr start
 		adr 0		; 0 length, tells the loader that this is where to run the code
+
+;------------------------------------------------------------------------------
 

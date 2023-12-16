@@ -525,6 +525,9 @@ ModInit
 		staxy <mod_start
 		jsr set_read_address
 
+		lda #2
+		sta io_ctrl         ; swap in the text memory
+
 		stz SongIsPlaying           ; default not playing
 
 		lda #4  					; default 4 tracks
@@ -564,13 +567,16 @@ ModInit
 		sta mod_sig+4
 		stz mod_sig+5
 
+		do DISPLAY_STUFF
 		ldax #mod_sig
 		jsr TermPUTS
+		fin
 
 		sec
 		rts
 :yes
 ;----------- Display the Mod Signature ---------
+		do DISPLAY_STUFF
 		ldx #7
 		ldy #0
 		jsr TermSetXY
@@ -603,7 +609,6 @@ ModInit
 
 ;----------- Display the Number of Instruments -------
 
-		do DISPLAY_STUFF
 		ldx #14
 		ldy #0
 		jsr TermSetXY
@@ -1124,6 +1129,7 @@ ModInit
 		cmp <mod_num_instruments
 		bccl ]iloop
 
+		do DISPLAY_STUFF
 		; dump out last address, so I can make sure it matches mod length
 		ldx #73
 		ldy #24
@@ -1131,6 +1137,7 @@ ModInit
 
 		ldaxy <:pCurInst
 		jsr TermPrintAXYH
+		fin
  
 
 ;------------------------------------------------------------------------------
