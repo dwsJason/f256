@@ -436,7 +436,9 @@ ModPlayerTick mx %11
 		bra ModSetPatternPtr
 
 :song_done
-		stz <SongIsPlaying
+		;stz <SongIsPlaying
+		; restart the song, song looping in demo
+		jmp ModPlay 
 		rts
 
 :perform_jump
