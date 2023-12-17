@@ -46,6 +46,7 @@ main_code_start
 		put irq.s
 		put mod.s
 		put mixer.s
+		put version.s   ; hardware version checker
 main_code_end
 
 ;------------------------------------------------------------------------------

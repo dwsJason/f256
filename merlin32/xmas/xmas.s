@@ -25,7 +25,7 @@ frame_number ds 1
 
 p_sprite_message ds 2
 
-jiffy ds 2 ; IRQ counts this up every VBL
+jiffy ds 2 ; IRQ counts this up every VBL, really doesn't need to be 2 bytes
 
 ;
 ; mixer - variables - I'm hogging up like 64 bytes here
@@ -95,6 +95,10 @@ PIXEL_DATA = $010000            ; @dwsJason - I may need to move this if you wan
 
 start
 		sei
+
+		; Test for minimum version of hardware
+		jsr HasGoodHardware
+
 		jsr IntroPix 	; <-- stubbing in my part here (db)
 
 ; Jr Vicky can't see above this
