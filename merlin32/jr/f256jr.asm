@@ -97,6 +97,12 @@ SYS_SID_ST = $08
 SYS_PSG_ST = $04
 
 ;;
+;; Software Reset
+;;
+VKY_RST0 = $D6A2 	;R/W  Set to 0xDE to enable software reset
+VKY_RST1 = $D6A3 	;R/W  Set to 0xAD to enable software reset
+
+;;
 ;; Random Numbers
 ;;
 VKY_SEEDL 	 = $D6A4    ; SEED[7. . . 0]
