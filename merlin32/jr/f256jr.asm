@@ -97,6 +97,46 @@ SYS_SID_ST = $08
 SYS_PSG_ST = $04
 
 ;;
+;; Random Numbers
+;;
+VKY_SEEDL 	 = $D6A4    ; SEED[7. . . 0]
+VKY_RNDL 	 = $D6A4    ; RND[7. . . 0]
+VKY_SEEDH 	 = $D6A5    ; SEED[15. . . 0]
+VKY_RNDH 	 = $D6A5    ; RND[15. . . 0]
+VKY_RND_CTRL = $D6A6 	; SEED_LD=$2 ENABLE=$1
+VKY_RND_STAT = $D6A6 	; DONE=$80
+
+;;
+;; Machine ID and Version
+;;
+VKY_MID = $D6A7			; Machine ID
+VKY_PCBID0 = $D6A8		; "B"
+VKY_PCBID1 = $D6A9      ; "0"
+VKY_CHSV0 = $D6AA       ; TinyVicky subversion BCD (low)
+VKY_CHSV1 = $D6AB  		; TinyVicky subversion in BCD (high)
+VKY_CHV0 = $D6AC  		; TinyVicky version in BCD (low)
+VKY_CHV1 = $D6AD  		; TinyVicky version in BCD (high)
+VKY_CHN0 = $D6AE  		; TinyVicky number in BCD (low)
+VKY_CHN1 = $D6AF  		; TinyVicky number in BCD (high)
+VKY_PCBMA = $D6EB  		; PCB Major Rev (ASCII)
+VKY_PCBMI = $D6EC  		; PCB Minor Rev (ASCII)
+VKY_PCBD = $D6ED  		; PCB Day (BCD)
+VKY_PCBM = $D6EE  		; PCB Month (BCD)
+VKY_PCBY = $D6EF  		; PCB Year (BCD)
+
+MID_C256_FMX    = %00000
+MID_C256_U      = %00001
+MID_F256        = %00010
+MID_F256_K      = %10010
+MID_A2560_DEV   = %00011
+MID_GEN_X       = %00100
+MID_C256_U_PLUS = %00101
+MID_A2560_X = %01000 
+MID_A2560_U = %01001 
+MID_A2560_M = %01010 
+MID_A2560_K = %01011 
+
+;;
 ;; Sound Generators
 ;;
 VKY_PSG0 = $D600
