@@ -47,7 +47,7 @@ main_code_start
 		put mod.s
 		put mixer.s
 		put version.s   ; hardware version checker
-		put flame.s
+		put flame.s     ; this comment stops merlin32 crash
 main_code_end
 
 ;------------------------------------------------------------------------------
