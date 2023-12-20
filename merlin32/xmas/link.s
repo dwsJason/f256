@@ -62,6 +62,17 @@ pump_bar_sprites putbin data\pumpbars.256
 more_data_end
 
 ;------------------------------------------------------------------------------
+		org $0
+		adr audio_data_start
+		adr audio_data_end-audio_data_start
+		org $35800		; right after double high pixel buffer
+audio_data_start
+
+hohoho putbin data\HoHoHoMerryPh.raw
+
+audio_data_end
+
+;------------------------------------------------------------------------------
 
 		org $0
 		adr song_start
