@@ -673,7 +673,7 @@ PumpBarRender mx %11
 		asl
 		tax
 
-		lda #$08
+		lda #$08			; peak disable color
 		sta PUMPBAR_CLUT+$100+{]ct*64}+0,x
 		sta PUMPBAR_CLUT+$100+{]ct*64}+1,x
 		sta PUMPBAR_CLUT+$100+{]ct*64}+2,x
@@ -692,7 +692,7 @@ PumpBarRender mx %11
 		asl
 		tax
 
-		lda #$FF
+		lda #$FF			; peak enable color
 		sta PUMPBAR_CLUT+$100+{]ct*64}+0,x
 		sta PUMPBAR_CLUT+$100+{]ct*64}+1,x
 		sta PUMPBAR_CLUT+$100+{]ct*64}+2,x
