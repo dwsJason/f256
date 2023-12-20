@@ -51,6 +51,17 @@ main_code_start
 main_code_end
 
 ;------------------------------------------------------------------------------
+		org $0
+		adr more_data_start
+		adr more_data_end-more_data_start
+		org $6000
+more_data_start
+
+pump_bar_sprites putbin data\pumpbars.256
+
+more_data_end
+
+;------------------------------------------------------------------------------
 
 		org $0
 		adr song_start
