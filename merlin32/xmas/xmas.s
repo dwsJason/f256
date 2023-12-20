@@ -76,6 +76,20 @@ SPRITE_TILES = $60000 ; could be up to 64k worth, but will be less
 
 MAP_DATA0  = $010000
 TILE_DATA0 = $012000 
+;
+; PUMP BAR STUFF
+;
+PUMPBAR_SPRITE0 = $6F800  ; sprite 0, and sprite 1 for pump bars
+PUMPBAR_SPRITE1 = $6FC00  ; sprite 0, and sprite 1 for pump bars
+PUMPBAR_SPRITE_NO = 20    ; sprite 20, and sprite 21
+PUMPBAR_CLUT = VKY_GR_CLUT_2
+PUMPBAR_XPOS = 240
+PUMPBAR_YPOS = 48
+PUMPBAR_SPRITE_CTRL = %00000101      ; LUT#2
+;
+; END PUMP BAR STUFF
+;
+
 
 ; tiles are 16k for 256 in 8x8 mode
 TILE_SIZE = {16*16*256}
@@ -221,6 +235,8 @@ PICNUM = 0   ; fireplace picture
 
 		jsr InitSpriteFont
 
+		jsr initPumpBars  ; decompress the pump bars, and initialize the colors
+
 		stz io_ctrl
 		stz xpos
 		stz xpos+1
@@ -244,13 +260,29 @@ PICNUM = 0   ; fireplace picture
 		pla
 		sta io_ctrl
 
-]wait 
+;;
+;;  MAIN LOOP HERE ------------------------------------------------------------
+;;
+
+]main_loop
 		jsr WaitVBL
 
 		jsr ShowSpriteFont
 
+		jsr UpdateFirePlace
+
+		jsr PumpBarRender
+
+		bra ]main_loop
+
+;;
+;;  MAIN LOOP HERE ------------------------------------------------------------
+;;
+
+;------------------------------------------------------------------------------
+UpdateFirePlace
 		dec <ping		; 10 FPS update
-		bpl ]wait
+		bpl :rts
 
 		lda #6
 		sta <ping
@@ -272,8 +304,9 @@ PICNUM = 0   ; fireplace picture
 
 		lda |:vregister+1,x
 		sta |VKY_TM0_POS_Y_H
+:rts
+		rts
 
-		bra ]wait
 
 :vregister
 		dw  16+{240*0}
@@ -442,6 +475,293 @@ init320x240
 		plp
 
 		rts
+
+;------------------------------------------------------------------------------
+
+
+initPumpBars
+
+		; Decompress the tile data
+		ldaxy #PUMPBAR_SPRITE0
+		jsr set_write_address
+
+		ldaxy #pump_bar_sprites
+		jsr set_read_address
+
+		jsr decompress_pixels
+
+		php
+		sei
+
+		lda io_ctrl
+		pha
+
+		stz io_ctrl
+
+		lda #PUMPBAR_SPRITE_CTRL
+		sta VKY_SP0_CTRL+{8*PUMPBAR_SPRITE_NO}	; vu 1-2, right
+		sta VKY_SP1_CTRL+{8*PUMPBAR_SPRITE_NO}	; vu 3-4, right
+
+		ldaxy #PUMPBAR_SPRITE0
+		staxy VKY_SP0_AD_L+{8*PUMPBAR_SPRITE_NO}
+
+		;ldax #PUMPBAR_XPOS-24
+		lda #<{PUMPBAR_XPOS-24}
+		ldx #>{PUMPBAR_XPOS-24}
+		stax VKY_SP0_POS_X_L+{8*PUMPBAR_SPRITE_NO}
+
+		ldax #PUMPBAR_YPOS
+		stax VKY_SP0_POS_Y_L+{8*PUMPBAR_SPRITE_NO}
+		stax VKY_SP1_POS_Y_L+{8*PUMPBAR_SPRITE_NO}
+
+		ldaxy #PUMPBAR_SPRITE1
+		staxy VKY_SP1_AD_L+{8*PUMPBAR_SPRITE_NO}
+
+		ldax #PUMPBAR_XPOS
+		stax VKY_SP1_POS_X_L+{8*PUMPBAR_SPRITE_NO}
+
+		; initialize some of those LUT Colors
+
+		lda #1
+		sta io_ctrl
+
+		; verify the backdrop color
+		ldaxy #0
+		staxy PUMPBAR_CLUT+{16*4}
+
+		ldx #{15*4}-1       ; 15 colors
+]lp		lda vu_colors_off,x
+		sta PUMPBAR_CLUT+{1*4},x		
+		sta PUMPBAR_CLUT+{17*4},x		
+		sta PUMPBAR_CLUT+{33*4},x		
+		sta PUMPBAR_CLUT+{49*4},x
+
+		lda vu_colors_peak,x
+		sta PUMPBAR_CLUT+{65*4},x		
+		sta PUMPBAR_CLUT+{81*4},x		
+		sta PUMPBAR_CLUT+{97*4},x		
+		sta PUMPBAR_CLUT+{113*4},x
+
+		dex
+		bpl ]lp
+
+		pla
+		sta io_ctrl
+		plp
+
+		rts
+
+;------------------------------------------------------------------------------
+
+PumpBarRender mx %11
+
+:levels = temp0
+:max_lit = temp1
+
+		php
+		sei
+		; grab samples
+		lda |mod_pump_vol+{4*1}
+		stz |mod_pump_vol+{4*1}
+		sta <:levels+0
+		lda |mod_pump_vol+{4*2}
+		stz |mod_pump_vol+{4*2}
+		sta <:levels+1
+		lda |mod_pump_vol+{4*3}
+		stz |mod_pump_vol+{4*3}
+		sta <:levels+2
+		lda |mod_pump_vol+{4*4}
+		stz |mod_pump_vol+{4*4}
+		sta <:levels+3
+		plp
+
+]ct = 0
+		lup 4
+		lda <:levels+]ct 			; no value
+		beq :no_new_value
+
+		; here would be a good place to scale + clamp, if we want that
+		lsr  ; this will make them move 2x speed (1/2 second to empty the bar)
+
+		cmp |pump_bar_levels+]ct	; new value is less than what we have, so ignore
+		bcc :no_new_value
+
+		sta |pump_bar_levels+]ct    ; new level, since it's >=
+		cmp |pump_bar_peaks+]ct     ; check to see if it's a new peak
+		bcc :no_new_value
+
+		sta |pump_bar_peaks+]ct		; set new peak
+		lda #20	; hang time for new peak  (1/3) of a second
+		sta |pump_bar_peak_timer+]ct
+
+:no_new_value
+
+		lda |pump_bar_peak_timer+]ct
+		beq :skip_peak_timer
+		dec
+		sta |pump_bar_peak_timer+]ct
+		bne :skip_peak_timer
+		stz |pump_bar_peaks+]ct
+:skip_peak_timer
+		lda |pump_bar_levels+]ct
+		beq :skip_level
+		dec
+		sta |pump_bar_levels+]ct
+:skip_level
+]ct = ]ct+1
+		--^
+
+		lda io_ctrl
+		pha
+
+		lda #1			; page in the palettes
+		sta io_ctrl
+
+	    do 1
+; render the colors
+]ct = 0
+		lup 4
+
+		lda |pump_bar_levels+]ct
+		lsr
+		cmp #15
+		bcc :no_clamp
+		lda #15
+:no_clamp
+
+		ldx #0
+
+		asl
+		asl
+		sta :max_lit
+		beq :colors_off
+:colors_on
+		lda |vu_colors_on,x
+		sta PUMPBAR_CLUT+{1*4}+{]ct*64},x
+		inx
+		cpx :max_lit
+		bcc :colors_on
+		bra :check_end
+:colors_off
+		lda |vu_colors_off,x
+		sta PUMPBAR_CLUT+{1*4}+{]ct*64},x
+		inx
+:check_end
+		cpx #15*4
+		bcc :colors_off
+:done
+]ct = ]ct+1
+		--^
+		fin
+
+; Render the Peak Meters
+		do 1
+
+]ct = 0
+		lup 4
+
+		lda pump_bar_last_peak+]ct
+		cmp pump_bar_peaks+]ct
+		beq :next_peak				; no change, leave alone
+
+		; erase old peak
+		and #%11111110
+		cmp #30
+		bcc :eok
+		lda #30
+:eok
+		asl
+		tax
+
+		lda #$08
+		sta PUMPBAR_CLUT+$100+{]ct*64}+0,x
+		sta PUMPBAR_CLUT+$100+{]ct*64}+1,x
+		sta PUMPBAR_CLUT+$100+{]ct*64}+2,x
+
+		; draw new peak
+		lda pump_bar_peaks+]ct
+		sta pump_bar_last_peak+]ct
+
+
+		and #%11111110
+		cmp #30
+		bcc :drawok
+		lda #30
+:drawok
+
+		asl
+		tax
+
+		lda #$FF
+		sta PUMPBAR_CLUT+$100+{]ct*64}+0,x
+		sta PUMPBAR_CLUT+$100+{]ct*64}+1,x
+		sta PUMPBAR_CLUT+$100+{]ct*64}+2,x
+:next_peak
+]ct = ]ct+1
+		--^
+
+		fin
+
+		pla
+		sta io_ctrl
+
+		rts
+
+;------------------------------------------------------------------------------
+; Pump Bar colors
+vu_colors_off
+	adrl $ff0B0000
+	adrl $ff0B0100
+	adrl $ff0B0200
+	adrl $ff0C0300
+	adrl $ff0C0400
+	adrl $ff0C0500
+	adrl $ff0D0600
+	adrl $ff0D0800
+	adrl $ff0D0900
+	adrl $ff0E0A00
+	adrl $ff0E0B00
+	adrl $ff0E0C00
+	adrl $ff0F0D00
+	adrl $ff0F0E00
+	adrl $ff0F0F00
+
+vu_colors_on
+	adrl $ffB00202
+	adrl $ffB61402
+	adrl $ffBB2602
+	adrl $ffC13802
+	adrl $ffC74A01
+	adrl $ffCC5C01
+	adrl $ffD26E01
+	adrl $ffD88001
+	adrl $ffDD9301
+	adrl $ffE3A501
+	adrl $ffE8B701
+	adrl $ffEEC900 
+	adrl $ffF4DB00 
+	adrl $ffF9ED00 
+	adrl $ffFFFF00 
+
+vu_colors_peak
+	adrl $ff080808
+	adrl $ff080808
+	adrl $ff080808
+	adrl $ff080808
+	adrl $ff080808
+
+	adrl $ff080808
+	adrl $ff080808
+	adrl $ff080808
+	adrl $ff080808
+	adrl $ff080808
+			 
+	adrl $ff080808
+	adrl $ff080808
+	adrl $ff080808
+	adrl $ff080808
+	adrl $ff080808
+
 ;------------------------------------------------------------------------------
 txt_unlock asc 'mmu_unlock'
 		db 13,0
