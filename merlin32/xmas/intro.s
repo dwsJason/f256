@@ -1,37 +1,43 @@
-PIXEL_DATA_TEST5 = PIXEL_DATA+320*240
-PIXEL_DATA_TEST4 = PIXEL_DATA+320*192
-PIXEL_DATA_TEST3 = PIXEL_DATA+320*144
-PIXEL_DATA_TEST2 = PIXEL_DATA+320*96
-PIXEL_DATA_TEST1 = PIXEL_DATA+320*48
+IntroTick dw 0000
+IntroTickPassed
+        cpx IntroTick+1
+        bcc :no
+        bne :yes
+        cmp IntroTick
+        bcc :no
+:yes    sec     
+        rts
+:no     clc
+        rts
 
-** ZERO PAGE / DIRECT PAGE AREA
-ptr0    = $20
-ptr1    = $22
-ptr2    = $24
-ptr3    = $26
-ptr4    = $28
-ptr5    = $2A
-ptr6    = $2C
-ptr7    = $2E
-scratch = $80 ; to $8F?  I dunno.. just use ZP if ya like
+IntroTickInc
+        inc IntroTick
+        beq :inchi
+        rts
+:inchi  inc IntroTick+1
+        rts
 
-
-
-        
-IntroPix    mx %11    
-
+IntroScreen mx %11    
+        ; SET BITMAP PAL BLACK
         lda #0                  ; clut 0
         jsr BlackoutClut   
-        jsr introinit320x240
+        ; SET TEXT PAL WE'LL USE
+        jsr SetTlut
+        ; SET TEXT FG/BG
+        lda #$FF
+        jsr TermClearTextColorBuffer
+        ; SET BITMAP/LAYERS/TEXT MODE
+        jsr IntroInit320x240
         _ClutToColor #$00;#$22;#$BB
-        jsr TermInit
+        ; ...
         _TermPuts txt_intro_0
         jsr mmu_unlock
-
-
-        _SetIntroImgOffset PIXEL_DATA_TEST5 ; DEBUG STUFF - set image offset to bottom
-
+        ; @TODO - CLEAR THIS AREA FIRST?
+        ; SET BITMAP OFFSET TO BOTTOM OF TALL SCREEN
+        _SetIntroImgOffset PIXEL_DATA_OFFSET_1SCREEN ; set image offset to bottom of 2x tall intro image
+        jsr SetFireBlockFont
         _TermPuts txt_intro_1
+        ; UNPACK CLUT
 :unpack_i256
         lda #<CLUT_DATA
         ldx #>CLUT_DATA
@@ -47,8 +53,7 @@ IntroPix    mx %11
         * jsr TermPrintAI   
         * _TermCR
 :good   
-        * _TermPuts txt_intro_clut_ok
-	
+        ; UNPACK PIXELS
         lda #<PIXEL_DATA
         ldx #>PIXEL_DATA
         ldy #^PIXEL_DATA
@@ -58,45 +63,102 @@ IntroPix    mx %11
         jsr set_pic_address     ; set write address to our i256 data
 
         _TermPuts txt_intro_2
-                                ; DEBUG - read/write addresses for pixel data 
-        ; jsr get_read_address  
-   		; jsr TermPrintAXYH
-        ; _TermCR
-        ;
-        ; jsr get_write_address
-        ; jsr TermPrintAXYH
-        ; _TermCR
-
         jsr decompress_pixels
 
         _TermPuts txt_intro_3
-
-:fade   ldx #<CLUT_DATA
+        ; FADE
+:fade   ;jsr WaitVBLPoll
+        ldx #<CLUT_DATA
         ldy #>CLUT_DATA
         lda #0 ; clut 0
         jsr FadeClutToClutPtrXy
-        bcc :done
-        ;jsr WaitShorty
+        bcc :donefade
         bra :fade
 
-:done   ; we out - clear text  and start intro
+:donefade
+        jsr BlackoutClutData  ; prep for fadeout before we start
+        ; CLEAR STARTUP TEXT
         jsr TermClearTextBuffer
-
-        
-
-        jsr WaitShorty
-        jsr WaitShorty
-        jsr WaitShorty
-        jsr WaitShorty
+        ; SET FIRE TEXT COLOR (#14)
+        lda #$E0
+        jsr ColorClearBuffer
+        ; SET FONT SET
+        jsr SetFireBlockFont
+        ; IMMEDIATELY START BOUNCE
         jsr BounceIntroPic
-
+        ; CHANGE FIRE COLOR
+        * lda #$33
+        * ldx #$44
+        * ldy #$FF
+        * jsr SetFireColor14FG
+        lda #HEIGHT
+        jsr SetAverage8Height
+        ; PLAY OUT SOUND
         ldy #20
-:sound_stoppage        jsr WaitTiny
+:sound_stoppage        
         jsr BleepOffControl
         dey
         bne :sound_stoppage
 
-        jsr Wait3Seconds
+        ; @TODO - EXIT BACK FROM THIS, or write as new flame integration here with sprite.
+        ; DO FLAME
+*for i in [0..300]:        ; number of total/fire frames we'll see
+*  update_star_sprite      ;  this goes to say 100
+*  update_fire             ;  always
+*  update_fire_color       ;  always
+*  crackle                 ;   always... until??
+*  update_fade             ;  this triggers at say 200
+BufR = scratch+1
+BufG = scratch+2
+BufB = scratch+3
+
+        lda #$FF
+        sta BufR
+        lda #$44
+        sta BufG
+        lda #$22
+        sta BufB
+:fire_intro
+        jsr IntroTickInc
+        * ldx IntroTick+1
+        * lda IntroTick
+        * jsr TermPrintAXH
+        * lda #' '
+        * jsr TermCOUT
+
+        lda #<150
+        ldx #>150
+        jsr IntroTickPassed
+        bcs :notyet200
+
+        ldx #<CLUT_DATA
+        ldy #>CLUT_DATA
+        lda #0 ; clut 0
+        jsr FadeClutToClutPtrXy
+        jsr BlackoutFireColorTbl
+:notyet200        
+
+        jsr UpdateFireColor
+        jsr UpdateFireColor
+
+        jsr MakeHeat
+        jsr Scroll8
+        jsr Average8
+        lda #<200
+        ldx #>200
+        jsr WaitVBLPollAX
+        jsr DrawBufFullScreen
+        jsr Crackle
+        lda #<400
+        ldx #>400
+        jsr IntroTickPassed
+        bcc :nextpart
+
+        bra :fire_intro
+        
+
+:nextpart        
+        jsr BleepOff
         lda #0
         jsr BlackoutClut
         lda #1
@@ -107,14 +169,112 @@ IntroPix    mx %11
         rts
 
 
+BlackoutFireColorTbl
+:runonce  nop
+        ldx #FireColors*3
+        lda #0
+:blanken sta FireColorTbl,X
+        dex
+        bpl :blanken
+        lda #$60 
+        sta :runonce
+
+        rts
+_fireisdone db 0
+UpdateFireColor
+    
+
+        stz _fireisdone
+
+        ldx FireColorCur
+:blue   lda BufB    
+        cmp FireColorTblB,x
+        beq :green
+        bcc :b_up
+:b_dn   dec BufB
+        bra :b_chng
+:b_up   inc BufB
+:b_chng inc _fireisdone ; Nope
+
+:green  lda BufG 
+        cmp FireColorTblG,x
+        beq :red
+        bcc :g_up
+:g_dn   dec BufG
+        bra :g_chng
+:g_up   inc BufG
+:g_chng inc _fireisdone ; Nope
+
+:red    lda BufR
+        cmp FireColorTblR,x
+        beq :check
+        bcc :r_up
+:r_dn   dec BufR
+        bra :r_chng
+:r_up   inc BufR
+:r_chng inc _fireisdone ; Nope
+
+:check  lda _fireisdone
+        bne :return
+:next_color inx
+        stx FireColorCur
+        cpx #FireColors
+        bne :return
+        stz FireColorCur
+
+:return 
+        lda $1
+	pha
+	stz $1  ; save i/o - set to $0 (luts)
+        lda BufB
+        ldx BufG
+        ldy BufR
+        jsr SetFireColor14FG
+        pla     
+        sta $1
+        rts
+
+
+
+FireColorCur db 0
+FireColors equ #4
+FireColorTbl
+FireColorTblR
+        db $99,$FF,$ee,$FF
+        
+FireColorTblG
+        db $25,$11,$ee,$FF
+        
+FireColorTblB
+        db $BE,$FF,$ee,$00
+        
+
+
 bounce_table_ptr = ptr0
 bounce_table_val = scratch
 BounceIntroPic
+	jsr SetColorIdxF256A    ; needed for flame
+        lda #$33
+        ldx #$44
+        ldy #$55
+        jsr SetFireColor14FG    ; dark dust color
+        lda #HEIGHT-8           ; shorten window
+        jsr SetAverage8Height
+
         lda #<bounce_table
         sta bounce_table_ptr
         lda #>bounce_table
         sta bounce_table_ptr+1
 :bounce_loop
+ ;       jsr Scroll8    ; trololol... fuck accuracy
+	jsr Average8
+        lda $1
+        pha
+        lda #2
+        sta $1
+	jsr DrawBufFullScreen
+        pla 
+        sta $1
 :fetchadr lda (bounce_table_ptr)
         sta bounce_table_val
         inc bounce_table_ptr
@@ -146,7 +306,8 @@ BounceIntroPic
 :ok     
         lda bounce_table_val+1  ; sound check!
         bne :not_zero
-        jsr BleepOn
+        jsr BleepOn2
+        jsr MakeHeatAlt
         bra :cont
 :not_zero 
         jsr BleepOffControl
@@ -168,6 +329,15 @@ BounceIntroPic
         adc bounce_table_val+2
         sta $d103
 
+        lda #2
+        sta io_ctrl
+        lda #<200
+        ldX #>200
+
+        jsr WaitVBLPollAX
+        bra :bounce_loop
+
+
         * _SetIntroImgOffset PIXEL_DATA        
         * stz io_ctrl
         * lda #<]1
@@ -176,13 +346,10 @@ BounceIntroPic
         * sta $D102
         * lda #^]1
         * sta $D103
-        lda #2
-        sta io_ctrl
-        jsr WaitTiny
-        bra :bounce_loop
 
 
-introinit320x240
+
+IntroInit320x240
         php
         sei
 
@@ -190,19 +357,15 @@ introinit320x240
         stz io_ctrl
 
         ; enable the graphics mode
-        lda #%00001111  ; gamma + bitmap + graphics + overlay + text
-;               lda #%00000001  ; text
+        lda #%00001111  ;  bitmap + graphics + overlay + text
         sta $D000
-        ;lda #%110       ; text in 40 column when it's enabled
-        ;sta $D001
-        stz $D001
+        stz $D001       ; 80x60
 
-        ; layer stuff - take from Jr manual
-        stz $D002  ; layer ctrl 0
-        stz $D003  ; layer ctrl 3
+        ; layer stuff - assign bitmap layer zero (0) to all three layers
+        stz $D002  ; layer1 + layer0
+        stz $D003  ; layer2
 
-        ; set address of image, since image uncompressed, we just display it
-        ; where we loaded it.
+        ; set address of uncompressed image to display
         lda #<PIXEL_DATA
         sta $D101
         lda #>PIXEL_DATA
@@ -319,6 +482,68 @@ FadeClutToClutPtrXy
         rts
 
 _fctcpxy_not_done db 0 ; change to zp
+Tlut0Fg equ $D800
+Tlut0Bg equ Tlut0Fg+$40
+Tlut1Fg equ $D804
+Tlut1Bg equ Tlut1Fg+$40
+Tlut2Fg equ $D808
+Tlut2Bg equ Tlut2Fg+$40
+Tlut3Fg equ $D80C
+Tlut3Bg equ Tlut3Fg+$40
+Tlut4Fg equ $D810
+Tlut4Bg equ Tlut4Fg+$40
+Tlut5Fg equ $D814
+Tlut5Bg equ Tlut5Fg+$40
+Tlut6Fg equ $D818
+Tlut6Bg equ Tlut6Fg+$40
+Tlut14Fg equ $D838
+Tlut14Bg equ Tlut14Fg+$40
+Tlut15Fg equ $D83C
+Tlut15Bg equ Tlut15Fg+$40
+SetFireColor14FG
+        pha
+        lda $1
+	pha
+	stz $1  ; save i/o - set to $0 (luts)
+
+    
+       
+        stx Tlut14Fg+1
+        sty Tlut14Fg+2
+        pla
+        plx ; R val
+        stx Tlut14Fg
+	sta $1
+	rts
+
+SetTlut 
+        lda $1
+	pha
+	stz $1  ; save i/o - set to $0 (luts)
+
+
+        lda #$FF        
+        sta Tlut15Fg    ; 15 - white on "black"
+        sta Tlut15Fg+1
+        sta Tlut15Fg+2
+
+        stz Tlut15Bg
+        stz Tlut15Bg+1
+        stz Tlut15Bg+2
+        
+        lda #$11
+        sta Tlut14Fg    ; 14 - red on "black"
+        sta Tlut14Fg+1
+        lda #$ff
+        sta Tlut14Fg+2
+
+        stz Tlut14Bg
+        stz Tlut14Bg+1
+        stz Tlut14Bg+2
+        
+        pla  
+	sta $1
+	rts
 
 
 * clut in a - sets series of ptr4-ptr7 
@@ -433,27 +658,111 @@ BlackoutClut
         jmp SetClutToColorPtrXY
 
 
-**** This wasn't generic but helps explain the logic of wiping a clut
-* BlackoutClutOG
-*         lda #1          
-*         sta io_ctrl     ; <--- access vicky CLUTs
-*         ; copy the clut up there
-*         ldx #0
-* ]lp     stz VKY_GR_CLUT_0,x
-*         stz VKY_GR_CLUT_0+$100,x
-*         stz VKY_GR_CLUT_0+$200,x
-*         stz VKY_GR_CLUT_0+$300,x
-*         dex
-*         bne ]lp
-*         lda #2          ; <--- access text IO
-*         sta io_ctrl
-*         rts
+BlackoutClutData 
+:runonce nop        
+        lda #<CLUT_DATA
+        sta ptr0
+        sta ptr1
+        sta ptr2
+        sta ptr3
+        lda #>CLUT_DATA
+        sta ptr0+1
+        inc
+        sta ptr1+1
+        inc
+        sta ptr2+1
+        inc
+        sta ptr3+1
+        ldy #0
+        tya
+:blanken sta (ptr0),y
+        sta (ptr1),y
+        sta (ptr2),y
+        sta (ptr3),y
+        iny
+        bne :blanken  
+        lda #$60
+        sta :runonce
+        rts
+        
 
+
+
+Crackle
+        lda $1
+        pha
+        stz $1
+
+        jsr galois16o
+        cmp #$F0
+        bcc :cont
+        bra :crack
+        
+        lda _crack_is_wack
+        bne :cont
+:crack  cmp #$F6
+        bcs :c2
+:c1     lda #$F7       ; %11110000 = Channel 3 attenuation = 0
+        sta $D608
+        lda #%11100010       ; %11100110 = white noise, f = C/512
+        sta $D608
+        bra :done
+:c2     cmp #$F8
+        bcs :c3
+        lda #$F6       ; %11110000 = Channel 3 attenuation = 0
+        sta $D608
+        lda #%11100110       ; %11100110 = white noise, f = C/512
+        sta $D608
+        bra :done
+:c3     lda #$F9       ; %11110000 = Channel 3 attenuation = 0
+        sta $D608
+        lda #%11100111       ; %11100110 = white noise, f = C/512
+        sta $D608
+        bra :done
+        
+
+
+:cont  ;dec _crack_is_wack
+        lda #$FF        ; off - silenve
+        sta $D608 
+        lda #$9F        ; %10011111 = Channel 1 attenuation = 15 (silence)
+        sta $D608
+:done
+        pla
+        sta $1
+        rts
+_crack_is_wack db 0
+
+
+
+BleepOn2
+        lda #2 
+        sta _bleepcontrol
+
+        stz io_ctrl
+        lda #$F8       ; %11110000 = Channel 3 attenuation = 0
+        sta $D608
+        lda #%11101110       ; %11100110 = white noise, f = C/512
+        sta $D608
+
+
+
+        lda #$98        ; %10010000 = Channel 1 attenuation = 0
+        sta $D608
+        lda #$8E        ; %1rrrffff = set the low 4 bits of the frequency code
+        sta $D608
+        lda #$3F        ; %0nffffff = Set the high 6 bits of the frequency
+        sta $D608
+
+        lda #2
+        sta io_ctrl
+        rts
+        
 
 
 
 BleepOn 
-        lda #10 
+        lda #2 
         sta _bleepcontrol
 
         stz io_ctrl
@@ -545,47 +854,286 @@ Wait3Seconds
 		bne ]wait
 		rts
 
+TextIo          ldx   #2
+                stx   MMU_IO_CTRL           ; map IO buffer at $C000 to text memory
+                rts
 
+ColorIo         ldx   #3
+                stx   MMU_IO_CTRL           ; map IO buffer at $C000 to text memory
+                rts
+* fg/bg color in A
+ColorClearBuffer jsr  ColorIo
+                bra   FillTextBuffer
+TextClearBuffer jsr TextIo
+                lda #' '
+
+FillTextBuffer  ldx   #0
+:lp1
+                sta   $C000,x
+                sta   $C100,x
+                sta   $C200,x
+                sta   $C300,x
+                sta   $C400,x
+                sta   $C500,x
+                sta   $C600,x
+                sta   $C700,x
+                sta   $C800,x
+                sta   $C900,x
+                sta   $CA00,x
+                sta   $CB00,x
+                sta   $CC00,x
+                sta   $CD00,x
+                sta   $CE00,x
+                sta   $CF00,x
+                sta   $D000,x
+                sta   $D100,x
+                sta   $D1C0,x               ; offset to end on last char (w/ some overwrite)
+                inx
+                bne   :lp1
+                rts
 
 
 txt_intro_0 asc ' ',0D,0D,'    DreamOS v2.3 init !',0D,0D,00
+        DO RELEASE
 txt_intro_1 asc '       - decompressing snowflakes',0D,00
 txt_intro_2 asc '       - wrapping presents',0D,00
 txt_intro_3 asc '       - baking cookies',0D,00
-
+        ELSE
+txt_intro_1 asc '       - decompressing CLUT',0D,00
+txt_intro_2 asc '       - decompressing PIXELS',0D,00
+txt_intro_3 asc '       - start fade',0D,00
+        FIN
 txt_intro_clut_ok asc '! CLUT  ok',0D,00
 
 bounce_table
-  adr $012c00,$012ac0,$012ac0,$012980,$012980,$012840,$0125c0,$012480,$012200,$011f80
-  adr $011d00,$011940,$0116c0,$011300,$010f40,$010a40,$010680,$010180,$00fc80,$00f780
-  adr $00f280,$00ec40,$00e600,$00e100,$00d980,$00d340,$00cd00,$00c580,$00be00,$00b7c0
-  adr $00b040,$00a780,$00a000,$009880,$008fc0,$008700,$007f80,$0076c0,$006e00,$006540
-  adr $005c80,$005280,$0049c0,$004100,$003700,$002e40,$002580,$001b80,$0012c0,$0008c0
-  adr $000000,$000640,$000dc0,$001400,$001b80,$002300,$002940,$0030c0,$003700,$003e80
-  adr $0044c0,$004b00,$005280,$0058c0,$005f00,$006540,$006b80,$0071c0,$007800,$007e40
-  adr $008340,$008980,$008e80,$0094c0,$0099c0,$009ec0,$00a3c0,$00a8c0,$00ac80,$00b180
-  adr $00b540,$00b900,$00bcc0,$00c080,$00c440,$00c800,$00ca80,$00ce40,$00d0c0,$00d340
-  adr $00d5c0,$00d700,$00d980,$00dac0,$00dc00,$00dd40,$00de80,$00dfc0,$00dfc0,$00dfc0
-  adr $00e100,$00dfc0,$00dfc0,$00dfc0,$00de80,$00dd40,$00dc00,$00dac0,$00d980,$00d700
-  adr $00d5c0,$00d340,$00d0c0,$00ce40,$00ca80,$00c800,$00c440,$00c080,$00bcc0,$00b900
-  adr $00b540,$00b180,$00ac80,$00a8c0,$00a3c0,$009ec0,$0099c0,$0094c0,$008e80,$008980
-  adr $008340,$007e40,$007800,$0071c0,$006b80,$006540,$005f00,$0058c0,$005280,$004b00
-  adr $0044c0,$003e80,$003700,$0030c0,$002940,$002300,$001b80,$001400,$000dc0,$000640
-  adr $000000,$000500,$000a00,$000f00,$001400,$001900,$001e00,$002440,$002940,$002e40
-  adr $003340,$003700,$003c00,$004100,$004600,$0049c0,$004ec0,$0053c0,$005780,$005b40
-  adr $006040,$006400,$0067c0,$006b80,$006f40,$0071c0,$007580,$007940,$007bc0,$007e40
-  adr $0080c0,$008340,$0085c0,$008840,$008ac0,$008c00,$008e80,$008fc0,$009100,$009240
-  adr $009380,$009380,$0094c0,$0094c0,$0094c0,$009600,$0094c0,$0094c0,$0094c0,$009380
-  adr $009380,$009240,$009100,$008fc0,$008e80,$008c00,$008ac0,$008840,$0085c0,$008340
-  adr $0080c0,$007e40,$007bc0,$007940,$007580,$0071c0,$006f40,$006b80,$0067c0,$006400
-  adr $006040,$005b40,$005780,$0053c0,$004ec0,$0049c0,$004600,$004100,$003c00,$003700
-  adr $003340,$002e40,$002940,$002440,$001e00,$001900,$001400,$000f00,$000a00,$000500
-  adr $000000,$000280,$000500,$0008c0,$000b40,$000dc0,$001180,$001400,$001680,$001900
-  adr $001b80,$001f40,$0021c0,$002440,$0026c0,$002940,$002bc0,$002e40,$002f80,$003200
-  adr $003480,$003700,$003840,$003ac0,$003c00,$003d40,$003fc0,$004100,$004240,$004380
-  adr $0044c0,$004600,$004740,$004740,$004880,$004880,$0049c0,$0049c0,$0049c0,$0049c0
-  adr $004b00,$0049c0,$0049c0,$0049c0,$0049c0,$004880,$004880,$004740,$004740,$004600
-  adr $0044c0,$004380,$004240,$004100,$003fc0,$003d40,$003c00,$003ac0,$003840,$003700
-  adr $003480,$003200,$002f80,$002e40,$002bc0,$002940,$0026c0,$002440,$0021c0,$001f40
-  adr $001b80,$001900,$001680,$001400,$001180,$000dc0,$000b40,$0008c0,$000500,$000280
+  adr $012c00,$012ac0,$012980,$0125c0,$012200,$011d00,$0116c0,$010f40,$010680,$00fc80
+  adr $00f280,$00e600,$00d980,$00cd00,$00be00,$00b040,$00a000,$008fc0,$007f80,$006e00
+  adr $005c80,$0049c0,$003700,$002580,$0012c0,$000000,$000dc0,$001b80,$002940,$003700
+  adr $0044c0,$005280,$005f00,$006b80,$007800,$008340,$008e80,$0099c0,$00a3c0,$00ac80
+  adr $00b540,$00bcc0,$00c440,$00ca80,$00d0c0,$00d5c0,$00d980,$00dc00,$00de80,$00dfc0
+  adr $00e100,$00dfc0,$00de80,$00dc00,$00d980,$00d5c0,$00d0c0,$00ca80,$00c440,$00bcc0
+  adr $00b540,$00ac80,$00a3c0,$0099c0,$008e80,$008340,$007800,$006b80,$005f00,$005280
+  adr $0044c0,$003700,$002940,$001b80,$000dc0,$000000,$000a00,$001400,$001e00,$002940
+  adr $003340,$003c00,$004600,$004ec0,$005780,$006040,$0067c0,$006f40,$007580,$007bc0
+  adr $0080c0,$0085c0,$008ac0,$008e80,$009100,$009380,$0094c0,$0094c0,$0094c0,$0094c0
+  adr $009380,$009100,$008e80,$008ac0,$0085c0,$0080c0,$007bc0,$007580,$006f40,$0067c0
+  adr $006040,$005780,$004ec0,$004600,$003c00,$003340,$002940,$001e00,$001400,$000a00
+  adr $000000,$000500,$000b40,$001180,$001680,$001b80,$0021c0,$0026c0,$002bc0,$002f80
+  adr $003480,$003840,$003c00,$003fc0,$004240,$0044c0,$004740,$004880,$0049c0,$0049c0
+  adr $004b00,$0049c0,$0049c0,$004880,$004740,$0044c0,$004240,$003fc0,$003c00,$003840
+  adr $003480,$002f80,$002bc0,$0026c0,$0021c0,$001b80,$001680,$001180,$000b40,$000500
   adr $000000,$FFFFFF
+
+PIXEL_DATA_OFFSET_1SCREEN = PIXEL_DATA+320*240
+
+** ZERO PAGE / DIRECT PAGE AREA
+ptr0    = $20
+ptr1    = $22
+ptr2    = $24
+ptr3    = $26
+ptr4    = $28
+ptr5    = $2A
+ptr6    = $2C
+ptr7    = $2E
+ptr8    = $30
+ptr9    = $32
+ptr10   = $34
+ptr11   = $36
+ptr12   = $38
+ptr13   = $3A
+ptr14   = $3C
+ptr15   = $3E
+
+scratch = $80 ; to $8F?  I dunno.. just use ZP if ya like
+
+
+galois16o
+	lda seed+1
+	tay ; store copy of high byte
+	; compute seed+1 ($39>>1 = %11100)
+	lsr ; shift to consume zeroes on left...
+	lsr
+	lsr
+	sta seed+1 ; now recreate the remaining bits in reverse order... %111
+	lsr
+	eor seed+1
+	lsr
+	eor seed+1
+	eor seed+0 ; recombine with original low byte
+	sta seed+1
+	; compute seed+0 ($39 = %111001)
+	tya ; original high byte
+	sta seed+0
+	asl
+	eor seed+0
+	asl
+	eor seed+0
+	asl
+	asl
+	asl
+	eor seed+0
+	sta seed+0
+	rts
+seed    dw $1234
+* SetFireFont     
+*         lda $1
+*         pha
+*         lda #1
+*         sta $1 ; font set 0 now at c000 - c7ff
+
+*         ldy #FireFontLen
+*         ldx #0
+* :copy        lda FireFont,x
+*         sta $c000,X
+*         inx
+*         dey
+*         bpl :copy
+*         pla
+*         sta $1
+*         rts
+* FireFont 
+* :0
+*   db %00000000
+*   db %00000000
+*   db %00000000
+*   db %00000000
+*   db %00000000
+*   db %00000000
+*   db %00000000
+*   db %00000000
+* :1
+*   db %00000000
+*   db %00000000
+*   db %00000000
+*   db %00000000
+*   db %00000000
+*   db %00000000
+*   db %00000100
+*   db %00000000
+* :2
+*   db %01100000
+*   db %00000011
+*   db %00010001
+*   db %00000010
+*   db %00011000
+*   db %00100000
+*   db %00000000
+*   db %00010001
+* :3
+*   db %00000010
+*   db %00000100
+*   db %00000100
+*   db %00100000
+*   db %00100000
+*   db %00101010
+*   db %00010010
+*   db %00000000
+* :4
+*   db %01100011
+*   db %00101010
+*   db %00010000
+*   db %00110100
+*   db %00110010
+*   db %01010011
+*   db %00011000
+*   db %01000000
+* :5
+*   db %10101001
+*   db %10101010
+*   db %11011000
+*   db %10110011
+*   db %11001000
+*   db %00100001
+*   db %10010010
+*   db %00010010
+* :6
+*   db %10000000
+*   db %01000001
+*   db %11110111
+*   db %11000001
+*   db %11010101
+*   db %10000010
+*   db %00000000
+*   db %11110010
+* :7
+*   db %11101010
+*   db %10101101
+*   db %11000000
+*   db %10100101
+*   db %10100000
+*   db %00111100
+*   db %00100110
+*   db %01101011
+* :8
+*   db %10110111
+*   db %10111101
+*   db %11100100
+*   db %11110111
+*   db %01010011
+*   db %11010001
+*   db %10111001
+*   db %01011100
+* :9
+*   db %11101000
+*   db %10010011
+*   db %11100000
+*   db %10111101
+*   db %11101110
+*   db %11111111
+*   db %11011101
+*   db %11100100
+* :A
+*   db %10011101
+*   db %11111011
+*   db %11010100
+*   db %11011111
+*   db %11111111
+*   db %11010110
+*   db %10111011
+*   db %11010111
+* :B
+*   db %10110011
+*   db %11111111
+*   db %10110111
+*   db %10111111
+*   db %01111111
+*   db %11011111
+*   db %11011111
+*   db %11010011
+* :C
+*   db %11011110
+*   db %11111111
+*   db %11010111
+*   db %01111111
+*   db %11111111
+*   db %01111111
+*   db %11111111
+*   db %11111111
+* :D
+*   db %11111111
+*   db %11111111
+*   db %01111111
+*   db %10111111
+*   db %11111111
+*   db %11110111
+*   db %11111111
+*   db %11111111
+* :E
+*   db %11111111
+*   db %11111111
+*   db %11111111
+*   db %11111111
+*   db %11111111
+*   db %11111111
+*   db %11111111
+*   db %11111111
+* :F
+*   db %11111111
+*   db %11111111
+*   db %11111111
+*   db %11111111
+*   db %11111111
+*   db %11111111
+*   db %11111111
+*   db %11111111
+* FireFontLen = *-FireFont        ; fits in a byte for 16chars*8bytes 

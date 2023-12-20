@@ -47,6 +47,7 @@ main_code_start
 		put mod.s
 		put mixer.s
 		put version.s   ; hardware version checker
+		put flame.s
 main_code_end
 
 ;------------------------------------------------------------------------------

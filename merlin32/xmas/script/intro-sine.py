@@ -50,10 +50,10 @@ def print_chunked(data, chunk_len, line_pfx):
 # print(intify(scale_to(get_sin_range(0,180,20),240)))
 
 bounce_vals = []
-bounce_vals.extend(intify(scale_to(get_sin_range(90,180,50),240)))
-bounce_vals.extend(intify(scale_to(get_sin_range(0,180,100),180))[1:])	#[1:] to dedupe 0 values since we start/end at same/opposite angle
-bounce_vals.extend(intify(scale_to(get_sin_range(0,180,90),120))[1:])
-bounce_vals.extend(intify(scale_to(get_sin_range(0,180,80),60))[1:])
+bounce_vals.extend(intify(scale_to(get_sin_range(90,180,25),240)))	# shorter range because half bounce
+bounce_vals.extend(intify(scale_to(get_sin_range(0,180,50),180))[1:])	#[1:] to dedupe 0 values since we start/end at same/opposite angle
+bounce_vals.extend(intify(scale_to(get_sin_range(0,180,45),120))[1:])
+bounce_vals.extend(intify(scale_to(get_sin_range(0,180,40),60))[1:])
 print(bounce_vals)
 print()
 

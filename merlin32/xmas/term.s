@@ -161,6 +161,17 @@ TermCOUT
 		rts
 
 ;------------------------------------------------------------------------------
+; Fill Text Color Buffer with designated color from A
+TermClearTextColorBuffer
+		pha
+		
+		lda #3
+		sta io_ctrl         ; swap in the color memory
+		pla
+		bra	:clear
+
+
+;------------------------------------------------------------------------------
 ; Fill Text Buffer with spaces
 
 TermClearTextBuffer

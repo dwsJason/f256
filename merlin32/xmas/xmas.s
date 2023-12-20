@@ -2,6 +2,9 @@
 ; by two guys
 ; december 2023
 		mx %11
+; ifdef for debug vs release
+; set to 1 for final release!
+RELEASE = 0
 
 ; System Bus Pointer's
 ;pSource  equ $10
@@ -98,14 +101,14 @@ start
 
 		; Test for minimum version of hardware
 		jsr HasGoodHardware
-
-		jsr IntroPix 	; <-- stubbing in my part here (db)
+		jsr TermInit
+		jsr IntroScreen 	; <-- stubbing in my part here (db)
 
 ; Jr Vicky can't see above this
 		jsr init320x240
 
-		jsr TermInit
 
+		jsr TermInit
 		jsr mmu_unlock
 
 		_TermPuts txt_unlock
@@ -294,6 +297,57 @@ WaitVBL
 		beq ]wait
 		pla
 		rts
+
+WaitVBLPassedPoll
+	rts
+		lda $1
+		pha
+		stz $1
+* LINE_NO = 241*2
+LINE_ALT = 100*2
+        lda #<LINE_ALT
+        ldx #>LINE_ALT
+]wait
+        cpx $D01B
+        bcc ]wait
+]wait
+        cmp $D01A
+        bcc ]wait
+		pla 
+		sta $1
+        rts
+
+WaitVBLPollAX
+		ldy $1
+		phy 
+		stz $1
+		bra :waitforlineAX
+
+
+WaitVBLPoll
+		lda $1
+		pha
+		stz $1
+LINE_NO = 241*2
+        lda #<LINE_NO
+        ldx #>LINE_NO
+:waitforlineAX		
+]wait
+        cpx $D01B
+        beq ]wait
+]wait
+        cmp $D01A
+        beq ]wait
+
+]wait
+        cpx $D01B
+        bne ]wait
+]wait
+        cmp $D01A
+        bne ]wait
+		pla 
+		sta $1
+        rts
 ;
 ; X = offset to picture to set
 ; 
