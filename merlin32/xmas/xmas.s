@@ -235,6 +235,10 @@ PICNUM = 0   ; fireplace picture
 
 ;-----------------------------------------------
 
+		lda #2
+		sta io_ctrl
+		_TermPuts txt_midtro_4 
+
 		jsr MixerInit
 
 		; hey needs to start on an 8k boundary
@@ -300,7 +304,7 @@ TEST_VOICE equ VOICE0 ; all 4 voices work
 
 		; end of wave to play
 		ldax pSource
-		stac TEST_VOICE+osc_pWaveEnd
+		stax TEST_VOICE+osc_pWaveEnd
 		lda READ_MMU
 		sta TEST_VOICE+osc_pWaveEnd+2
 
@@ -315,7 +319,7 @@ TEST_VOICE equ VOICE0 ; all 4 voices work
 		lda #2
 		sta io_ctrl
 
-]what   _TermPuts txt_midtro_4
+]what   	;_TermPuts txt_midtro_4  
 
 		jsr WaitVBL
 
