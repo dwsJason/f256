@@ -46,6 +46,7 @@ main_code_start
 		put irq.s
 		put mod.s
 		put mixer.s
+		put colors.s
 		put version.s   ; hardware version checker
 		put flame.s     ; this comment stops merlin32 crash
 main_code_end

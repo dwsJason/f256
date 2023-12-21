@@ -4,7 +4,7 @@
 		mx %11
 ; ifdef for debug vs release
 ; set to 1 for final release!
-RELEASE = 0
+RELEASE = 1
 
 ; System Bus Pointer's
 ;pSource  equ $10
@@ -113,20 +113,22 @@ PIXEL_DATA = $010000            ; @dwsJason - I may need to move this if you wan
 start
 		sei
 
-		; Test for minimum version of hardware
+	; Test for minimum version of hardware
 		jsr HasGoodHardware
 		jsr TermInit
 		jsr IntroScreen 	; <-- stubbing in my part here (db)
 
-; Jr Vicky can't see above this
+		jsr initColors
+
 		jsr init320x240
 
-
 		jsr TermInit
+
+        _TermPuts txt_midtro_0
+
 		jsr mmu_unlock
 
-		_TermPuts txt_unlock
-
+		;_TermPuts txt_unlock
 
 
 		lda #<CLUT_DATA
@@ -134,14 +136,14 @@ start
 		ldy #^CLUT_DATA
 		jsr set_write_address
 
-		_TermPuts txt_setaddr
+		;_TermPuts txt_setaddr
 
 PICNUM = 0   ; fireplace picture
 
 		ldx #PICNUM ; picture #
 		jsr set_pic_address
 
-		_TermPuts txt_setpicaddr
+		;_TermPuts txt_setpicaddr
 		
 		jsr get_read_address
 		jsr TermPrintAXYH
@@ -158,7 +160,7 @@ PICNUM = 0   ; fireplace picture
 		_TermCR
 
 :good
-		_TermPuts txt_decompress_clut
+		_TermPuts txt_midtro_1
 		
 		php
 		sei
@@ -185,7 +187,7 @@ PICNUM = 0   ; fireplace picture
 
 		plp
 
-		_TermPuts txt_copy_clut
+;		_TermPuts txt_copy_clut
 		
 		lda #<TILE_DATA0
 		ldx #>TILE_DATA0
@@ -203,15 +205,11 @@ PICNUM = 0   ; fireplace picture
 		jsr get_write_address
 		jsr TermPrintAXYH
 		_TermCR
-		
-		php
-		sei
+
+		_TermPuts txt_midtro_2
+		_TermPuts txt_midtro_3
 
 		jsr decompress_pixels
-
-		plp
-
-		_TermPuts txt_decompress
 		
 ;-----------------------------------------------
 
@@ -225,17 +223,124 @@ PICNUM = 0   ; fireplace picture
 
 		jsr decompress_map
 
-		_TermPuts txt_decompress_map
 ;-----------------------------------------------
 
 ; Going to image at $01/0000
 ; Going to put palette at $03/0000 
 
-		sei
 
 		jsr InitSpriteFont
 
 		jsr initPumpBars  ; decompress the pump bars, and initialize the colors
+
+;-----------------------------------------------
+
+		jsr MixerInit
+
+		; hey needs to start on an 8k boundary
+		lda io_ctrl
+		pha
+
+		stz io_ctrl
+
+		ldaxy #mod_xmas
+		jsr ModInit
+
+		jsr InstallIRQ
+
+		cli
+
+		pla
+		sta io_ctrl
+
+TEST_VOICE equ VOICE0 ; all 4 voices work
+
+:pInst     = temp0
+:pStart    = temp1
+:iLength   = temp2
+
+
+		ldaxy #audio_data_start
+		jsr set_read_address
+		ldaxy #audio_data_start
+		jsr set_write_address
+
+		ldaxy #audio_data_end-audio_data_start
+		sta <:iLength
+
+		ldx <:iLength
+		ldy <:iLength+1
+
+]mloop
+		jsr readbyte
+		eor #$FF
+		lsr
+		lsr
+		lsr
+		lsr
+		jsr writebyte
+
+		dex
+		bne ]mloop
+
+		dey
+		bpl ]mloop
+
+		ldaxy #audio_data_start
+		jsr set_read_address
+
+		; start of wave to play
+		ldax pSource
+		stax TEST_VOICE+osc_pWave+1
+		lda READ_MMU
+		sta TEST_VOICE+osc_pWave+3
+
+		ldaxy #audio_data_end
+		jsr set_read_address
+
+		; end of wave to play
+		ldax pSource
+		stac TEST_VOICE+osc_pWaveEnd
+		lda READ_MMU
+		sta TEST_VOICE+osc_pWaveEnd+2
+
+		ldax #$100		 ; why not try for 11khz
+		stax TEST_VOICE+osc_frequency
+
+		lda #os_playing_singleshot
+		sta TEST_VOICE+osc_state
+
+;-----------------------------------------------
+
+		lda #2
+		sta io_ctrl
+
+]what   _TermPuts txt_midtro_4
+
+		jsr WaitVBL
+
+		lda TEST_VOICE+osc_state
+		bne ]what
+
+		jsr WaitVBL
+
+		; hey needs to start on an 8k boundary
+		lda io_ctrl
+		pha
+
+		jsr ModPlay
+
+		stz io_ctrl
+		; reveal shit, hide text
+		lda #%01111100  ; everything is enabled
+		sta VKY_MSTR_CTRL_0
+
+		pla
+		sta io_ctrl
+
+;;
+;;  MAIN LOOP HERE ------------------------------------------------------------
+;;
 
 		stz io_ctrl
 		stz xpos
@@ -244,25 +349,6 @@ PICNUM = 0   ; fireplace picture
 
 		stz frame_number
 
-		jsr MixerInit
-
-		; hey needs to start on an 8k boundary
-		lda io_ctrl
-		pha
-
-		ldaxy #mod_xmas
-		jsr ModInit
-
-		jsr InstallIRQ
-		cli
-		jsr ModPlay
-
-		pla
-		sta io_ctrl
-
-;;
-;;  MAIN LOOP HERE ------------------------------------------------------------
-;;
 
 ]main_loop
 		jsr WaitVBL
@@ -413,7 +499,8 @@ init320x240
 		stz io_ctrl
 
 		; enable the graphics mode
-		lda #%01111111  ; everything is enabled
+		;lda #%01111111  ; everything is enabled
+		lda #%010000001  ; gamma + text
 		sta VKY_MSTR_CTRL_0
 		stz VKY_MSTR_CTRL_1
 
@@ -708,61 +795,6 @@ PumpBarRender mx %11
 		rts
 
 ;------------------------------------------------------------------------------
-; Pump Bar colors
-vu_colors_off
-	adrl $ff0B0000
-	adrl $ff0B0100
-	adrl $ff0B0200
-	adrl $ff0C0300
-	adrl $ff0C0400
-	adrl $ff0C0500
-	adrl $ff0D0600
-	adrl $ff0D0800
-	adrl $ff0D0900
-	adrl $ff0E0A00
-	adrl $ff0E0B00
-	adrl $ff0E0C00
-	adrl $ff0F0D00
-	adrl $ff0F0E00
-	adrl $ff0F0F00
-
-vu_colors_on
-	adrl $ffB00202
-	adrl $ffB61402
-	adrl $ffBB2602
-	adrl $ffC13802
-	adrl $ffC74A01
-	adrl $ffCC5C01
-	adrl $ffD26E01
-	adrl $ffD88001
-	adrl $ffDD9301
-	adrl $ffE3A501
-	adrl $ffE8B701
-	adrl $ffEEC900 
-	adrl $ffF4DB00 
-	adrl $ffF9ED00 
-	adrl $ffFFFF00 
-
-vu_colors_peak
-	adrl $ff080808
-	adrl $ff080808
-	adrl $ff080808
-	adrl $ff080808
-	adrl $ff080808
-
-	adrl $ff080808
-	adrl $ff080808
-	adrl $ff080808
-	adrl $ff080808
-	adrl $ff080808
-			 
-	adrl $ff080808
-	adrl $ff080808
-	adrl $ff080808
-	adrl $ff080808
-	adrl $ff080808
-
-;------------------------------------------------------------------------------
 txt_unlock asc 'mmu_unlock'
 		db 13,0
 
@@ -800,5 +832,15 @@ txt_L cstr ' L'
 
 txt_massage_wave asc 'Massage the instruments'
 		db 13,0
+
+;------------------------------------------------------------------------------
+
+txt_midtro_0 asc ' ',0D,0D,'    DreamOS v2.3 - INTRUSION DETECTED!!',0D,0D,00
+txt_midtro_1 asc '****** SEG FAULT $5An7A $15 $h323',0D,00
+txt_midtro_2 asc '****** BRINGING IRQ ONLINE',0D,00
+txt_midtro_3 asc '****** 16060 INTERRUPTS PER SECOND',0D,0D,0D,00
+txt_midtro_4 asc '       HO HO HO, MERRY fnXmas!!!',0D,00
+
+
 ;------------------------------------------------------------------------------
 
