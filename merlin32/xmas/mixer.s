@@ -18,23 +18,23 @@ MixerInit
 
 		; even when not running they output samples
 		; so setup some silence
-		lda #$08 ; middle of the wave?
-		sta VOICE0+osc_sample
-		sta VOICE1+osc_sample
-		sta VOICE2+osc_sample
-		sta VOICE3+osc_sample
+;		lda #$08 ; middle of the wave?
+;		sta VOICE0+osc_sample
+;		sta VOICE1+osc_sample
+;		sta VOICE2+osc_sample
+;		sta VOICE3+osc_sample
 
 		; default volume - not used
-		lda #$7f
-		sta VOICE0+osc_left_vol
-		sta VOICE1+osc_left_vol
-		sta VOICE2+osc_left_vol
-		sta VOICE3+osc_left_vol
-
-		sta VOICE0+osc_right_vol
-		sta VOICE1+osc_right_vol
-		sta VOICE2+osc_right_vol
-		sta VOICE3+osc_right_vol
+;		lda #$7f
+;		sta VOICE0+osc_left_vol
+;		sta VOICE1+osc_left_vol
+;		sta VOICE2+osc_left_vol
+;		sta VOICE3+osc_left_vol
+;
+;		sta VOICE0+osc_right_vol
+;		sta VOICE1+osc_right_vol
+;		sta VOICE2+osc_right_vol
+;		sta VOICE3+osc_right_vol
 
 		lda #1 ; default frequency is 16khz, or 1.00
 		stz VOICE0+osc_frequency+0
@@ -159,28 +159,28 @@ check_loop
 		; we are at the end - reset
 		lda ]1+osc_state
 		lsr
-		bcc loop_the_wave
+;		bcc loop_the_wave
 
 		; single shot
 		stz ]1+osc_state  ; stop the osc
 		clc
 		jmp next_osc
 
-loop_the_wave
+;loop_the_wave
 
 		; I want the fraction to carry through here
 		; $$TODO - fix the fraction here
 
-		lda ]1+osc_pWaveLoop+2  		; block copies
-		sta ]1+osc_pWave+3
-
-		lda ]1+osc_pWaveLoop+1
-		sta ]1+osc_pWave+2
-
-		lda ]1+osc_pWaveLoop
-		sta ]1+osc_pWave+1
-
-		stz ]1+osc_pWave   ; wipe the fraction
+;		lda ]1+osc_pWaveLoop+2  		; block copies
+;		sta ]1+osc_pWave+3
+;
+;		lda ]1+osc_pWaveLoop+1
+;		sta ]1+osc_pWave+2
+;
+;		lda ]1+osc_pWaveLoop
+;		sta ]1+osc_pWave+1
+;
+;		stz ]1+osc_pWave   ; wipe the fraction
 
 next_osc
 		<<<

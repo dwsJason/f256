@@ -361,15 +361,15 @@ ModPlayerTick mx %11
 		sta <osc_pWave+3,x
 
 		; loop address 24
-		ldy #i_sample_loop_badr
-		lda (:pInst),y
-		sta <osc_pWaveLoop,x
-		iny
-		lda (:pInst),y
-		sta <osc_pWaveLoop+1,x
-		iny
-		lda (:pInst),y
-		sta <osc_pWaveLoop+2,x
+;		ldy #i_sample_loop_badr
+;		lda (:pInst),y
+;		sta <osc_pWaveLoop,x
+;		iny
+;		lda (:pInst),y
+;		sta <osc_pWaveLoop+1,x
+;		iny
+;		lda (:pInst),y
+;		sta <osc_pWaveLoop+2,x
 
 		; wave end address 24
 		ldy #i_sample_loop_bend
