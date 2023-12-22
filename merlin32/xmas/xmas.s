@@ -143,7 +143,7 @@ start
 	; Test for minimum version of hardware
 		jsr HasGoodHardware
 		jsr TermInit
-;		jsr IntroScreen 	; <-- stubbing in my part here (db)
+		jsr IntroScreen 	; <-- stubbing in my part here (db)
 
 		jsr initColors
 
