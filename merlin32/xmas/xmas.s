@@ -582,7 +582,7 @@ init320x240
 		stz VKY_TM1_POS_X_L  ; scroll x lo
 		stz VKY_TM1_POS_X_H  ; scroll x hi
 
-		ldax #32
+		ldax #0+SNOWMAP_SIZE_Y-240			; 32 - 32
 		stax VKY_TM1_POS_Y_L  ; scroll y
 
 		; tile map 2
@@ -601,7 +601,7 @@ init320x240
 		sta VKY_TM2_SIZE_Y
 		stz VKY_TM2_SIZE_Y+1
 
-		ldax #32
+		ldax #0+SNOWMAP_SIZE_Y-240		; 32 - 32 
 		stz VKY_TM2_POS_X_L  ; scroll x lo
 		stz VKY_TM2_POS_X_H  ; scroll x hi
 		stax VKY_TM2_POS_Y_L ; scroll y
