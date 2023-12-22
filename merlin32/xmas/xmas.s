@@ -74,8 +74,35 @@ SPRITE_MAP   ds 120   ; 10x6x2 bytes (120 bytes), this can fit anywhere probably
 ; we are stomping on some stuff here
 SPRITE_TILES = $60000 ; could be up to 64k worth, but will be less
 
+;------------------------------------------------------------------------------
+;
+; SNOW STUFF
+;
+; SNOWMAP SIZE = 62*78*2 = 9672, $25C8 bytes, we need 2 of these
+; SNOWTILES 14*256 = 3584, $E00 bytes
+
+SNOWMAP_SIZE_X = 992
+SNOWMAP_SIZE_Y = 1248
+
+SNOWMAP_CLUT = 3 ; just use the same CLUT as the text scroller
+
+MAP_SNOWBG = $70000
+MAP_SNOWFG = $72800
+TILE_SNOW  = $76000
+
+SNOW_TILE_OFFSET = 1792  ; 7*256 
+
+;
+; END SNOW STUFF
+;
+;------------------------------------------------------------------------------
+;
+; FIREPLACE STUFF
+;
 MAP_DATA0  = $010000
 TILE_DATA0 = $012000 
+
+;------------------------------------------------------------------------------
 ;
 ; PUMP BAR STUFF
 ;
@@ -89,6 +116,7 @@ PUMPBAR_SPRITE_CTRL = %00000101      ; LUT#2
 ;
 ; END PUMP BAR STUFF
 ;
+;------------------------------------------------------------------------------
 
 
 ; tiles are 16k for 256 in 8x8 mode
@@ -99,8 +127,7 @@ TILE_DATA3 = $42000 ;TILE_DATA2+TILE_SIZE
 TILE_DATA4 = TILE_DATA3+TILE_SIZE
 TILE_DATA5 = TILE_DATA4+TILE_SIZE
 TILE_DATA6 = TILE_DATA5+TILE_SIZE
-TILE_DATA7 = TILE_DATA6+TILE_SIZE
-TILE_DATA8 = TILE_DATA7+TILE_SIZE
+TILE_DATA7 = TILE_SNOW
 
 CLUT_DATA  = $005C00
 PIXEL_DATA = $010000            ; @dwsJason - I may need to move this if you want to unpack at launch as you use it too
@@ -116,7 +143,7 @@ start
 	; Test for minimum version of hardware
 		jsr HasGoodHardware
 		jsr TermInit
-		jsr IntroScreen 	; <-- stubbing in my part here (db)
+;		jsr IntroScreen 	; <-- stubbing in my part here (db)
 
 		jsr initColors
 
@@ -232,6 +259,8 @@ PICNUM = 0   ; fireplace picture
 		jsr InitSpriteFont
 
 		jsr initPumpBars  ; decompress the pump bars, and initialize the colors
+
+		jsr SnowInit
 
 ;-----------------------------------------------
 
@@ -360,6 +389,7 @@ TEST_VOICE equ VOICE0 ; all 4 voices work
 		jsr ShowSpriteFont
 
 		jsr UpdateFirePlace
+		jsr SnowPump
 
 		jsr PumpBarRender
 
@@ -509,12 +539,12 @@ init320x240
 		stz VKY_MSTR_CTRL_1
 
 		; layer stuff - take from Jr manual
-		lda #$54
+		lda #$56
 		sta VKY_LAYER_CTRL_0  ; tile map layers
-		lda #$06
+		lda #$04
 		sta VKY_LAYER_CTRL_1  ; tile map layers
 
-		; Tile Map 0
+		; Tile Map 0  - Fireplace
 		lda #$01  ; enabled + 16x16
 		sta VKY_TM0_CTRL ; tile size
 
@@ -534,10 +564,47 @@ init320x240
 		stz VKY_TM0_POS_Y_H  ; scroll y hi
 
 		; Tile Map 1
-		stz VKY_TM1_CTRL ; disabled
+		; Snow Background
+		lda #$01  ; enabled + 16x16
+		sta VKY_TM1_CTRL
+
+		ldaxy #MAP_SNOWBG
+		staxy VKY_TM1_ADDR_L
+
+		lda #SNOWMAP_SIZE_X/16
+		sta VKY_TM1_SIZE_X
+		stz VKY_TM1_SIZE_X+1
+
+		lda #SNOWMAP_SIZE_Y/16
+		sta VKY_TM1_SIZE_Y
+		stz VKY_TM1_SIZE_Y+1
+
+		stz VKY_TM1_POS_X_L  ; scroll x lo
+		stz VKY_TM1_POS_X_H  ; scroll x hi
+
+		ldax #32
+		stax VKY_TM1_POS_Y_L  ; scroll y
 
 		; tile map 2
-		stz VKY_TM2_CTRL ; disable
+		; Snow ForeGround
+		lda #$01  ; enabled + 16x16
+		sta VKY_TM2_CTRL
+
+		ldaxy #MAP_SNOWFG
+		staxy VKY_TM2_ADDR_L
+
+		lda #SNOWMAP_SIZE_X/16
+		sta VKY_TM2_SIZE_X
+		stz VKY_TM2_SIZE_X+1
+
+		lda #SNOWMAP_SIZE_Y/16
+		sta VKY_TM2_SIZE_Y
+		stz VKY_TM2_SIZE_Y+1
+
+		ldax #32
+		stz VKY_TM2_POS_X_L  ; scroll x lo
+		stz VKY_TM2_POS_X_H  ; scroll x hi
+		stax VKY_TM2_POS_Y_L ; scroll y
 
 		; bitmap disables
 		stz VKY_BM0_CTRL  ; disable
@@ -560,6 +627,18 @@ init320x240
 		ldaxy #TILE_DATA3
 		staxy VKY_TS3_ADDR_L
 		stz VKY_TS3_ADDR_H+1
+
+		; snow tiles NOTE, I'm only depending on TS7, but since I'm hogging
+		; all the BG planes, it probably doesn't matter
+		ldaxy #TILE_SNOW
+		staxy VKY_TS4_ADDR_L
+		staxy VKY_TS5_ADDR_L
+		staxy VKY_TS6_ADDR_L
+		staxy VKY_TS7_ADDR_L
+		stz VKY_TS4_ADDR_H+1
+		stz VKY_TS5_ADDR_H+1
+		stz VKY_TS6_ADDR_H+1
+		stz VKY_TS7_ADDR_H+1
 
 		lda #2 			; back to text mapping
 		sta io_ctrl
