@@ -47,6 +47,7 @@ main_code_start
 		put mod.s
 		put mixer.s
 		put colors.s
+		put snow.s		; tile-plane snow machine
 		put version.s   ; hardware version checker
 		put flame.s     ; this comment stops merlin32 crash
 main_code_end
@@ -59,6 +60,8 @@ main_code_end
 more_data_start
 
 pump_bar_sprites putbin data\pumpbars.256
+snow_bg putbin data\SnowBackground.256
+snow_fg putbin data\SnowForeGround.256
 
 more_data_end
 
