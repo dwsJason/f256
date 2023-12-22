@@ -63,6 +63,9 @@ pump_bar_sprites putbin data\pumpbars.256
 snow_bg putbin data\SnowBackground.256
 snow_fg putbin data\SnowForeGround.256
 
+beep_start putbin data\beep16khz.raw
+beep_end
+
 more_data_end
 
 ;------------------------------------------------------------------------------
