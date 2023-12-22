@@ -305,8 +305,8 @@ TEST_VOICE equ VOICE0 ; all 4 voices work
 		ldaxy #audio_data_start
 		jsr set_write_address
 
-		ldaxy #audio_data_end-audio_data_start
-		sta <:iLength
+		ldax #audio_data_end-audio_data_start
+		stax <:iLength
 
 		ldx <:iLength
 		ldy <:iLength+1
@@ -321,10 +321,12 @@ TEST_VOICE equ VOICE0 ; all 4 voices work
 		jsr writebyte
 
 		dex
+		cpx #$FF
 		bne ]mloop
 
 		dey
-		bpl ]mloop
+		cpy #$FF
+		bne ]mloop
 
 		ldaxy #audio_data_start
 		jsr set_read_address
@@ -344,7 +346,7 @@ TEST_VOICE equ VOICE0 ; all 4 voices work
 		lda READ_MMU
 		sta TEST_VOICE+osc_pWaveEnd+2
 
-		ldax #$100		 ; why not try for 11khz
+		ldax #176		 ; why not try for 11khz (11025/16000*256)
 		stax TEST_VOICE+osc_frequency
 
 		lda #os_playing_singleshot
@@ -929,8 +931,7 @@ txt_midtro_0 asc ' ',0D,0D,'    DreamOS v2.3 - INTRUSION DETECTED!!',0D,0D,00
 txt_midtro_1 asc '****** SEG FAULT $5An7A $15 $h323',0D,00
 txt_midtro_2 asc '****** BRINGING IRQ ONLINE',0D,00
 txt_midtro_3 asc '****** 16060 INTERRUPTS PER SECOND',0D,0D,0D,00
-txt_midtro_4 asc '       HO HO HO, MERRY fnXmas!!!',0D,00
-
+txt_midtro_4 asc '       HO HO HO, MERRY fnXmas 2023!!!',0D,00
 
 ;------------------------------------------------------------------------------
 

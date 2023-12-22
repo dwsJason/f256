@@ -72,7 +72,8 @@ more_data_end
 		org $35800		; right after double high pixel buffer
 audio_data_start
 
-hohoho putbin data\HoHoHoMerryPh.raw
+;hohoho putbin data\HoHoHoMerryPh.raw
+hohoho putbin data\ho-ho-ho-11khz.raw
 
 audio_data_end
 
