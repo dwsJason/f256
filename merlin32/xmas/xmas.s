@@ -677,7 +677,7 @@ initPumpBars
 
 		stz io_ctrl
 
-		lda #PUMPBAR_SPRITE_CTRL
+		lda #PUMPBAR_SPRITE_CTRL+{2*$8}         ; layer 2
 		sta VKY_SP0_CTRL+{8*PUMPBAR_SPRITE_NO}	; vu 1-2, right
 		sta VKY_SP1_CTRL+{8*PUMPBAR_SPRITE_NO}	; vu 3-4, right
 
