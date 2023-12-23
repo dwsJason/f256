@@ -16,26 +16,31 @@ sprite_message
 			   asc 'THIS SMALL DEMO FEATURES FULL 60HZ ANIMATION WITH LAYERED BITMAPS, SPRITES, TILEMAPS, TEXT, LOTS OF PALETTE FIDDLING...  '
 			   asc 'AND AN ENTIRE MOD PLAYER USING THE PSG!!             '
 			   asc 'GREETZ - '
-			   asc '  +BEETHEAD+  '
-			   asc '  +BRUTAL DELUXE+'
-			   asc '  +CARLOS+  '
-			   asc '  +CELTON+  '
-			   asc '  +COMMODOREMAN+  '
-			   asc '  +DAVID PHILIPE GIL+  '
+			   asc '  +BEETHEAD+  ' 	         ; checked
+			   asc '  +BRUTAL DELUXE+'  		 ; checked
+			   asc '  +CARLOS+  '   			 ; checked
+			   asc '  +CELTON+  '   			 ; checked 
+			   asc '  +COMMODOREMAN+  ' 		 ; checked
+			   asc '  +DAVID PHILIPE GIL+  '	 ; checked
 			   asc '  +DESIRE+  '
-			   asc '  +ECONTRERASD+  '
-			   asc '  +EMWHITE+  '
-			   asc '  +ERIKTIER+  '
+			   asc '  +ECONTRERASD+  '  		 ; checked
+			   asc '  +EMWHITE+  '  			 ; checked
+			   asc '  +ERIKTIER+  ' 			 ; checked
 			   asc '  +EVERSTAR+  '
 			   asc '  +EYEBALLKID+  '
+			   asc '  +FATDOG+  '
 			   asc '  +GADGET+  '
+			   asc '  +GL503+  '                 ; checked
 			   asc '  +GRENOUYE+  '
-			   asc '  +HADENKALE+  '
+			   asc '  +HAYDENKALE+  '   		 ; checked
+			   asc '  +HELLEKIN+
 			   asc '  +HTH313+  '
 			   asc '  +JESSE BLUE+  '
+			   asc '  +JFED+  '
 			   asc '  +JM68K+  '
 			   asc '  +JOHN HARTMAN+  '
 			   asc '  +JOHN CHOW SEYMOUR+  '
+			   asc '  +KOOLKIWI+  '			   ; checked
 			   asc '  +MIMIRU+  '
 			   asc '  +MARNUBA+  '
 			   asc '  +MIDNIGHT.MANGLER+  '
@@ -44,12 +49,19 @@ sprite_message
 			   asc '  +NAMELESS+  '
 			   asc '  +NINJAFORCE+  '
 			   asc '  +PJW+  '
-			   asc '  +ROUGHNIGHT+  '
+			   asc '  +ROUGHNIGHT+  '  			; checked
 			   asc '  +SDUENSING+  '
+			   asc '  +SILK-NEON+  '
 			   asc '  +SPLITSPINE+  '
-			   asc '  +SMOLDERER+  '
+			   asc '  +SMOLDERER+  '		  ; checked
+			   asc '  +STRICK9+  '            ; checked
 			   asc '  +VINZ67+  '
 			   asc '  +XDRACONIAN+  '
+			   asc '                '
+			   asc '                '
+			   asc 'DEMO BY DIGAROK AND DWSJASON'
+			   asc '                '
+			   asc '                '
 			   db 0
 
 SPRITE_SPAWN_TIME = 7 ; 8x per second
