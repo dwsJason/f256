@@ -281,7 +281,9 @@ decompress_from_blobcount  ; decompress_map can jump in here
 :blob
 		dec i256_blobCount
 		bne ]loop
-
+		; no error
+		lda #0
+		clc
 		rts
 
 ;
