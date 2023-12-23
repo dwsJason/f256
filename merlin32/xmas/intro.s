@@ -126,17 +126,23 @@ BufB = scratch+3
         * lda #' '
         * jsr TermCOUT
 
-        lda #<150
-        ldx #>150
+        lda #<100
+        ldx #>100
         jsr IntroTickPassed
-        bcs :notyet200
+        bcs :notyet120
 
         ldx #<CLUT_DATA
         ldy #>CLUT_DATA
         lda #0 ; clut 0
         jsr FadeClutToClutPtrXy
+        * jsr BlackoutFireColorTbl
+:notyet120        
+        lda #<255
+        ldx #>255
+        jsr IntroTickPassed
+        bcs :notyet235
         jsr BlackoutFireColorTbl
-:notyet200        
+:notyet235
 
         jsr UpdateFireColor
         jsr UpdateFireColor
@@ -149,8 +155,8 @@ BufB = scratch+3
         jsr WaitVBLPollAX
         jsr DrawBufFullScreen
         jsr Crackle
-        lda #<400
-        ldx #>400
+        lda #<410
+        ldx #>410
         jsr IntroTickPassed
         bcc :nextpart
 
@@ -159,6 +165,10 @@ BufB = scratch+3
 
 :nextpart        
         jsr BleepOff
+        jsr TermClearTextBuffer ; omg this is all so bad
+        lda #$FF
+        jsr TermClearTextColorBuffer
+        
         lda #0
         jsr BlackoutClut
         lda #1
@@ -240,13 +250,13 @@ FireColorCur db 0
 FireColors equ #4
 FireColorTbl
 FireColorTblR
-        db $99,$FF,$ee,$FF
+        db $99,$ee,$ff,$FF
         
 FireColorTblG
-        db $25,$11,$ee,$FF
+        db $25,$ee,$00,$FF
         
 FireColorTblB
-        db $BE,$FF,$ee,$00
+        db $BE,$00,$00,$00
         
 
 

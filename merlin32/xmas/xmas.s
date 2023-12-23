@@ -117,8 +117,8 @@ PUMPBAR_SPRITE0 = $6F800  ; sprite 0, and sprite 1 for pump bars
 PUMPBAR_SPRITE1 = $6FC00  ; sprite 0, and sprite 1 for pump bars
 PUMPBAR_SPRITE_NO = 20    ; sprite 20, and sprite 21
 PUMPBAR_CLUT = VKY_GR_CLUT_2
-PUMPBAR_XPOS = 240
-PUMPBAR_YPOS = 48
+PUMPBAR_XPOS = 145
+PUMPBAR_YPOS = 42
 PUMPBAR_SPRITE_CTRL = %00000101      ; LUT#2
 ;
 ; END PUMP BAR STUFF
@@ -206,6 +206,25 @@ PICNUM = 0   ; fireplace picture
 
 :good
 		_TermPuts txt_midtro_1
+
+:santa_color
+		; colorize some text on error screen
+		lda io_ctrl
+		pha
+		
+		lda #3
+		sta io_ctrl         ; swap in the color memory
+		lda #<$c000+{#80*6}+16
+		sta ptr0
+		lda #>$c000+{#80*6}+16
+		sta ptr0+1
+		ldy #6
+		lda #$1f
+:lp		sta (ptr0),Y
+		dey
+		bne :lp
+		pla 
+		sta io_ctrl
 		jsr PlayBEEP		
 
 
