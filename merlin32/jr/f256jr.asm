@@ -150,4 +150,11 @@ VKY_PSG1 = $D610
 
 VKY_PSG_BOTH = $D608
 
+;;
+;; CODEC
+;;
+CODEC_LO         = $D620
+CODEC_HI         = $D621
+CODEC_CTRL       = $D622
+
 
