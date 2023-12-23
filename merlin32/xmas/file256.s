@@ -18,7 +18,7 @@ i256_error_nopixels   ds 1   ; 3 = There are no PIXL in this file
 i256_error_nomap	  ds 1   ; 4 = there is no TMAP in this file
 		dend
 
-		dum $b0
+		dum $d0
 i256_FileLength ds 0
 i256_pChunk     ds 0
 i256_temp0      ds 4
