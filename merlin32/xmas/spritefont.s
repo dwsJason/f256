@@ -33,7 +33,7 @@ sprite_message
 			   asc '  +GL503+  '                 ; checked
 			   asc '  +GRENOUYE+  '
 			   asc '  +HAYDENKALE+  '   		 ; checked
-			   asc '  +HELLEKIN+
+			   asc '  +HELLEKIN+  '
 			   asc '  +HTH313+  '
 			   asc '  +JESSE BLUE+  '
 			   asc '  +JFED+  '
