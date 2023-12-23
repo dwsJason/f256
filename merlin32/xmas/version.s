@@ -36,6 +36,8 @@ HasGoodHardware
 		fin
 ;------------------------------------------------------------------------------
 
+		jsr TermInit
+
 		stz io_ctrl
 
 		lda VKY_MID
