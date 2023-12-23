@@ -158,11 +158,26 @@ start
 
 		jsr TermInit
 
-        _TermPuts txt_midtro_0
-
 		jsr mmu_unlock
 
-		;_TermPuts txt_unlock
+		jsr ConvertAudio
+
+		jsr MixerInit
+
+		stz io_ctrl
+
+		ldaxy #mod_xmas
+		jsr ModInit
+
+		jsr InstallIRQ
+
+		cli
+
+		lda #2
+		sta io_ctrl
+
+        _TermPuts txt_midtro_0
+		jsr PlayBEEP		
 
 
 		lda #<CLUT_DATA
@@ -170,15 +185,11 @@ start
 		ldy #^CLUT_DATA
 		jsr set_write_address
 
-		;_TermPuts txt_setaddr
-
 PICNUM = 0   ; fireplace picture
 
 		ldx #PICNUM ; picture #
 		jsr set_pic_address
 
-		;_TermPuts txt_setpicaddr
-		
 		jsr get_read_address
 		jsr TermPrintAXYH
 		_TermCR
@@ -195,9 +206,10 @@ PICNUM = 0   ; fireplace picture
 
 :good
 		_TermPuts txt_midtro_1
-		
-		php
-		sei
+		jsr PlayBEEP		
+
+
+;-----------------------------------------------
 
 		; set access to vicky CLUTs
 		lda #1
@@ -219,10 +231,6 @@ PICNUM = 0   ; fireplace picture
 		lda #2
 		sta io_ctrl
 
-		plp
-
-;		_TermPuts txt_copy_clut
-		
 		lda #<TILE_DATA0
 		ldx #>TILE_DATA0
 		ldy #^TILE_DATA0
@@ -241,9 +249,34 @@ PICNUM = 0   ; fireplace picture
 		_TermCR
 
 		_TermPuts txt_midtro_2
+		
+		jsr PlayBEEP
+
 		_TermPuts txt_midtro_3
 
+		jsr PlayBEEP
+
+		_TermPuts txt_midtro_4 
+		jsr PlayHoHoHo
+
+		; this is the long decompress
+		lda #<TILE_DATA0
+		ldx #>TILE_DATA0
+		ldy #^TILE_DATA0
+		jsr set_write_address
+
+		ldx #PICNUM
+		jsr set_pic_address
+
 		jsr decompress_pixels
+;		bcc seems_good
+;
+;		jsr TermPrintAH
+;		_TermPuts txt_fail
+;
+;]stop   bra ]stop
+;
+;seems_good
 		
 ;-----------------------------------------------
 
@@ -273,91 +306,8 @@ PICNUM = 0   ; fireplace picture
 
 		lda #2
 		sta io_ctrl
-		_TermPuts txt_midtro_4 
 
-		jsr MixerInit
-
-		; hey needs to start on an 8k boundary
-		lda io_ctrl
-		pha
-
-		stz io_ctrl
-
-		ldaxy #mod_xmas
-		jsr ModInit
-
-		jsr InstallIRQ
-
-		cli
-
-		pla
-		sta io_ctrl
-
-TEST_VOICE equ VOICE0 ; all 4 voices work
-
-:pInst     = temp0
-:pStart    = temp1
-:iLength   = temp2
-
-
-		ldaxy #audio_data_start
-		jsr set_read_address
-		ldaxy #audio_data_start
-		jsr set_write_address
-
-		ldax #audio_data_end-audio_data_start
-		stax <:iLength
-
-		ldx <:iLength
-		ldy <:iLength+1
-
-]mloop
-		jsr readbyte
-		eor #$FF
-		lsr
-		lsr
-		lsr
-		lsr
-		jsr writebyte
-
-		dex
-		cpx #$FF
-		bne ]mloop
-
-		dey
-		cpy #$FF
-		bne ]mloop
-
-		ldaxy #audio_data_start
-		jsr set_read_address
-
-		; start of wave to play
-		ldax pSource
-		stax TEST_VOICE+osc_pWave+1
-		lda READ_MMU
-		sta TEST_VOICE+osc_pWave+3
-
-		ldaxy #audio_data_end
-		jsr set_read_address
-
-		; end of wave to play
-		ldax pSource
-		stax TEST_VOICE+osc_pWaveEnd
-		lda READ_MMU
-		sta TEST_VOICE+osc_pWaveEnd+2
-
-		ldax #176		 ; why not try for 11khz (11025/16000*256)
-		stax TEST_VOICE+osc_frequency
-
-		lda #os_playing_singleshot
-		sta TEST_VOICE+osc_state
-
-;-----------------------------------------------
-
-		lda #2
-		sta io_ctrl
-
-]what   	;_TermPuts txt_midtro_4  
+]what   _TermPuts txt_midtro_4  
 
 		jsr WaitVBL
 
@@ -669,8 +619,8 @@ initPumpBars
 
 		jsr decompress_pixels
 
-		php
-		sei
+;		php
+;		sei
 
 		lda io_ctrl
 		pha
@@ -726,7 +676,7 @@ initPumpBars
 
 		pla
 		sta io_ctrl
-		plp
+;		plp
 
 		rts
 
@@ -887,6 +837,128 @@ PumpBarRender mx %11
 		rts
 
 ;------------------------------------------------------------------------------
+; Just massage the PCM data into something the PSG will like
+;
+ConvertAudio
+:iLength   = temp2
+
+		; Ho Ho Ho
+		ldaxy #audio_data_start
+		jsr set_read_address
+		ldaxy #audio_data_start
+		jsr set_write_address
+
+		ldax #audio_data_end-audio_data_start
+		stax <:iLength
+
+		jsr :convert
+
+		; Beep
+		ldaxy #beep_start
+		jsr set_read_address
+		ldaxy #beep_start
+		jsr set_write_address
+
+		ldax #beep_end-beep_start
+		stax <:iLength
+
+		; fall through to convert
+
+:convert
+		ldx <:iLength
+		ldy <:iLength+1
+
+]mloop
+		jsr readbyte
+		eor #$FF
+		lsr
+		lsr
+		lsr
+		lsr
+		jsr writebyte
+
+		dex
+		cpx #$FF
+		bne ]mloop
+
+		dey
+		cpy #$FF
+		bne ]mloop
+
+		rts
+
+;------------------------------------------------------------------------------
+PlayBEEP
+
+BEEP_VOICE equ VOICE2 ; all 4 voices work
+
+		; wait for previous beep to end
+]wait   lda BEEP_VOICE+osc_state
+		bne ]wait
+
+		ldaxy #beep_start
+		jsr set_read_address
+
+		; start of wave to play
+		ldax pSource
+		stax BEEP_VOICE+osc_pWave+1
+		lda READ_MMU
+		sta BEEP_VOICE+osc_pWave+3
+
+		ldaxy #beep_end
+		jsr set_read_address
+
+		; end of wave to play
+		ldax pSource
+		stax BEEP_VOICE+osc_pWaveEnd
+		lda READ_MMU
+		sta BEEP_VOICE+osc_pWaveEnd+2
+
+		ldax #$100		 ; Beep is 16khz (16000/16000*256)
+		stax BEEP_VOICE+osc_frequency
+
+		lda #os_playing_singleshot
+		sta BEEP_VOICE+osc_state
+
+		rts
+
+;------------------------------------------------------------------------------
+PlayHoHoHo
+
+TEST_VOICE equ VOICE0 ; all 4 voices work
+
+		; wait for previous beep to end, and previous HoHoHo
+]wait   lda BEEP_VOICE+osc_state
+		ora TEST_VOICE+osc_state
+		bne ]wait
+
+		ldaxy #audio_data_start
+		jsr set_read_address
+
+		; start of wave to play
+		ldax pSource
+		stax TEST_VOICE+osc_pWave+1
+		lda READ_MMU
+		sta TEST_VOICE+osc_pWave+3
+
+		ldaxy #audio_data_end
+		jsr set_read_address
+
+		; end of wave to play
+		ldax pSource
+		stax TEST_VOICE+osc_pWaveEnd
+		lda READ_MMU
+		sta TEST_VOICE+osc_pWaveEnd+2
+
+		ldax #176		 ; why not try for 11khz (11025/16000*256)
+		stax TEST_VOICE+osc_frequency
+
+		lda #os_playing_singleshot
+		sta TEST_VOICE+osc_state
+
+		rts
+
+;------------------------------------------------------------------------------
 txt_unlock asc 'mmu_unlock'
 		db 13,0
 
@@ -932,6 +1004,7 @@ txt_midtro_1 asc '****** SEG FAULT $5An7A $15 $h323',0D,00
 txt_midtro_2 asc '****** BRINGING IRQ ONLINE',0D,00
 txt_midtro_3 asc '****** 16060 INTERRUPTS PER SECOND',0D,0D,0D,00
 txt_midtro_4 asc '       HO HO HO, MERRY fnXmas 2023!!!',0D,00
+txt_fail asc 'FAIL FAIL FAIL FAIL',0D,00
 
 ;------------------------------------------------------------------------------
 
