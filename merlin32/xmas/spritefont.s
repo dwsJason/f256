@@ -32,7 +32,6 @@ sprite_message
 			   asc '  +GRENOUYE+  '
 			   asc '  +HADENKALE+  '
 			   asc '  +HTH313+  '
-			   asc '  +J.CRAFT+  '
 			   asc '  +JESSE BLUE+  '
 			   asc '  +JM68K+  '
 			   asc '  +JOHN HARTMAN+  '
