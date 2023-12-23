@@ -50,6 +50,45 @@ MixerInit
 		pha
 
 		stz <io_ctrl
+		ldax #%0010111000000000 ;R23 - Reset the CODEC - set defaults
+		jsr CODEC_WRITE
+
+        ;ldax #%0001101000000000     ;R13 - Turn On Headphones
+        lda #%00000000
+        ldx #%00011010
+		jsr CODEC_WRITE
+        ; LDA #%0010101000000011       ;R21 - Enable All the Analog In
+        lda #%00000011
+        ldx #%00101010
+		jsr CODEC_WRITE
+        ; LDA #%0010001100000001      ;R17 - Enable All the Analog In
+        lda #%00000001
+        ldx #%00100011
+        jsr CODEC_WRITE
+        ;   LDA #%0010110000000111      ;R22 - Enable all Analog Out
+        lda #%00000111
+        ldx #%00101100
+        jsr CODEC_WRITE
+        ; LDA #%0001010000000010      ;R10 - DAC Interface Control
+        lda #%00000010
+        ldx #%00010100
+        jsr CODEC_WRITE
+        ; LDA #%0001011000000010      ;R11 - ADC Interface Control
+        lda #%00000010
+        ldx #%00010110
+        jsr CODEC_WRITE
+        ; LDA #%0001100111010101      ;R12 - Master Mode Control
+        lda #%01000101
+        ldx #%00011000
+        jsr CODEC_WRITE
+		; Try to set register 7
+;		ldax #%0000111010010000		  ;R7 HeadPhone left->left, right->right
+;		lda #%10010000
+;		ldx #%00001110
+;		jsr CODEC_WRITE
+
+		; extra wait
+        jsr CODEC_WAIT_FINISH
 
 		; force the PSG outputs to be stereo
 		lda #SYS_SID_ST+SYS_PSG_ST
@@ -98,6 +137,28 @@ AUDIO_FREQ = 0
 
 		pla
 		sta <io_ctrl
+
+		rts
+
+;------------------------------------------------------------------------------
+CODEC_WRITE
+CODECWrite
+		tay
+		jsr CODECWaitReady
+		sty CODEC_LO  ; value
+		stx CODEC_HI  ; register
+
+		lda #1  	; commit
+		sta CODEC_CTRL
+		rts
+
+;------------------------------------------------------------------------------
+CODEC_WAIT_FINISH
+CODECWaitReady
+]wait
+		lda CODEC_CTRL
+		lsr
+		bcs ]wait
 
 		rts
 
