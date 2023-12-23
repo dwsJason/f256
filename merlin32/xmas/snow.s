@@ -215,7 +215,7 @@ SnowPump
 
 		ldax snow_fg_x+1
 		cmpax #320
-		bcs :fgno_x_wrap
+		bcc :fgno_x_wrap
 		; wrap the snow
 		sbc #<320
 		sta snow_fg_x+1
@@ -224,10 +224,58 @@ SnowPump
 		sta snow_fg_x+2
 :fgno_x_wrap
 
+		do 0 ; debug stuff
+		lda #2
+		sta io_ctrl
+
+		ldy #20
+		ldx #20
+		jsr TermSetXY
+
+		ldax snow_fg_x+1
+		jsr TermPrintAXI
+
+		ldax #txt_spaces
+		jsr TermPUTS
+
+
+		ldy #20
+		ldx #30
+		jsr TermSetXY
+
+		ldax snow_fg_y+1
+		jsr TermPrintAXI
+
+		ldax #txt_spaces
+		jsr TermPUTS
+
+
+		ldy #21
+		ldx #20
+		jsr TermSetXY
+
+		ldax snow_bg_x+1
+		jsr TermPrintAXI
+		ldax #txt_spaces
+		jsr TermPUTS
+
+
+		ldy #21
+		ldx #30
+		jsr TermSetXY
+
+		ldax snow_bg_y+1
+		jsr TermPrintAXI
+		ldax #txt_spaces
+		jsr TermPUTS
+		fin
+
 		pla
 		sta io_ctrl
 
 		rts
+
+txt_spaces asc '    ',00
 
 snow_bg_x ds 3
 snow_bg_y ds 3
