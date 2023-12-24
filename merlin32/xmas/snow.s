@@ -60,6 +60,21 @@ SnowInit
 		ldaxy #MAP_SNOWFG
 		jsr set_read_address
 
+		jsr :massage_map_names
+
+;
+; Initial Snow BG positions
+;
+		ldax #0+SNOWMAP_SIZE_Y-240
+		stax snow_bg_y+1
+		stax snow_fg_y+1
+
+		ldax #320
+		stax snow_bg_x+1
+		stax snow_fg_x+1
+
+		rts
+
 :massage_map_names
 		lda mmu3		; $6000 start of map data
 		inc
@@ -91,18 +106,8 @@ SnowInit
 		dex
 		bpl ]lp
 
-;
-; Initial Snow BG positions
-;
-		ldax #0+SNOWMAP_SIZE_Y-240
-		stax snow_bg_y+1
-		stax snow_fg_y+1
-
-		ldax #320
-		stax snow_bg_x+1
-		stax snow_fg_x+1
-
 		rts
+
 
 ;------------------------------------------------------------------------------
 ;

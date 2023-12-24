@@ -84,7 +84,7 @@ SPRITE_TILES = $60000 ; could be up to 64k worth, but will be less
 SNOWMAP_SIZE_X = 992
 SNOWMAP_SIZE_Y = 1248
 
-SNOWMAP_CLUT = 3 ; just use the same CLUT as the text scroller
+SNOWMAP_CLUT = 0 ; Needs to be on fireplace clut to work around bug
 
 MAP_SNOWBG = $70000
 MAP_SNOWFG = $72800

@@ -50,8 +50,8 @@ MixerInit
 		pha
 
 		stz <io_ctrl
-		ldax #%0010111000000000 ;R23 - Reset the CODEC - set defaults
-		jsr CODEC_WRITE
+;		ldax #%0010111000000000 ;R23 - Reset the CODEC - set defaults
+;		jsr CODEC_WRITE
 
         ;ldax #%0001101000000000     ;R13 - Turn On Headphones
         lda #%00000000
