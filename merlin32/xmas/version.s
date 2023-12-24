@@ -4,8 +4,8 @@
 ;
 		mx %11
 
-MIN_JR_VERSION = $00170100
-MIN_K_VERSION  = $00130000
+MIN_JR_VERSION = $00180100
+MIN_K_VERSION  = $00140000
 
 HasGoodHardware
 
@@ -121,10 +121,10 @@ HasGoodHardware
 txt_unknown_machine asc 'Unknown Machine',0D
 			asc 'This demo requires an F256K/Jr to run.',0D,00
 
-txt_requiredJ asc 'F256M_Wbh_Nov18th_2023_RC17_0100.jic,'
+txt_requiredJ asc 'F256M_Wbh_Dec23rd_2023_RC18_0100.jic,'
 			  asc ' or higher required',0D,00
 
-txt_requiredK asc 'F256K_WBh_Dec9th_RevB0x_RC13_0000.jic,'
+txt_requiredK asc 'F256K_WBh_Dec23rd_RevB0x_RC14_0000.jic,'
 			  asc ' or higher required',0D,00
 
 
