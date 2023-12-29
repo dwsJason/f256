@@ -436,7 +436,11 @@ ModPlayerTick mx %11
 		bra ModSetPatternPtr
 
 :song_done
-		stz <SongIsPlaying
+;;!!!!!!!!!!!!!!!!!!!!!
+;;!!!!!!!!!!!!!!!!!!!!! HACKED TO REPEAT
+;;!!!!!!!!!!!!!!!!!!!!!
+		stz <SongIsPlaying		; stop playing
+		bra ModPlay   ;<----------------------------- REPEAT
 		rts
 
 :perform_jump
