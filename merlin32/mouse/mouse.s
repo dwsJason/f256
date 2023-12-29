@@ -49,7 +49,7 @@ mouse_clicks_inner  = $33
 mouse_clicks_middle = $34
 mouse_clicks_outer  = $35
 
-		org $200
+		org $300
              
 ; Zero Page defines
 mmu_ctrl equ 0
