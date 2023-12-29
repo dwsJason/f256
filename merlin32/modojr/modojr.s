@@ -1018,7 +1018,7 @@ init320x240_video
 
 		ldax #44
 		stax VKY_TM0_SIZE_X
-		ldax #34
+		ldax #64
 		stax VKY_TM0_SIZE_Y
 
 		ldax #8
