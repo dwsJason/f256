@@ -26,6 +26,7 @@
 
 		use macros.i
 		use mixer.i
+		use kernel_api.i
 
 ;------------------------------------------------------------------------------
 
@@ -57,12 +58,14 @@ main_code_end
 
 		org $A000
 code2_start
+		put version.s
 		put term.s
 		put lzsa2.s
 		put file256.s
 		put mixer.s
 		put colors.s
 		put font.s
+		put file.s
 code2_end
 
 		ERR    *-1/$C000      ; Error if PC > $C000
@@ -72,34 +75,30 @@ code2_end
 		adr cdata_start
 		adr cdata_end-cdata_start
 
-		org $10000
+		org $18000
 cdata_start
 led_font   putbin data/led_font.font
 pump_bars  putbin data/pumpbars.256
 background putbin data/background.256
-cdata_end
 
-		org $0
-		adr sfx_waves_start
-		adr sfx_waves_end-sfx_waves_start
-
-		org $28000
 sfx_waves_start
 sea_wave putbin data/seadragon11k.raw
 sfx_waves_end
+
+cdata_end
 
 		org $0
 		adr mod_data_start
 		adr mod_data_end-mod_data_start ; 72144      ;mod_end-mod_start  ; labels only work here, if data below is less than 64K
 ;		org $100000 - expansion RAM  (this works!)
-		org $30000
+		org $28000
 mod_data_start
 mod_song
-		putbin data/dru.mod
+;		putbin data/dru.mod
 ;		putbin data/el_gondo.mod
 ;		putbin data/tomsdine.mod
 ;		putbin data/savage.mod
-;		putbin data/bm1992.mod
+		putbin data/bm1992.mod
 ;		putbin data/bizarrel.mod
 ;		putbin data/xmas/goto80-xmas.mod ;- crashes fast
 ;		putbin data/xmas/rush_-_xmas.mod  ; not bad
@@ -122,19 +121,6 @@ mod_song
 ;		putbin data/xmas/xmas_mix_92.mod ; I dig it
 ;		putbin data/xmas/xmas_break.mod ; very cool, but crashes
 mod_data_end
-
-
-
-;		org $0
-;		adr image2_start
-;		adr image2_end-image2_start  ; labels only work here, if data below is less than 64K
-;		org $70000
-
-;;		put data0.s
-;image2_start
-;pic1	;putbin data\fireplace.256
-;image2_end
-
 
 ; Launch Address
 		adr start

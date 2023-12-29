@@ -21,12 +21,6 @@ temp5 ds 4
 temp6 ds 4
 temp7 ds 4
 
-line_color ds 1
-line_x0 ds 2
-line_y0 ds 1
-line_x1 ds 2
-line_y1 ds 1
-
 xpos ds 2
 ping ds 2
 
@@ -92,17 +86,16 @@ dpJiffy = jiffy
 ; Map Data for 8x8 tile-map, need 3k for the static screen
 ; $02/3400 -> $02/4000 - 3k
 ;
-; $02/4000->$02/7FFF = 256 8x8 tiles
+; $02/0000->$02/3FFF = 256 8x8 tiles
 ;
-; $02/8000 -> $07/DFFF - space for songs 352,256 (max song size) $5/6000
+; $02/0000 -> $07/DFFF - space for songs 385,024 (max song size) $5/E000
 
-PIXEL_DATA = $010000
+MAP_DATA0 = $010000
 
-PUMPBAR_SPRITE0 = $022C00
-PUMPBAR_SPRITE1 = $023000
+PUMPBAR_SPRITE0 = $014000
+PUMPBAR_SPRITE1 = $014400
 
-MAP_DATA0  = $023400
-TILE_DATA0 = $024000
+TILE_DATA0 = $020000
 
 ; tiles are 16k for 256 in 8x8 mode
 TILE_SIZE = {8*8*256}
@@ -117,15 +110,46 @@ TILE_DATA8 = TILE_DATA7+TILE_SIZE
 
 CLUT_DATA  = $006000
 
+;------------------------------------------------------------------------------
 ;
-; This will copy the color table into memory, then set the video registers
-; to display the bitmap
+; Some Kernel Stuff
 ;
 
+; arguments
+args_buf ds 2
+args_buflen ds 1
+
+; Event Buffer, at org address
+event_type ds 1
+event_buf  ds 1
+event_ext  ds 14
+
+event_file_data_read  = event_type+kernel_event_event_t_file_data_read
+event_file_data_wrote = event_type+kernel_event_event_t_file_wrote_wrote 
+
+;------------------------------------------------------------------------------
+;
+; This is where it all begins
+;
 start
 		sei
+; save off stuff we need to get at the arguments
+		; store argument list, but skip over first argument (us)
+		lda	kernel_args_ext
+		sta	args_buf
+		lda	kernel_args_ext+1
+		sta	args_buf+1
+
+		lda	kernel_args_extlen
+		sta	args_buflen
 
 		jsr mmu_unlock
+
+		jsr HasGoodHardware
+;		bcc :HardwareGood
+;		rts
+;:HardwareGood
+
 
 		jsr init320x240_video
 
@@ -148,16 +172,6 @@ start
 
 		ldax #txt_sampler
 		jsr TermPUTS
-
-;------------------------------------------------------------------------------
-; bitmap demo
-;
-;		lda #2  	; Fill Color - opaque (easier debugging)
-		lda #0  	; Transparent
-		jsr DmaClear
-
-;------------------------------------------------------------------------------
-
 
 ;------------------------------------------------------------------------------
 ;
@@ -352,12 +366,6 @@ forward
 		jsr WaitVBL
 
 		jsr PumpBarRender
-
-		;JSR SCNKEY      ;SCAN KEYBOARD
-        ;JSR GETIN       ;GET CHARACTER
-		;CMP #0          ;IS IT NULL?
-        ;BEQ :no_key
-		;jsr TermCOUT
   
 :no_key
 		jsr UpdateMarker
@@ -468,8 +476,8 @@ PatternRender
 :render
 		sta |:last_row
 
-		;lda #35
-		lda #50
+		lda #35
+		;lda #50
 		sta :screen_y
 
 ;
@@ -997,19 +1005,10 @@ init320x240_video
 		stz VKY_TM2_CTRL  ; disable
 
 		; bitmap disables
-		lda #1
-		sta VKY_BM0_CTRL  ; enable
+		stz VKY_BM0_CTRL  ; disable
 		stz VKY_BM1_CTRL  ; disable
+		stz VKY_BM2_CTRL  ; disable
 		stz $D110  ; disable
-
-		; set address of image, since image uncompressed, we just display it
-		; where we loaded it.
-		lda #<PIXEL_DATA
-		sta VKY_BM0_ADDR_L
-		lda #>PIXEL_DATA
-		sta VKY_BM0_ADDR_M
-		lda #^PIXEL_DATA
-		sta VKY_BM0_ADDR_H
 
 		;
 		; Initialize Tile Map 0
@@ -1022,7 +1021,7 @@ init320x240_video
 		ldax #34
 		stax VKY_TM0_SIZE_Y
 
-		ldax #0
+		ldax #8
 		stax VKY_TM0_POS_X_L
 		ldax #32
 		stax VKY_TM0_POS_Y_L
@@ -1100,58 +1099,6 @@ txt_L cstr ' L'
 txt_massage_wave asc 'Massage the instruments'
 		db 13,0
 
-
-;------------------------------------------------------------------------------
-;
-; A = Fill Color
-;
-; Clear 320x240 buffer PIXEL_DATA with A
-;
-DmaClear
-		php
-		sei
-
-		ldy io_ctrl
-		phy
-
-		stz io_ctrl
-
-		ldx #DMA_CTRL_ENABLE+DMA_CTRL_FILL
-		stx |DMA_CTRL
-
-		sta |DMA_FILL_VAL
-
-		lda #<PIXEL_DATA
-		sta |DMA_DST_ADDR
-		lda #>PIXEL_DATA
-		sta |DMA_DST_ADDR+1
-		lda #^PIXEL_DATA
-		sta |DMA_DST_ADDR+2
-
-]size = {320*240}
-
-		lda #<]size
-		sta |DMA_COUNT
-		lda #>]size
-		sta |DMA_COUNT+1
-		lda #^]size
-		sta |DMA_COUNT+2
-
-		lda #DMA_CTRL_START
-		tsb |DMA_CTRL
-
-]busy
-		lda |DMA_STATUS
-		bmi ]busy
-
-		stz |DMA_CTRL
-
-		pla
-		sta io_ctrl
-
-		plp
-		rts
-
 ;------------------------------------------------------------------------------
 ; WaitVBL
 ; Preserve all registers
@@ -1164,272 +1111,6 @@ WaitVBL
 		beq ]lp
 		pla
 		rts
-
-;------------------------------------------------------------------------------
-;
-; no real regard given to performance, just make it work
-;
-plot_line_8x8y
-
-:x0 = temp0
-:y0 = temp0+1
-:x1 = temp1
-:y1 = temp1+1
-:dx = temp2
-:dy = temp2+1
-:sx = temp3
-:sy = temp3+1
-
-:err  = temp4
-:err2 = temp4+2
-
-:temp0 = temp5
-
-;----- copy inputs
-		ldx <line_x0
-		ldy <line_y0
-		stx <:x0
-		sty <:y0
-
-		ldx <line_x1
-		ldy <line_y1
-		stx <:x1
-		sty <:y1
-
-;----- calulate dx + sx (delta x, and step x)
-; dx = abs(x1 - x0)
-; sx = x0 < x1 ? 1: -1  ; I'm doing 1 or 0
-		cpx <:x0
-		bcs :x_good
-
-		sec
-		lda <:x0
-		sbc <:x1
-
-		stz <:sx  ; indicate negative step
-		bra :st_dx
-:x_good
-		lda #1
-		sta <:sx  ; positive step
-		txa
-		sbc <:x0
-:st_dx	sta <:dx
-
-;----- calculate dy + sy (delta y, and step y)
-; dy = -abs(y1 - y0)      ; I'm keeping this positive
-; sy = y0 < y1 ? 1 : -1   ; I'm doing 1 or 0
-:now_y
-		cpy <:y0
-		bcs :y_good
-
-		sec
-		lda <:y0
-		sbc <:y1
-
-		stz <:sy ; indicate negative step
-		bra :st_dy
-:y_good
-		lda #1
-		sta <:sy ; positive step
-		tya
-		sbc <:y0
-:st_dy  sta <:dy
-
-;----- calculate initial error
-; error = dx + dy
-		sec
-		lda <:dx
-		sbc <:dy
-		sta <:err
-		lda #0		; both dx and dy are only 8 bit, for now
-		sbc #0
-		sta <:err+1
-]loop
-		jsr PlotXY
-
-; if x0==x1 && y0==y1 - done
-		lda <:x0
-		eor <:x1
-		bne :go_go
-
-		lda <:y0
-		eor <:y1
-		beq :done_done
-:go_go
-;----- calc e2
-		lda <:err
-		asl
-		sta <:err2
-		lda <:err+1
-		rol
-		sta <:err2+1
-; if e2 >= (-dy)   (in original code dy is always negative)
-;               (in our code dy is always positive)
-		bpl :e2_ge_dy ; when error is positive, it's always greater=
-
-		; if e2 is negative - 
-		eor #$FF
-		sta <:temp0+1
-
-		lda <:err2
-		eor #$FF
-		inc
-		sta <:temp0
-		bne :kk
-		inc <:temp0+1
-:kk
-		; temp0 is now a positive version of e2
-		; now check to see if e2 <= dy
-
-		lda <:temp0+1
-		bne :next_thing
-
-		lda <:temp0
-		cmp <:dy
-		bcc :e2_ge_dy
-		beq :e2_ge_dy
-		bcs :next_thing
-:e2_ge_dy
-		; if x0 == x1 break, break the if?
-		lda <:x0
-		eor <:x1
-		beq :next_thing
-		; error = error + dy
-		sec
-		lda <:err
-		sbc <:dy
-		sta <:err
-		lda <:err+1
-		sbc #0
-		sta <:err+1
-		; x0 = x0 + sx
-		lda <:sx
-		beq :dec_x
-		inc <:x0
-		bra :next_thing
-:dec_x
-		dec <:x0
-
-:next_thing
-; if e2 <= dx
-		lda <:err2+1
-		bmi :kk2	  ; if e2 negative, it's automatically smaller
-		bne ]loop     ; dx can be 255 at the biggest, so err2+1 has to be 0
-					  ; for e2 to be <= dx
-		lda <:dx
-		cmp <:err2
-		bcc ]loop
-
-:kk2
-		; if y0 == y1 break
-		lda <:y0
-		eor <:y1
-		beq ]loop
-		; error = error + dx
-		clc
-		lda <:err
-		adc <:dx
-		sta <:err
-		lda <:err+1
-		adc #0
-		sta <:err+1
-		; y0 = y0 + sy
-		lda <:sy
-		beq :dec_y
-		inc <:y0
-		bra ]loop
-:dec_y
-		dec <:y0
-		bra ]loop
-
-:done_done
-		rts
-
-		do 0
-; plot a pixel at :x0,:y0, with line_color
-; with no regards to efficiency
-:plot
-		ldx <:y0
-		clc
-		lda |:block_low_320,x   ; low byte of address in our mapped block
-		adc <:x0
-		sta |:p+1				; modify the store code, with abs address
-
-		lda |:block_hi_320,x
-		adc #0  				; Or adc x0+1 for 16-bit
-
-		ldy |:block_num,x
-		cmp #>{WRITE_BLOCK+$2000}
-		bcc :good_to_go
-
-		iny
-
-		lda #>WRITE_BLOCK
-
-:good_to_go
-		sty <mmu5
-		sta |:p+2
-		lda line_color
-:p		sta |WRITE_BLOCK
-
-		rts
-		fin
-
-;------------------------------------------------------------------------------
-;
-; Version requires $6000 WRITE_BLOCK, so quicker detection of wrap
-;
-PlotXY
-		ldx <:y0
-		clc
-		lda |:block_low_320,x   ; low byte of address in our mapped block
-		adc <:x0
-		sta |:p+1				; modify the store code, with abs address
-
-		ldy |:block_num,x
-
-		lda |:block_hi_320,x
-		adc #0  				; Or adc x0+1 for 16-bit
-		bpl :good_to_go 		; this check depends on block ending at 7FFF
-
-		iny
-
-		lda #>WRITE_BLOCK
-
-:good_to_go
-		sty <mmu3
-		sta |:p+2
-		lda line_color
-:p		sta |WRITE_BLOCK
-
-		rts
-
-
-; I'm going to change this out to be an mmu+block + offset address
-; simulating what the bitmap coordinate math block does
-
-
-
-:block_low_320
-]var = PIXEL_DATA
-		lup 256
-		db <]var
-]var = ]var + 320
-		--^
-
-:block_hi_320
-]var = PIXEL_DATA
-		lup 256
-		db >{{]var&$1FFF}+WRITE_BLOCK}
-]var = ]var + 320
-		--^
-
-:block_num
-]var = PIXEL_DATA
-		lup 256
-		db {]var/$2000}
-]var = ]var + 320
-		--^
 
 ;------------------------------------------------------------------------------
 
