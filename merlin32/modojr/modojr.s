@@ -359,6 +359,65 @@ seadragon_test
 forward
 		fin
 
+;------------------------------------------------------------------------------
+
+; Setup the LED HUD
+
+		ldx #40
+		ldy #26
+		jsr TermSetXY
+		ldax #txt_video_jiffy
+		jsr TermPUTS
+
+		ldx #40
+		ldy #28
+		jsr TermSetXY
+		ldax #txt_audio_jiffy
+		jsr TermPUTS
+
+		ldx #48
+		ldy #30
+		jsr TermSetXY
+		ldax #txt_bpm
+		jsr TermPUTS
+
+		ldx #46
+		ldy #32
+		jsr TermSetXY
+		ldax #txt_speed
+		jsr TermPUTS
+
+
+
+		ldx #20
+		ldy #32
+		jsr TermSetXY
+		ldax #txt_repeat_enabled
+		jsr TermPUTS
+
+
+		ldx #18
+		ldy #26
+		jsr TermSetXY
+		ldax #txt_position
+		jsr TermPUTS
+
+		ldx #19
+		ldy #28
+		jsr TermSetXY
+		ldax #txt_pattern
+		jsr TermPUTS
+
+		ldx #23
+		ldy #30
+		jsr TermSetXY
+		ldax #txt_row
+		jsr TermPUTS
+
+
+
+;------------------------------------------------------------------------------
+
 		; So the pattern has colors
 		jsr PatternRenderInit
 
@@ -372,7 +431,7 @@ forward
 
 		jsr PatternRender
 
-		do 1
+		do 0
 		ldx #53
 		ldy #25
 		jsr TermSetXY
@@ -387,15 +446,15 @@ forward
 		jsr TermPrintAXH
 		fin
 
-		ldx #16
-		ldy #25
+		ldx #28
+		ldy #26
 		jsr TermSetXY
 
 		lda mod_pattern_index
 		jsr TermPrintAI
 
-		ldx #16
-		ldy #26
+		ldx #28
+		ldy #30
 		jsr TermSetXY
 
 		lda mod_current_row
@@ -415,9 +474,29 @@ PatternRenderInit
 		lda #3     	; have term write to color
 		sta io_ctrl
 
+; player hud area
+
+		ldx #16
+		ldy #25
+]lp		phy
+		jsr TermSetXY
+
+		ldy #47
+]inloop lda |:hud_colors,y
+		sta (term_ptr),y
+		dey
+		bpl ]inloop
+
+		ply
+		iny
+		cpy #33
+		bcc ]lp
+
+; pattern data area
+
 		; colors
 		ldx #16
-		ldy #30
+		ldy #33
 ]lp		phy 			 	; 1 line loop
 		jsr TermSetXY
 
@@ -449,6 +528,12 @@ PatternRenderInit
 
 		db 0
 
+; 48 columns
+:hud_colors
+		db $E0,$E0,$E0,$E0,$E0,$E0,$E0,$E0,$E0,$E0,$E0,$E0
+		db $B0,$B0,$B0,$B0,$B0,$B0,$B0,$B0,$B0,$B0,$B0,$B0
+		db $E0,$E0,$E0,$E0,$E0,$E0,$E0,$E0,$E0,$E0,$E0,$E0
+		db $B0,$B0,$B0,$B0,$B0,$B0,$B0,$B0,$B0,$B0,$B0,$B0
 
 
 PatternRender
@@ -1056,6 +1141,47 @@ init320x240_video
 		rts
 
 ;------------------------------------------------------------------------------
+;
+; LED FONT STRINGS
+;
+txt_video_jiffy
+		db 'V'+$A0,'I'+$A0,'D'+$A0,'E'+$A0,'O'+$A0
+		db ' '+$A0,'J'+$A0,'I'+$A0,'F'+$A0,'F'+$A0,'Y'+$A0,':'+$A0
+		db 0
+
+txt_audio_jiffy
+		db 'A'+$A0,'U'+$A0,'D'+$A0,'I'+$A0,'O'+$A0
+		db ' '+$A0,'J'+$A0,'I'+$A0,'F'+$A0,'F'+$A0,'Y'+$A0,':'+$A0
+		db 0
+		db 0
+
+txt_repeat_enabled
+		db 'R'+$A0,'E'+$A0,'P'+$A0,'E'+$A0,'A'+$A0,'T'+$A0,':'+$A0
+		db ' ','E'+$A0,'N'+$A0,'A'+$A0,'B'+$A0,'L'+$A0,'E'+$A0,'D'+$A0
+		db 0
+
+txt_position
+		db 'P'+$A0,'O'+$A0,'S'+$A0,'I'+$A0,'T'+$A0,'I'+$A0,'O'+$A0,'N'+$A0
+		db ':'+$A0,0
+
+txt_pattern
+		db 'P'+$A0,'A'+$A0,'T'+$A0,'T'+$A0,'E'+$A0,'R'+$A0,'N'+$A0
+		db ':'+$A0,0
+
+txt_row
+		db 'R'+$A0,'O'+$A0,'W'+$A0 
+		db ':'+$A0,0
+
+txt_bpm
+		db 'B'+$A0,'P'+$A0,'M'+$A0 
+		db ':'+$A0,0
+
+txt_speed
+		db 'S'+$A0,'P'+$A0,'E'+$A0,'E'+$A0,'D'+$A0
+		db ':'+$A0,0
+
+;------------------------------------------------------------------------------
+
 
 txt_modo asc 'ModoJr'
 		db 13,0
