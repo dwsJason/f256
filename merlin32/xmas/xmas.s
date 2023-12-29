@@ -536,7 +536,8 @@ init320x240
 		lda #2432/16
 		sta VKY_TM0_SIZE_Y   ; map size y
 		stz VKY_TM0_SIZE_Y+1 ; reserved
-		stz VKY_TM0_POS_X_L  ; scroll x lo
+		lda #16
+		sta VKY_TM0_POS_X_L  ; scroll x lo
 		stz VKY_TM0_POS_X_H  ; scroll x hi
 		stz VKY_TM0_POS_Y_L  ; scroll y lo
 		stz VKY_TM0_POS_Y_H  ; scroll y hi
