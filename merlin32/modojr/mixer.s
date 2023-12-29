@@ -102,6 +102,19 @@ AUDIO_FREQ = 0
 		rts
 
 ;------------------------------------------------------------------------------
+;
+; We can reduce jitter, and make this faster, if we change the wave data
+; so that it terminates with lets say the hi-bit set
+; This will require adding at least 8 bytes to the end of each wave with the
+; last sample repeated and hi-bit set, since the "step" can be over 1.0
+;
+; We could also get rid of the check on the osc_state at the top of the macro
+; and instead use self modifying code to enable/disable each channel
+;
+; It's not a small amount of CPU time we would save, when you figure that
+; the MixVoice is run 64000 times per second.  Each clock saved here
+; is worth 64000 cycles, we could spend somewhere else
+;
 
 VOICE0 = mixer_voices+{sizeof_osc*0}
 VOICE1 = mixer_voices+{sizeof_osc*1}
@@ -116,7 +129,8 @@ MixVoice mac
 		sta mmu3			; using block 3, $6000
 
 		lda (]1+osc_pWave+1) ; fetch sample data
-		sta ]1+osc_sample	; catched sample, for next interrupt
+		ora #$80.]2
+		sta ]3  			 ; psg output
 
 		; increment sample pointer
 		; c=0
@@ -187,26 +201,6 @@ next_osc
 ;------------------------------------------------------------------------------
 
 MixerMix mx %11
-;
-; We do this to reduce jitter, since we don't have a FIFO, we want to minimize
-; the time between the IRQ and stuffing samples, and even more important
-; this time should be as consistent as possible
-;
-		lda VOICE0+osc_sample
-		ora #$80.$10			; Tone 1 - Left
-		sta psg_l
-
-		lda VOICE1+osc_sample
-		ora #$80.$10			; Tone 1 - Right
-		sta psg_r
-
-		lda VOICE2+osc_sample
-		ora #$80.$30			; Tone 2 - Right
-		sta psg_r
-
-		lda VOICE3+osc_sample
-		ora #$80.$30			; Tone 2 - Left
-		sta psg_l
 
 ; we could probably add 2 more channels, if we lower the mixer rate to 11Khz
 
@@ -214,10 +208,10 @@ MixerMix mx %11
 
 		clc  ;  each mix below, keeps c=0
 
-		MixVoice VOICE0
-		MixVoice VOICE1
-		MixVoice VOICE2
-		MixVoice VOICE3
+		MixVoice VOICE0;$10;psg_l
+		MixVoice VOICE1;$10;psg_r
+		MixVoice VOICE2;$30;psg_r
+		MixVoice VOICE3;$30;psg_l
 
 		rts
 
