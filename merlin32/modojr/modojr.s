@@ -457,10 +457,18 @@ forward
 		ldy #30
 		jsr TermSetXY
 
-		lda mod_current_row
-		jsr TermPrintAI
-		lda #' '
-		jsr TermCOUT
+		;lda mod_current_row
+		;jsr TermPrintAI
+		;lda #' '
+		;jsr TermCOUT
+
+		ldx mod_current_row
+		lda tbl_dec99_hi,x
+		sta (term_ptr)
+		ldy #1
+		lda tbl_dec99_lo,x
+		sta (term_ptr),y
+
 
 		jmp ]main_loop
 ;
@@ -1425,6 +1433,11 @@ PumpBarRender mx %11
 
 
 		rts
+
+;------------------------------------------------------------------------------
+tbl_hex
+		db '0'+$A0,'1'+$A0,'2'+$A0,'3'+$A0,'4'+$A0,'5'+$A0,'6'+$A0,'7'+$A0
+		db '8'+$A0,'9'+$A0,'A'+$A0,'B'+$A0,'C'+$A0,'D'+$A0,'E'+$A0,'F'+$A0
 
 ;------------------------------------------------------------------------------
 ;
