@@ -69,6 +69,11 @@ VKY_BM1_ADDR_L = $D109          ; Bitmap #1 Address bits 7..0
 VKY_BM1_ADDR_M = $D10A          ; Bitmap #1 Address bits 15..8
 VKY_BM1_ADDR_H = $D10B          ; Bitmap #1 Address bits 17..16
 
+VKY_BM2_CTRL = $D110            ; Bitmap #2 Control Register
+VKY_BM2_ADDR_L = $D111          ; Bitmap #2 Address bits 7..0
+VKY_BM2_ADDR_M = $D112          ; Bitmap #2 Address bits 15..8
+VKY_BM2_ADDR_H = $D113          ; Bitmap #2 Address bits 17..16
+
 VKY_TXT_FGLUT = $D800           ; Text foreground CLUT
 VKY_TXT_BGLUT = $D840           ; Text background CLUT
 
@@ -92,11 +97,64 @@ SYS_SID_ST = $08
 SYS_PSG_ST = $04
 
 ;;
+;; Software Reset
+;;
+VKY_RST0 = $D6A2 	;R/W  Set to 0xDE to enable software reset
+VKY_RST1 = $D6A3 	;R/W  Set to 0xAD to enable software reset
+
+;;
+;; Random Numbers
+;;
+VKY_SEEDL 	 = $D6A4    ; SEED[7. . . 0]
+VKY_RNDL 	 = $D6A4    ; RND[7. . . 0]
+VKY_SEEDH 	 = $D6A5    ; SEED[15. . . 0]
+VKY_RNDH 	 = $D6A5    ; RND[15. . . 0]
+VKY_RND_CTRL = $D6A6 	; SEED_LD=$2 ENABLE=$1
+VKY_RND_STAT = $D6A6 	; DONE=$80
+
+;;
+;; Machine ID and Version
+;;
+VKY_MID = $D6A7			; Machine ID
+VKY_PCBID0 = $D6A8		; "B"
+VKY_PCBID1 = $D6A9      ; "0"
+VKY_CHSV0 = $D6AA       ; TinyVicky subversion BCD (low)
+VKY_CHSV1 = $D6AB  		; TinyVicky subversion in BCD (high)
+VKY_CHV0 = $D6AC  		; TinyVicky version in BCD (low)
+VKY_CHV1 = $D6AD  		; TinyVicky version in BCD (high)
+VKY_CHN0 = $D6AE  		; TinyVicky number in BCD (low)
+VKY_CHN1 = $D6AF  		; TinyVicky number in BCD (high)
+VKY_PCBMA = $D6EB  		; PCB Major Rev (ASCII)
+VKY_PCBMI = $D6EC  		; PCB Minor Rev (ASCII)
+VKY_PCBD = $D6ED  		; PCB Day (BCD)
+VKY_PCBM = $D6EE  		; PCB Month (BCD)
+VKY_PCBY = $D6EF  		; PCB Year (BCD)
+
+MID_C256_FMX    = %00000
+MID_C256_U      = %00001
+MID_F256        = %00010
+MID_F256_K      = %10010
+MID_A2560_DEV   = %00011
+MID_GEN_X       = %00100
+MID_C256_U_PLUS = %00101
+MID_A2560_X = %01000 
+MID_A2560_U = %01001 
+MID_A2560_M = %01010 
+MID_A2560_K = %01011 
+
+;;
 ;; Sound Generators
 ;;
 VKY_PSG0 = $D600
 VKY_PSG1 = $D610
 
 VKY_PSG_BOTH = $D608
+
+;;
+;; CODEC
+;;
+CODEC_LO         = $D620
+CODEC_HI         = $D621
+CODEC_CTRL       = $D622
 
 

@@ -14,14 +14,19 @@ term_y      ds 1
 term_ptr    ds 2
 term_temp0  ds 4
 term_temp1  ds 4
+term_temp2  ds 2
 	dend
 
 ;TermCOUT       - COUT, prints character in A, right now only special character code #13 is supported <cr>
 ;TermPUTS       - AX is a pointer to a 0 terminated string, this function will send the characters into COUT  
+;TermPrintAN    - print nybble value in A
 ;TermPrintAH    - print value in A, as HEX
 ;TermPrintAI    - print value in A, as DEC
 ;TermPrintAXH   - print value in AX, as HEX  (it will end up XA, because high, then low)
 ;TermPrintAXI   - print value in AX, as DEC
+;TermPrintAXYH  - print values in AXY, as HEX
+;TermSetXY      - cursor position X in X, Y in Y
+;TermCR         - output a Carriage Return
 
 ;------------------------------------------------------------------------------
 TermInit
@@ -77,7 +82,7 @@ TermCOUT
 		lda term_y
 		inc
 		cmp term_height
-		bcs :scroll
+		bcs :scroll_savexy
 :y      sta term_y
 
 		lda #0
@@ -155,12 +160,21 @@ TermCOUT
 ; Fill Text Buffer with spaces
 
 TermClearTextBuffer
+		stz	io_ctrl
+		stz	$D010			; disable cursor
+
+		lda #3
+		sta io_ctrl         ; swap in the color memory
+		lda $C000			; get current color attribute
+		jsr	:clear
 
 		lda #2
 		sta io_ctrl         ; swap in the text memory
-
-		ldx #0
 		lda #' '
+
+:clear
+		ldx #0
+
 ]lp
 		sta $C000,x
 		sta $C100,x
@@ -204,7 +218,7 @@ Term80Table_hi
 
 ;------------------------------------------------------------------------------
 TermPUTS
-:pString = term_temp0
+:pString = term_temp2
 		sta :pString
 		stx :pString+1
 
@@ -217,6 +231,18 @@ TermPUTS
 		bra ]lp
 :done
 		rts
+
+;------------------------------------------------------------------------------
+;TermPrintAXH   - print value in AX, as HEX  (it will end up XA, because high, then low)
+TermPrintAXYH
+		pha
+		phx
+		tya
+		jsr TermPrintAH
+		pla
+		jsr TermPrintAH
+		pla
+;		bra TermPrintAH
 
 ;------------------------------------------------------------------------------
 ;TermPrintAH    - print value in A, as HEX

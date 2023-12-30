@@ -10,3 +10,10 @@ merlin32/tilemap/data/ehonda_floor.Untitled 4.layer-Layer 1.map001.stm
 *.vpw
 *.vtg
 *.vpwhist
+merlin32/modojr/bin/makefont/bin/
+merlin32/modojr/bin/makefont/obj/
+art/
+backup/
+fonts/
+jr_fpga/
+*.vpwhistxml

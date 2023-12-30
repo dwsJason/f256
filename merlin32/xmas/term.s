@@ -14,16 +14,19 @@ term_y      ds 1
 term_ptr    ds 2
 term_temp0  ds 4
 term_temp1  ds 4
+term_temp2  ds 2
 	dend
 
 ;TermCOUT       - COUT, prints character in A, right now only special character code #13 is supported <cr>
 ;TermPUTS       - AX is a pointer to a 0 terminated string, this function will send the characters into COUT  
+;TermPrintAN    - print nybble value in A
 ;TermPrintAH    - print value in A, as HEX
 ;TermPrintAI    - print value in A, as DEC
 ;TermPrintAXH   - print value in AX, as HEX  (it will end up XA, because high, then low)
 ;TermPrintAXI   - print value in AX, as DEC
 ;TermPrintAXYH  - print values in AXY, as HEX
 ;TermSetXY      - cursor position X in X, Y in Y
+;TermCR         - output a Carriage Return
 
 ;------------------------------------------------------------------------------
 TermInit
@@ -60,6 +63,10 @@ TermSetXY
 		rts
 
 ;------------------------------------------------------------------------------
+_TermCR MAC
+		jsr TermCR
+		EOM
+
 TermCR  lda #13
 ;------------------------------------------------------------------------------
 TermCOUT
@@ -79,7 +86,7 @@ TermCOUT
 		lda term_y
 		inc
 		cmp term_height
-		bcs :scroll
+		bcs :scroll_savexy
 :y      sta term_y
 
 		lda #0
@@ -154,6 +161,17 @@ TermCOUT
 		rts
 
 ;------------------------------------------------------------------------------
+; Fill Text Color Buffer with designated color from A
+TermClearTextColorBuffer
+		pha
+		
+		lda #3
+		sta io_ctrl         ; swap in the color memory
+		pla
+		bra	:clear
+
+
+;------------------------------------------------------------------------------
 ; Fill Text Buffer with spaces
 
 TermClearTextBuffer
@@ -214,8 +232,15 @@ Term80Table_hi
 		--^
 
 ;------------------------------------------------------------------------------
+_TermPuts MAC
+		lda #<]1
+		ldx #>]1
+		jsr TermPUTS
+		EOM
+
+;------------------------------------------------------------------------------
 TermPUTS
-:pString = term_temp0
+:pString = term_temp2
 		sta :pString
 		stx :pString+1
 
@@ -230,7 +255,7 @@ TermPUTS
 		rts
 
 ;------------------------------------------------------------------------------
-;TermPrintAXH   - print value in AX, as HEX  (it will end up XA, because high, then low)
+;TermPrintAXYH   - print value in AXY, as HEX  (it will end up YXA, because high, then low)
 TermPrintAXYH
 		pha
 		phx

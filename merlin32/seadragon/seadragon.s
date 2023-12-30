@@ -69,7 +69,7 @@ start
 		lda #SYS_SID_ST+SYS_PSG_ST
 		tsb |VKY_SYS1
 
-		jsr make_noise
+;		jsr make_noise
 
 		ldx #{sea_wave/8192}
 		stx <mmu4
@@ -868,7 +868,7 @@ make_noise
 
             ; Try the next note
             iny
-            bra ]loop
+            jmp ]loop
 
 ;
 ; Wait for about 1ms
