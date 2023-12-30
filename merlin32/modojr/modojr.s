@@ -428,41 +428,101 @@ forward
 
 		jsr PumpBarRender
   
-:no_key
 		jsr UpdateMarker
 
 		jsr PatternRender
 
-		do 0
+		;; Display Jiffy Timers
 		ldx #53
-		ldy #25
+		ldy #26
 		jsr TermSetXY
 
-		ldax jiffy
-		jsr TermPrintAXH
+		;ldax jiffy
+		;jsr TermPrintAXH
+		lda jiffy
+		lsr
+		lsr
+		lsr
+		lsr
+		tax
+		lda |tbl_hex,x
+		sta (term_ptr)
+		lda jiffy
+		and #$F
+		tax
+		lda |tbl_hex,x
+		ldy #1
+		sta (term_ptr),y
 
-		lda #' '
-		jsr TermCOUT
+		ldx #53
+		ldy #28
+		jsr TermSetXY
 
-		ldax mod_jiffy
-		jsr TermPrintAXH
-		fin
+		;ldax mod_jiffy
+		;jsr TermPrintAXH
+		lda mod_jiffy
+		lsr
+		lsr
+		lsr
+		lsr
+		tax
+		lda |tbl_hex,x
+		sta (term_ptr)
+		lda mod_jiffy
+		and #$F
+		tax
+		lda |tbl_hex,x
+		ldy #1
+		sta (term_ptr),y
+		;; End JIffy
+
+		;; BPM
+		ldx #53
+		ldy #30
+		jsr TermSetXY
+
+		ldx mod_bpm
+		jsr PrintLEDAI
+		;; END BPM
+
+		;; Speed
+		ldx #53
+		ldy #32
+		jsr TermSetXY
+
+		ldx mod_speed
+		jsr PrintLEDAI
+
+		;; END Speed
 
 		ldx #28
 		ldy #26
 		jsr TermSetXY
 
-		lda mod_pattern_index
-		jsr TermPrintAI
+		;; Song position
+		ldx mod_pattern_index
+		jsr PrintLEDAI
+		;; END SONG Position
 
+		;; Pattern Number
+
+		ldx #28
+		ldy #28
+		jsr TermSetXY
+
+		lda mod_p_pattern_dir+2
+		sta mmu3
+		ldy mod_pattern_index
+		lda (mod_p_pattern_dir),y
+		tax
+		jsr PrintLEDAI
+
+		;; END Pattern Number
+
+		;; ROW
 		ldx #28
 		ldy #30
 		jsr TermSetXY
-
-		;lda mod_current_row
-		;jsr TermPrintAI
-		;lda #' '
-		;jsr TermCOUT
 
 		ldx mod_current_row
 		lda tbl_dec99_hi,x
@@ -470,6 +530,7 @@ forward
 		ldy #1
 		lda tbl_dec99_lo,x
 		sta (term_ptr),y
+		;; END ROW
 
 
 		jmp ]main_loop
@@ -1490,6 +1551,44 @@ PumpBarRender mx %11
 		bcc ]lp
 		fin
 
+
+		rts
+
+;------------------------------------------------------------------------------
+
+PrintLEDAI
+		ldy #0
+		cpx #100
+		bcc :less_than_100
+
+		txa
+		sbc #100
+		tax
+		lda #'1'+$A0
+
+		cpx #100
+		bcc :less_than_200
+
+		txa
+		sbc #100
+		tax
+
+		lda #'2'+$A0
+
+:less_than_200
+		sta (term_ptr),y
+		iny
+		 
+:less_than_100		 
+		lda tbl_dec99_hi,x
+		sta (term_ptr),y
+		iny
+		lda tbl_dec99_lo,x
+		sta (term_ptr),y
+
+		iny
+		lda #' '
+		sta (term_ptr),y
 
 		rts
 
