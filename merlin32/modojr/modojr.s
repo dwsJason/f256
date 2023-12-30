@@ -166,6 +166,16 @@ start
 		ldx #>txt_modo
 		jsr TermPUTS
 
+;------------------------------------------------------------------------------
+;
+; Deal With CLI and Loading
+;
+;------------------------------------------------------------------------------
+
+		jsr LoadSong
+
+;------------------------------------------------------------------------------
+
 		ldx #68
 		ldy #0
 		jsr TermSetXY
@@ -1256,6 +1266,157 @@ init320x240_video
 
 ;------------------------------------------------------------------------------
 ;
+; Actual Parse CLI, and Load Music
+;
+LoadSong
+		php
+		cli		; need the kernel to work
+
+
+		ldx #0
+		ldy #2
+		jsr TermSetXY
+
+		ldax #txt_about
+		jsr TermPUTS
+
+;
+; We need to sanity check the arguments, in-case they are hot
+; garbage, which can happen with FoenixMgr
+;
+
+		lda args_buflen
+		and #1
+		beq :@
+
+		cmp #16            ; mod player only accepts 1 argument, here we're checking if you did more than 8
+						   ; 128 would be "max", pexec can handle
+		bcs :bad_args
+:@
+		; plausible length
+		ldax args_buf
+		cmpax #$280
+		bcc :bad_args
+		cmpax #$290
+		bcc :argsok
+
+:bad_args
+		stz args_buflen
+		ldax #$280		
+		stax args_buf
+:argsok
+
+; argument stuff
+
+		ldax args_buf
+		stax kernel_args_ext
+
+		lda args_buflen
+		sta kernel_args_extlen
+		beq :no_args
+		cmp #4
+		bcc :no_args
+
+		ldax #txt_loading
+		jsr TermPUTS
+
+		lda #1    		; print out the first arg
+		jsr get_arg
+		jsr TermPUTS
+		jsr TermCR
+
+		lda #1  	    ; open the first arg
+		jsr get_arg
+
+		jsr fopen
+		bcc :opened
+
+		pha
+		lda #<txt_error_open   ; fail to open, show error
+		ldx #>txt_error_open
+		jsr TermPUTS
+		pla
+
+		jsr TermPrintAH
+		jsr TermCR
+
+;		jsr fclose
+
+		bra :wait_here
+
+:opened
+		ldaxy #mod_song  ; address where we're loading
+		jsr set_write_address
+
+		ldaxy #$58000 ; max song size
+		jsr fread
+
+		jsr fclose
+
+		bra :check_memory
+
+:play_song
+
+		;ldax #txt_play
+		;jsr TermPUTS
+
+		plp
+
+		; erase our crap
+		jsr TermInit
+
+		lda #<txt_modo
+		ldx #>txt_modo
+		jsr TermPUTS
+
+		rts
+
+:no_args
+:check_memory
+
+		ldax #txt_check_memory
+		jsr TermPUTS
+
+		ldaxy #mod_song
+		jsr set_read_address
+
+		ldax READ_BLOCK+1080
+		cmpax #'M.'
+		bne :derp
+		ldax READ_BLOCK+1082
+		cmpax #'K.'
+		beq :play_song
+:derp
+		ldax #txt_derp
+		jsr TermPUTS
+
+:wait_here
+		bra :wait_here
+
+
+
+
+
+
+;------------------------------------------------------------------------------
+; Get argument
+; A - argument number
+;
+; Returns string in AX
+
+get_arg
+		asl
+		tay
+		iny
+		lda (kernel_args_ext),y
+		tax
+		dey
+		lda (kernel_args_ext),y
+		rts
+
+
+;------------------------------------------------------------------------------
+;
 ; LED FONT STRINGS
 ;
 txt_video_jiffy
@@ -1299,6 +1460,28 @@ txt_speed
 
 txt_modo asc 'ModoJr'
 		db 13,0
+
+txt_play
+		asc 'PLAY!',00
+
+txt_loading
+		asc 'Loading: ',00
+
+txt_error_open asc 'ERROR: file open $',00
+
+txt_check_memory
+		asc 'Bad Arguments - Check memory for preloaded Song',00
+
+txt_about asc '   This is a very BASIC MOD player for the F256.',0D,0D
+		asc 'Features:',0D,0D
+		asc '       - 4 voice stereo PSG output L,R,R,L',0D
+		asc '       - 4 bit audio, at 16khz',0D
+		asc '       - M.K. style MOD files',0D
+		asc '       - Load MODs from SDcard',0D
+		asc '       - Detect and play preloaded MOD at $28000',0D,0D,00
+
+txt_derp asc 0D,0D,'Unable to Load Song, or detect a Preloaded Song',0D,0D
+		 asc 'Press RESET to exit.',00
 
 txt_unlock asc 'mmu_unlock'
 		db 13,0

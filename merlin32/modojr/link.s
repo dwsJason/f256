@@ -87,6 +87,7 @@ sfx_waves_end
 
 cdata_end
 
+		do 0
 		org $0
 		adr mod_data_start
 		adr mod_data_end-mod_data_start ; 72144      ;mod_end-mod_start  ; labels only work here, if data below is less than 64K
@@ -98,7 +99,7 @@ mod_song
 ;		putbin data/el_gondo.mod
 ;		putbin data/tomsdine.mod
 ;		putbin data/savage.mod
-		putbin data/bm1992.mod
+;		putbin data/bm1992.mod
 ;		putbin data/bizarrel.mod
 ;		putbin data/xmas/goto80-xmas.mod ;- crashes fast
 ;		putbin data/xmas/rush_-_xmas.mod  ; not bad
@@ -120,7 +121,26 @@ mod_song
 ;		putbin data/xmas/xmas_melondy.mod ; crashes
 ;		putbin data/xmas/xmas_mix_92.mod ; I dig it
 ;		putbin data/xmas/xmas_break.mod ; very cool, but crashes
+
+;       putbin mods/bananasplit.mod
+;       putbin mods/believe.mod
+;       putbin mods/bizarrel.mod
+;       putbin mods/bm1992.mod
+;       putbin mods/DRU.MOD
+;       putbin mods/EL_GONDO.MOD
+;       putbin mods/GILLIGAN.MOD
+       putbin mods/hymn_to_aurora.mod
+;       putbin mods/knulla-kuk.mod
+;       putbin mods/moby_-_dragonsfunk.mod
+;       putbin mods/MOD.Majortom
+;       putbin mods/SAVAGE.MOD
+;       putbin mods/space_debris.mod
+;       putbin mods/TOMSDINE.MOD
+
 mod_data_end
+		else
+mod_song equ $28000
+		fin
 
 ; Launch Address
 		adr start
