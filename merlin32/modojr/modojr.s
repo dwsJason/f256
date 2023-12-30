@@ -424,6 +424,8 @@ forward
 ]main_loop
 		jsr WaitVBL
 
+		jsr SpeakerAnim
+
 		jsr PumpBarRender
   
 :no_key
@@ -543,6 +545,49 @@ PatternRenderInit
 		db $E0,$E0,$E0,$E0,$E0,$E0,$E0,$E0,$E0,$E0,$E0,$E0
 		db $B0,$B0,$B0,$B0,$B0,$B0,$B0,$B0,$B0,$B0,$B0,$B0
 
+;------------------------------------------------------------------------------
+
+SpeakerAnim
+
+		stz io_ctrl
+
+		lda speaker_twang
+		dec
+		bmi :ha
+		sta speaker_twang
+
+		inc :time
+
+		lda :time
+		lsr
+		bcc :who
+		; ha
+:ha
+		; default
+		ldax #32
+		sei 					; reduce chance of interrupt causing bad position
+		stax VKY_TM0_POS_Y_L	; store not atomic
+		cli
+
+
+		lda #2
+		sta io_ctrl
+		rts
+:who
+		ldax #32+480
+		sei 					; reduce chance of interrupt causing bad position
+		stax VKY_TM0_POS_Y_L	; store not atomic
+		cli
+
+		lda #2
+		sta io_ctrl
+		rts
+
+:time  db 0
+speaker_twang db 0
+
+
+;------------------------------------------------------------------------------
 
 PatternRender
 
@@ -951,14 +996,14 @@ initBackground
 		jsr decompress_map
 
 		do 1
-		; map is 44x34
+		; map is 44x64
 		
 		ldaxy #MAP_DATA0
 		jsr set_read_address
 		jsr get_read_address
 		jsr set_write_address
 
-		ldxy #1496 ;{44*34}
+		ldxy #2816 ;{44*64}
 ]loop
 		jsr readbyte
 		jsr writebyte
@@ -1269,6 +1314,20 @@ PumpBarRender mx %11
 		stz |mod_pump_vol+{4*4}
 		sta <:levels+3
 		plp
+
+; for the speaker anim
+
+		ora <:levels+2
+		ora <:levels+1
+		ora <:levels+0
+		beq :no_speaker
+
+		lda #15				; move speaker for about 1/4 second, when note played
+		sta speaker_twang
+
+:no_speaker
+
+; end for speaker anim
 
 ]ct = 0
 		lup 4
