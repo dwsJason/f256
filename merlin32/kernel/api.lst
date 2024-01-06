@@ -1,17 +1,19 @@
 
 ; 64tass Turbo Assembler Macro V1.54.1900 listing file
 ; 64tass --verbose-list -L api.lst api.asm
-; Sat Apr  8 10:34:58 2023
+; Sat Jan  6 18:49:08 2024
 
 ;Offset	;Hex		;Monitor	;Source
 
 ;******  Processing input file: api.asm
 
-					; This file is part of the TinyCore 6502 MicroKernel,
-					; Copyright 2022 Jessie Oberreuter <joberreu@moselle.com>.
+					; This file is part of the TinyCore MicroKernel for the Foenix F256.
+					; Copyright 2022, 2023 Jessie Oberreuter <Gadget@HackwrenchLabs.com>.
+					; SPDX-License-Identifier: GPL-3.0-only
+
 					; As with the Linux Kernel Exception to the GPL3, programs
 					; built to run on the MicroKernel are expected to include
-					; this file.  Doing so does not effect their license status.
+					; this file.  Doing so does not affect their license status.
 
 					; Kernel Calls
 					; Populate the kernel.arg.* variables appropriately, and
@@ -103,11 +105,11 @@
 >ffd8					DrawColumn  .fill   4   ; Draw text/color buffers top-to-bottom
 					            .endn
 
-					Config      .namespace
+					Clock       .namespace
 >ffdc					GetTime     .fill   4
 >ffe0					SetTime     .fill   4
->ffe4					GetSysInfo  .fill   4
->ffe8					SetBPS      .fill   4   ; Set the serial BPS (should match the SLIP router's speed).
+>ffe4					            .fill   12  ; 65816 vectors
+>fff0					SetTimer    .fill   4
 					            .endn
 
 					            .endv
@@ -259,6 +261,14 @@
 .00f3					config      .dstruct    config_t
 					            .union
 					            .endu
+					            .ends
+.00f3					timer       .dstruct    timer_t
+>00f3					units       .byte       ?
+=0					FRAMES      = 0
+=1					SECONDS     = 1
+=128					QUERY       = 128
+>00f4					absolute    .byte       ?
+>00f5					cookie      .byte       ?
 					            .ends
 					            .endu
 
@@ -414,6 +424,14 @@
 .0003					config      .dstruct    config_t
 					            .union
 					            .endu
+					            .ends
+.0003					timer       .dstruct    timer_t
+>0003					units       .byte       ?
+=0					FRAMES      = 0
+=1					SECONDS     = 1
+=128					QUERY       = 128
+>0004					absolute    .byte       ?
+>0005					cookie      .byte       ?
 					            .ends
 					            .endu
 
@@ -641,6 +659,15 @@
 					            .endu
 					            .ends
 
+.0000					timer_t     .struct
+>0000					units       .byte       ?
+=0					FRAMES      = 0
+=1					SECONDS     = 1
+=128					QUERY       = 128
+>0001					absolute    .byte       ?
+>0002					cookie      .byte       ?
+					            .ends
+
 .0000					time_t      .struct
 >0000					century     .byte       ?
 >0001					year        .byte       ?
@@ -649,7 +676,7 @@
 >0004					hours       .byte       ?
 >0005					minutes     .byte       ?
 >0006					seconds     .byte       ?
->0007					millis      .byte       ?
+>0007					centis      .byte       ?
 .0008					size        .ends
 
 					; Events
@@ -723,10 +750,13 @@
 >0050					UDP         .word   ?
 					            .endn
 
-					clock       .namespace
->0052					TICK        .word   ?
+					timer       .namespace
+>0052					EXPIRED     .word   ?
 					            .endn
 
+					clock       .namespace
+>0054					TICK        .word   ?
+					            .endn
 
 					            .endv
 
@@ -797,6 +827,10 @@
 >0005					flags       .byte   ?   ; block scale, text encoding, approx size
 					            .ends
 					            .endu
+					            .ends
+.0003					timer       .dstruct    kernel.event.timer_t
+>0003					value       .byte   ?
+>0004					cookie      .byte   ?
 					            .ends
 					            .endu
 					            .ends
@@ -907,6 +941,11 @@
 
 .0000					tcp_t       .struct
 >0000					len         .byte   ?   ; Raw packet length.
+					            .ends
+
+.0000					timer_t     .struct
+>0000					value       .byte   ?
+>0001					cookie      .byte   ?
 					            .ends
 
 					            .endn
