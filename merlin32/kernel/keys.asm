@@ -1,8 +1,6 @@
-; This file is part of the TinyCore 6502 MicroKernel,
-; Copyright 2022 Jessie Oberreuter <joberreu@moselle.com>.
-; As with the Linux Kernel Exception to the GPL3, programs
-; built to run on the MicroKernel are expected to include
-; this file.  Doing so does not effect their license status.
+; This file is part of the TinyCore MicroKernel for the Foenix F256.
+; Copyright 2022, 2023 Jessie Oberreuter <Gadget@HackwrenchLabs.com>.
+; SPDX-License-Identifier: GPL-3.0-only
 
         .virtual 0
 LSHIFT  .byte   ?
