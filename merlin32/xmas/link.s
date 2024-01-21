@@ -47,9 +47,10 @@ main_code_start
 		put mod.s
 		put mixer.s
 		put colors.s
-		put snow.s		; tile-plane snow machine
-		put version.s   ; hardware version checker
-		put flame.s     ; this comment stops merlin32 crash
+		put snow.s
+		put version.s
+		put flame.s
+
 main_code_end
 
 ;------------------------------------------------------------------------------
