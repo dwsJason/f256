@@ -88,12 +88,14 @@ rc31 ds 1
 ; I256 uses $F0-FF
 ; LBM uses $F0-FF
 
-; 8k Kernel Program, so it can live anywhere
+; 8k Library Program, so it can be stored anywheren and mapped in
 
 		org $A000
 		dsk i256.flib
 
 sig		db $f1,$1B		; signature   FLIB/$F11B
+		db 1			; tool #
+		db 0            ; tool version
 		db 1			; 1 8k block (really, always 1)
 		db 5 			; mount slot (means org $A000)
 		jmp mosGetClut
@@ -102,6 +104,7 @@ sig		db $f1,$1B		; signature   FLIB/$F11B
 		jmp mosGetMapWH
 		jmp mosGetPixWidth
 		jmp mosGetPixHeight
+		jmp mosLzsa2Decompress
 
 start
 		jsr TermPUTS
