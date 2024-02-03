@@ -1,5 +1,5 @@
-bin\merlin32 -v i256lib.s
-copy /y i256lib.bin C:\dev\rickjr\lib
+..\bin\merlin32 -v i256lib.s
+copy /y i256.flib C:\dev\rickjr\lib
 
 
 

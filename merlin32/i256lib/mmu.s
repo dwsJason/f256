@@ -29,11 +29,17 @@ mmu6     equ 14
 mmu7     equ 15
 
 ; System Bus Pointer's
-pSource  equ $10
-pDest    equ pSource+2
-old_mmu_ctrl = pDest+2
-old_io_ctrl = old_mmu_ctrl+1
-old_mmu0 = old_io_ctrl+1
+;pSource  equ $10
+;pDest    equ pSource+2
+
+		dum MMU_MEM
+old_mmu_ctrl ds 1
+old_io_ctrl  ds 1
+old_mmu0	 ds 8
+pSource      ds 2
+pDest        ds 2
+		dend
+
 
 
 ;

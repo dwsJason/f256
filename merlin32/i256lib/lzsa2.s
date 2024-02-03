@@ -33,15 +33,16 @@
 ;
 ;
 
-lzsa_cmdbuf     =       $E0                     ; 1 byte.
-lzsa_nibflg     =       $E1                     ; 1 byte.
-lzsa_nibble     =       $E2                     ; 1 byte.
-lzsa_offset     =       $E3                     ; 1 word.
-lzsa_winptr     =       $E5                     ; 3 byte
-lzsa_srcptr     =       $E8                     ; 3 byte
-lzsa_dstptr     =       $EB                     ; 3 byte
-
-lzsa_length     =       lzsa_winptr             ; 1 word.
+		dum LZSA_MEM
+lzsa_cmdbuf ds 1                     ; 1 byte.
+lzsa_nibflg ds 1                     ; 1 byte.
+lzsa_nibble ds 1                     ; 1 byte.
+lzsa_offset ds 2                     ; 1 word.
+lzsa_length ds 0                     ; 1 word
+lzsa_winptr ds 3                     ; 3 byte
+lzsa_srcptr ds 3                     ; 3 byte
+lzsa_dstptr ds 3                     ; 3 byte
+		dend
 
 
 ; ***************************************************************************

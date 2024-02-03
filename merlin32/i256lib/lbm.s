@@ -14,7 +14,7 @@ lbm_error_nopixels   ds 1   ; 4 = There are no PIXL in this file
 		dend
 
 
-		dum $F0
+		dum LBM_MEM
 lbm_ChunkLength ds 0
 lbm_FileLength ds 0
 lbm_pChunk     ds 0
