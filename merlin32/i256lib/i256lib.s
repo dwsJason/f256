@@ -104,8 +104,7 @@ sig		db $f1,$1B		; signature   FLIB/$F11B
 		jmp mosGetMap
 		jmp mosGetPixels
 		jmp mosGetMapWH
-		jmp mosGetPixWidth
-		jmp mosGetPixHeight
+		jmp mosGetPixWidthHeight
 		jmp mosLzsa2Decompress
 
 
@@ -247,23 +246,7 @@ mosGetMap
 
 		jsr decompress_map
 
-		jsr get_write_address
-		sta <temp2
-		stx <temp2+1
-		sty <temp2+2
-
-		; I want to get the length
-
-		sec
-		lda <temp2
-		sbc <temp1
-		sta <temp3
-		lda <temp2+1
-		sbc <temp1+1
-		sta <temp3+1
-		lda <temp2+2
-		sbc <temp1+2
-		sta <temp3+2
+		jsr get_write_len
 
 		sta <rc2 ; for return value
 
@@ -369,7 +352,31 @@ mosGetMap
 ;
 mosGetPixels
 		jsr lib_startup
+
+		ldy rc2
+
+		sta temp1
+		stx temp1+1
+		sty temp1+2
+
+		jsr set_write_address
+
+		lda rc3
+		ldx rc4
+		ldy rc5
+		jsr set_read_address
+
+		jsr decompress_pixels
+
+		jsr get_write_len
+
+		sta rc2
+
+		lda temp3
+		ldx temp3+1
+
 		jsr lib_shutdown
+
 		rts
 
 ;------------------------------------------------------------------------------
@@ -382,32 +389,96 @@ mosGetPixels
 ;
 mosGetMapWH
 		jsr lib_startup
+
+		ldy rc2
+		jsr set_read_address
+
+		; return 0 if we don't get anything
+		stz temp0
+		stz temp0+2
+
+		jsr c256init
+
+		bcs :no_map   ; no i256 really
+
+		lda #<CHNK_TMAP
+		ldx #>CHNK_TMAP
+		jsr FindChunk
+
+		sta i256_pChunk
+		stx i256_pChunk+1
+		sty i256_pChunk+2
+
+		ora i256_pChunk+1
+		ora i256_pChunk+2
+		beq :no_map
+
+		; add 8 bytes, to skip up to width      
+		clc
+		lda i256_pChunk
+		adc #8
+		sta i256_pChunk
+		bcc :add8_done
+
+		inc i256_pChunk+1
+		bne :add8_done
+
+		inc i256_pChunk+2
+
+:add8_done
+		lda i256_pChunk
+		ldx i256_pChunk+1
+		ldy i256_pChunk+2
+		jsr set_read_address
+
+		jsr readbyte
+		sta <temp0
+		jsr readbyte
+		sta <temp0+1
+		jsr readbyte
+		sta <temp0+2
+		jsr readbyte
+		sta <temp0+3
+:no_map
+		; return result
+		lda temp0
+		ldx temp0+2
+
 		jsr lib_shutdown
 		rts
 
 ;------------------------------------------------------------------------------
 ;
-;u16 i256GetPixelWidth(u24 pI256);
+;u32 i256GetPixelWidthHeight(u24 pI256);
 ;
 ; Input pSource = AX RC2
 ;
-; Output: AX
+; Output: AX RC2 RC3
 ;
-mosGetPixWidth
+mosGetPixWidthHeight
 		jsr lib_startup
-		jsr lib_shutdown
-		rts
 
-;------------------------------------------------------------------------------
-;
-;u16 i256GetPixelHeight(u24 pI256);
-;
-; Input pSource = AX RC2
-;
-; Output: AX
-;
-mosGetPixHeight
-		jsr lib_startup
+		ldy rc2
+		jsr set_read_address
+
+		jsr c256init
+		bcc :good
+
+		; invalid i256 has no width or height
+		stz i256_Height
+		stz i256_Height+1
+		stz i256_Width
+		stz i256_Width+1
+
+:good
+		lda i256_Height
+		sta rc2
+		lda i256_Height+1
+		sta rc3
+
+		lda i256_Width
+		ldx i256_Width+1
+
 		jsr lib_shutdown
 		rts
 
@@ -424,6 +495,29 @@ mosGetPixHeight
 ;
 mosLzsa2Decompress
 		jsr lib_startup
+
+		ldy rc2
+
+		sta temp1
+		stx temp1+1
+		sty temp1+2
+
+		jsr set_write_address
+
+		lda rc3
+		ldx rc4
+		ldy rc5
+		jsr set_read_address
+
+		jsr lzsa2_unpack
+
+		jsr get_write_len
+
+		sta rc2
+
+		lda temp3
+		ldx temp3+1
+
 		jsr lib_shutdown
 		rts
 
@@ -518,6 +612,35 @@ set_srcdest_pixels
 		;ldy #^PIXEL_DATA
 		jsr set_write_address
 		rts
+
+;------------------------------------------------------------------------------
+;
+; Put the start write address in temp1
+; Put end address in temp2
+; return length in temp3
+;
+get_write_len
+
+		jsr get_write_address
+		sta <temp2
+		stx <temp2+1
+		sty <temp2+2
+
+		; I want to get the length
+
+		sec
+		lda <temp2
+		sbc <temp1
+		sta <temp3
+		lda <temp2+1
+		sbc <temp1+1
+		sta <temp3+1
+		lda <temp2+2
+		sbc <temp1+2
+		sta <temp3+2
+
+		rts
+
 
 ;------------------------------------------------------------------------------
 		put mmu.s

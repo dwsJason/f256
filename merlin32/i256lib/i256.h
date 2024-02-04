@@ -15,7 +15,6 @@ u16 i256GetClutIO(u8* pTarget, u24 pI256);
 u24 i256DecompressMAP(u24 pTarget, u16 nameAdjust, u24 pI256);
 u24 i256DecompressPIXELS(u24 pTarget, u24 pI256);
 u16 i256GetMapWidthHeight(u24 pI256);
-u16 i256GetPixelWidth(u24 pI256);
-u16 i256GetPixelHeight(u24 pI256);
+u32 i256GetPixelWidthHeight(u24 pI256);
 u24 lzsa2Decompress(u24 pTarget, u24 pSource);
 

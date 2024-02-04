@@ -38,6 +38,7 @@ old_io_ctrl  ds 1
 old_mmu0	 ds 8
 pSource      ds 2
 pDest        ds 2
+temp_mmu     ds 2
 		dend
 
 
@@ -54,12 +55,12 @@ mmu_unlock
 
 		lda mmu_ctrl
 		and #$3
-		sta temp0     ; active MLUT
+		sta temp_mmu     ; active MLUT
 		asl
 		asl
 		asl
 		asl
-		ora temp0     ; active MLUT, copied to the EDIT LUT
+		ora temp_mmu     ; active MLUT, copied to the EDIT LUT
 		ora #$80      ; Enable MMU edit - we are editing the active (spooky)
 		sta mmu_ctrl
 
@@ -125,19 +126,19 @@ set_read_address
 ;  Y = HIGH
 ;
 get_read_address
-		stz temp0   	; convert from block+offset, to master bus address
+		stz temp_mmu   	; convert from block+offset, to master bus address
 		lda READ_MMU
 		lsr
-		ror temp0
+		ror temp_mmu
 		lsr
-		ror temp0
+		ror temp_mmu
 		lsr
-		ror temp0
+		ror temp_mmu
 		tay
 		
 		lda pSource+1
 		and #$1F
-		ora temp0
+		ora temp_mmu
 		
 		tax
 		
@@ -151,19 +152,19 @@ get_read_address
 ;  Y = HIGH
 ;
 get_write_address
-		stz temp0		; convert from block+offset, to master bus address
+		stz temp_mmu		; convert from block+offset, to master bus address
 		lda WRITE_MMU
 		lsr
-		ror temp0
+		ror temp_mmu
 		lsr
-		ror temp0
+		ror temp_mmu
 		lsr
-		ror temp0
+		ror temp_mmu
 		tay
 		
 		lda pDest+1
 		and #$1F
-		ora temp0
+		ora temp_mmu
 		
 		tax
 		
