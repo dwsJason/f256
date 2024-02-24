@@ -118,15 +118,28 @@ image_start = $010000
 		sty :write_address+2
 		jsr set_write_address   ; mmu is going to map this to $6000
 
+		lda mmu3
+		inc
+		sta mmu4 	; this guarantees we don't have to look for page wrap
+
 :y_pos = temp3
 :write_address = temp2
 
 		stz :y_pos
 ]lp
-		lda :write_address
-		ldx :write_address+1
-		ldy :write_address+2
-		jsr set_write_address
+		;lda :write_address
+		;ldx :write_address+1
+		;ldy :write_address+2
+		;jsr set_write_address
+
+		lda pDest
+		sta :mod_sto+1
+		lda pDest+1
+		sta :mod_sto+2
+		
+		;lda mmu3
+		;inc
+		;sta mmu4 	; this guarantees we don't have to look for page wrap
 
 		ldx :y_pos
 		lda scanline_table_lo,x
@@ -136,23 +149,24 @@ image_start = $010000
 
 		ldx #0
 
-:mod_load lda $2000,x
+:mod_load lda $2000,x   			; the raw HGR data in A here
 
-		tay
+		tay 					   	; this is an address look up, to look up the 7 pixel expansion
 		lda pixelmap_addr_lo,y
-		clc
-		adc #<pixelmap
 		sta :mod_pix+1
 		lda pixelmap_addr_hi,y
-		adc #>pixelmap
 		sta :mod_pix+2
 
+		; 7 byte blit, which potentially cloud be done via DMA
 		ldy #6
 :mod_pix lda $2000,y
-		jsr writebyte
+:mod_sto sta $6000
+
+		inc :mod_sto+1
+		bne :ok1
+		inc :mod_sto+2
+:ok1
 		dey
-		;cpy #7
-		;bcc :mod_pix
 		bpl :mod_pix
 
 		inx
@@ -171,17 +185,32 @@ image_start = $010000
 		jmp :wait
 
 :inc_write_address
-		clc
-		lda <:write_address
-		adc #<320
-		sta <:write_address
-		lda <:write_address+1
-		adc #>320
-		sta <:write_address+1
-		lda #0
-		adc <:write_address+2
-		sta <:write_address+2
+		;clc
+		;lda <:write_address
+		;adc #<320
+		;sta <:write_address
+		;lda <:write_address+1
+		;adc #>320
+		;sta <:write_address+1
+		;lda #0
+		;adc <:write_address+2
+		;sta <:write_address+2
 
+		clc
+		lda <pDest
+		adc #<320
+		sta <pDest
+		lda <pDest+1
+		adc #>320
+		bpl :go_go
+		; c=0
+		;sec
+		;sbc #$20
+		sbc #$1F
+		inc mmu3
+		inc mmu4
+:go_go
+		sta <pDest+1
 		rts
 
 
@@ -236,6 +265,7 @@ byte2pix mac
 	fin
 	<<<
 
+; perhaps misnamed, but a table of 7 pixel entries
 pixelmap equ *
 ]v = 0
 	lup 256
@@ -310,13 +340,11 @@ rows_hi mac
 	lines_hi ]1+$380
 	<<<
 
-
-;scanline_table
-;]addr = $2000
-;	lup 3
-;	rows ]addr
-;]addr = ]addr+40
-;	--^
+;
+; Switzzled like the Apple 2
+; Since we're looking at RAW Apple2 data
+; in the hopes of porting some small games
+;
 
 scanline_table_lo
 ]addr = $2000
@@ -337,14 +365,14 @@ scanline_table_hi
 pixelmap_addr_lo
 ]addr = 0
 	lup 256
-	db <]addr
+	db <pixelmap+]addr
 ]addr = ]addr+7
 	--^
 
 pixelmap_addr_hi
 ]addr = 0
 	lup 256
-	db >]addr
+	db >pixelmap+]addr
 ]addr = ]addr+7
 	--^
 
