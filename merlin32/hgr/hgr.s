@@ -10,9 +10,16 @@ temp0 ds 4
 temp1 ds 4
 temp2 ds 4
 temp3 ds 4
+temp4 ds 4
 	dend
 
-VKY_GR_CLUT_0 = $D000
+; TODO - add a macros file
+
+bccl mac
+    bcs skip@
+    jmp ]1
+skip@
+    <<<
 
 ;
 ; This will copy the color table into memory, then set the video registers
@@ -58,6 +65,10 @@ start
 
 image_start = $010000
 
+DMA_CLEAR_ADDY = image_start
+DMA_CLEAR_LEN  = $12000
+
+
 		; set address of image, since image uncompressed, we just display it
 		; where we loaded it.
 		lda #<image_start
@@ -72,9 +83,16 @@ image_start = $010000
 		stz $D108  ; disable
 		stz $D110  ; disable
 
+		; fix the BG Color
+		stz VKY_BKG_COL_B
+		stz VKY_BKG_COL_G
+		stz VKY_BKG_COL_R
+
 ; experiment people
 
-		jsr clear_bitmap
+;		jsr clear_bitmap
+		lda #0
+		jsr DmaClear
 
 
 :count = temp1+3
@@ -124,6 +142,7 @@ image_start = $010000
 
 :y_pos = temp3
 :write_address = temp2
+:hgr_pix = temp4
 
 		stz :y_pos
 ]lp
@@ -133,9 +152,9 @@ image_start = $010000
 		;jsr set_write_address
 
 		lda pDest
-		sta :mod_sto+1
+		sta :write_address
 		lda pDest+1
-		sta :mod_sto+2
+		sta :write_address+1
 		
 		;lda mmu3
 		;inc
@@ -148,26 +167,42 @@ image_start = $010000
 		sta :mod_load+2
 
 		ldx #0
+		ldy #0
 
 :mod_load lda $2000,x   			; the raw HGR data in A here
+		sta <:hgr_pix
 
-		tay 					   	; this is an address look up, to look up the 7 pixel expansion
-		lda pixelmap_addr_lo,y
-		sta :mod_pix+1
-		lda pixelmap_addr_hi,y
-		sta :mod_pix+2
+;		tay 					   	; this is an address look up, to look up the 7 pixel expansion
+;		lda pixelmap_addr_lo,y
+;		sta :mod_pix+1
+;		lda pixelmap_addr_hi,y
+;		sta :mod_pix+2
 
-		; 7 byte blit, which potentially cloud be done via DMA
-		ldy #6
-:mod_pix lda $2000,y
-:mod_sto sta $6000
+;		; 7 byte blit, which potentially cloud be done via DMA
+;		ldy #6
+;:mod_pix lda $2000,y
+;:mod_sto sta $6000
+;
+;		inc :mod_sto+1
+;		bne :ok1
+;		inc :mod_sto+2
+;:ok1
+;		dey
+;		bpl :mod_pix
 
-		inc :mod_sto+1
-		bne :ok1
-		inc :mod_sto+2
-:ok1
-		dey
-		bpl :mod_pix
+
+		lup 7
+
+		lsr <:hgr_pix
+		lda #0
+		bcc :sk0
+		inc
+:sk0	sta (:write_address),y
+		iny
+		bne :sk1
+		inc :write_address+1
+:sk1
+		--^
 
 		inx
 		cpx #40
@@ -179,7 +214,7 @@ image_start = $010000
 		inc
 		cmp #192
 		sta :y_pos
-		bcc ]lp
+		bccl ]lp
 
 		jmp ]alter_loop
 		jmp :wait
@@ -393,5 +428,62 @@ clear_bitmap
 		dey
 		bne ]clr
 		rts
+;------------------------------------------------------------------------------
+;
+; A = Fill Color
+;
+; Clear 320x240 buffer PIXEL_DATA with A
+;
+DmaClear
+		php
+		sei
+
+;]size = {320*240}
+]size = DMA_CLEAR_LEN
+;]addr = PIXEL_DATA
+]addr = DMA_CLEAR_ADDY
+
+
+		ldy io_ctrl
+		phy
+
+		stz io_ctrl
+
+		ldx #DMA_CTRL_ENABLE+DMA_CTRL_FILL
+		stx |DMA_CTRL
+
+		sta |DMA_FILL_VAL
+
+		lda #<]addr
+		sta |DMA_DST_ADDR
+		lda #>]addr
+		sta |DMA_DST_ADDR+1
+		lda #^]addr
+		sta |DMA_DST_ADDR+2
+
+
+		lda #<]size
+		sta |DMA_COUNT
+		lda #>]size
+		sta |DMA_COUNT+1
+		lda #^]size
+		sta |DMA_COUNT+2
+
+		lda #DMA_CTRL_START
+		tsb |DMA_CTRL
+
+]busy
+		lda |DMA_STATUS
+		bmi ]busy
+
+		stz |DMA_CTRL
+
+		pla
+		sta io_ctrl
+
+		plp
+
+		rts
+
 ;------------------------------------------------------------------------------
 

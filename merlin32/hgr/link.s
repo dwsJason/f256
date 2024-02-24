@@ -8,6 +8,22 @@
 ; just copy the color table, and set video mode to display
 ;
 
+
+;------------------------------------------------------------------------------
+; Include the hardware defs, from PJW
+
+		put ..\jr\f256jr.asm
+		put ..\jr\f256_dma.asm
+		put ..\jr\f256_irq.asm
+		put ..\jr\f256_rtc.asm
+		put ..\jr\f256_sprites.asm
+		put ..\jr\f256_tiles.asm
+		put ..\jr\f256_timers.asm
+		put ..\jr\f256_via.asm
+		put ..\jr\f256_intmath.asm
+
+;------------------------------------------------------------------------------
+
 		mx %11
 		org $0
 		dsk hgr.pgz
