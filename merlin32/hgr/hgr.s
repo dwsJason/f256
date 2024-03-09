@@ -126,6 +126,11 @@ DMA_CLEAR_LEN  = $12000
 		ldx #>blitz_image
 		ldy #^blitz_image
 :do_it
+
+:y_pos = temp3
+:write_address = temp2
+:hgr_pix = temp4
+
 		jsr set_read_address	; mmu is going to map this to $2000, woot
 
 		lda #<image_start
@@ -136,29 +141,34 @@ DMA_CLEAR_LEN  = $12000
 		sty :write_address+2
 		jsr set_write_address   ; mmu is going to map this to $6000
 
+;------------------------------------------------------------------------------
+		; DMA VERSION
+
+		stz	io_ctrl
+
+		stz |DMA_CTRL	; turn it off
+		lda #DMA_CTRL_ENABLE
+		sta |DMA_CTRL
+
+		lda #7
+		sta |DMA_COUNT
+		stz |DMA_COUNT+1
+		stz |DMA_COUNT+2
+
+
+
 		lda mmu3
 		inc
 		sta mmu4 	; this guarantees we don't have to look for page wrap
 
-:y_pos = temp3
-:write_address = temp2
-:hgr_pix = temp4
-
 		stz :y_pos
 ]lp
-		;lda :write_address
-		;ldx :write_address+1
-		;ldy :write_address+2
-		;jsr set_write_address
-
-		lda pDest
-		sta :write_address
-		lda pDest+1
-		sta :write_address+1
-		
-		;lda mmu3
-		;inc
-		;sta mmu4 	; this guarantees we don't have to look for page wrap
+		lda :write_address
+		ldx :write_address+1
+		ldy :write_address+2
+		sta |DMA_DST_ADDR
+		stx |DMA_DST_ADDR+1
+		sty |DMA_DST_ADDR+2
 
 		ldx :y_pos
 		lda scanline_table_lo,x
@@ -167,43 +177,42 @@ DMA_CLEAR_LEN  = $12000
 		sta :mod_load+2
 
 		ldx #0
-		ldy #0
 
-:mod_load lda $2000,x   			; the raw HGR data in A here
-		sta <:hgr_pix
+:mod_load ldy $2000,x   			; the raw HGR data in A here
 
-;		tay 					   	; this is an address look up, to look up the 7 pixel expansion
-;		lda pixelmap_addr_lo,y
-;		sta :mod_pix+1
-;		lda pixelmap_addr_hi,y
-;		sta :mod_pix+2
+		lda pixelmap_addr_lo,y
+		sta |DMA_SRC_ADDR
+		lda pixelmap_addr_hi,y
+		sta |DMA_SRC_ADDR+1
+		;stz |DMA_SRC_ADDR+2
 
-;		; 7 byte blit, which potentially cloud be done via DMA
-;		ldy #6
-;:mod_pix lda $2000,y
-;:mod_sto sta $6000
-;
-;		inc :mod_sto+1
-;		bne :ok1
-;		inc :mod_sto+2
-;:ok1
-;		dey
-;		bpl :mod_pix
+		;lda #7
+		;sta |DMA_COUNT
+		;stz |DMA_COUNT+1
+		;stz |DMA_COUNT+2
+
+		lda #DMA_CTRL_ENABLE.DMA_CTRL_START
+		sta |DMA_CTRL
+		; assuming DMA Controller halts CPU
+
+]wait   lda |DMA_STATUS
+		bmi ]wait
 
 
-		lup 7
+;		stz |DMA_CTRL	; turn it off
+		lda #DMA_CTRL_ENABLE
+		sta |DMA_CTRL
 
-		lsr <:hgr_pix
-		lda #0
-		bcc :sk0
-		inc
-:sk0	sta (:write_address),y
-		iny
-		bne :sk1
-		inc :write_address+1
-:sk1
-		--^
+		; I wish I didn't have to have this
+		clc
+		lda |DMA_DST_ADDR
+		adc #7
+		sta |DMA_DST_ADDR
+		bcc :okkk
+		inc |DMA_DST_ADDR+1
 
+
+:okkk
 		inx
 		cpx #40
 		bcc :mod_load
@@ -220,34 +229,214 @@ DMA_CLEAR_LEN  = $12000
 		jmp :wait
 
 :inc_write_address
-		;clc
-		;lda <:write_address
-		;adc #<320
-		;sta <:write_address
-		;lda <:write_address+1
-		;adc #>320
-		;sta <:write_address+1
-		;lda #0
-		;adc <:write_address+2
-		;sta <:write_address+2
-
 		clc
-		lda <pDest
+		lda <:write_address
 		adc #<320
-		sta <pDest
-		lda <pDest+1
+		sta <:write_address
+		lda <:write_address+1
 		adc #>320
-		bpl :go_go
-		; c=0
-		;sec
-		;sbc #$20
-		sbc #$1F
-		inc mmu3
-		inc mmu4
-:go_go
-		sta <pDest+1
+		sta <:write_address+1
+		bcc :rts
+		inc <:write_address+2
+:rts
 		rts
 
+;------------------------------------------------------------------------------
+; CPU VERSION
+
+;		lda mmu3
+;		inc
+;		sta mmu4 	; this guarantees we don't have to look for page wrap
+;
+;		stz :y_pos
+;]lp
+;		;lda :write_address
+;		;ldx :write_address+1
+;		;ldy :write_address+2
+;		;jsr set_write_address
+;
+;		lda pDest
+;		sta :write_address
+;		lda pDest+1
+;		sta :write_address+1
+;		
+;		;lda mmu3
+;		;inc
+;		;sta mmu4 	; this guarantees we don't have to look for page wrap
+;
+;		ldx :y_pos
+;		lda scanline_table_lo,x
+;		sta :mod_load+1
+;		lda scanline_table_hi,x
+;		sta :mod_load+2
+;
+;		ldx #0
+;		ldy #0
+;
+;:mod_load lda $2000,x   			; the raw HGR data in A here
+;		sta <:hgr_pix
+;
+;;		tay 					   	; this is an address look up, to look up the 7 pixel expansion
+;;		lda pixelmap_addr_lo,y
+;;		sta :mod_pix+1
+;;		lda pixelmap_addr_hi,y
+;;		sta :mod_pix+2
+;
+;;		; 7 byte blit, which potentially cloud be done via DMA
+;;		ldy #6
+;;:mod_pix lda $2000,y
+;;:mod_sto sta $6000
+;;
+;;		inc :mod_sto+1
+;;		bne :ok1
+;;		inc :mod_sto+2
+;;:ok1
+;;		dey
+;;		bpl :mod_pix
+;
+;
+;		lup 7
+;
+;		lsr <:hgr_pix
+;		lda #0
+;		bcc :sk0
+;		inc
+;:sk0	sta (:write_address),y
+;		iny
+;		bne :sk1
+;		inc :write_address+1
+;:sk1
+;		--^
+;
+;		inx
+;		cpx #40
+;		bcc :mod_load
+;
+;		jsr :inc_write_address
+;
+;		lda :y_pos
+;		inc
+;		cmp #192
+;		sta :y_pos
+;		bccl ]lp
+;
+;		jmp ]alter_loop
+;		jmp :wait
+;
+;:inc_write_address
+;		;clc
+;		;lda <:write_address
+;		;adc #<320
+;		;sta <:write_address
+;		;lda <:write_address+1
+;		;adc #>320
+;		;sta <:write_address+1
+;		;lda #0
+;		;adc <:write_address+2
+;		;sta <:write_address+2
+;
+;		clc
+;		lda <pDest
+;		adc #<320
+;		sta <pDest
+;		lda <pDest+1
+;		adc #>320
+;		bpl :go_go
+;		; c=0
+;		;sec
+;		;sbc #$20
+;		sbc #$1F
+;		inc mmu3
+;		inc mmu4
+;:go_go
+;		sta <pDest+1
+;		rts
+;
+;-----------------------------------------------------------------------------
+;
+; CPU 2
+;
+
+;		lda mmu3
+;		inc
+;		sta mmu4 	; this guarantees we don't have to look for page wrap
+;
+;		stz :y_pos
+;]lp
+;		;lda :write_address
+;		;ldx :write_address+1
+;		;ldy :write_address+2
+;		;jsr set_write_address
+;
+;		lda pDest
+;		sta :write_address
+;		sta :mod_sto+1
+;		lda pDest+1
+;		sta :write_address+1
+;		sta :mod_sto+2
+;
+;		ldx :y_pos
+;		lda scanline_table_lo,x
+;		sta :mod_load+1
+;		lda scanline_table_hi,x
+;		sta :mod_load+2
+;
+;		ldx #0
+;
+;:mod_load ldy $2000,x   			; the raw HGR data in A here
+;		;sty <:hgr_pix
+;
+;		lda pixelmap_addr_lo,y
+;		sta :mod_pix+1
+;		lda pixelmap_addr_hi,y
+;		sta :mod_pix+2
+;
+;;		; 7 byte blit, which potentially cloud be done via DMA
+;		ldy #0
+;:mod_pix lda $2000,y
+;:mod_sto sta $6000,y
+;		iny
+;		cpy #7
+;		bcc :mod_pix
+;
+;		lda :mod_sto+1
+;		adc #6    		; c=1
+;		sta :mod_sto+1
+;		bcc :dd
+;		inc :mod_sto+2
+;:dd
+;
+;		inx
+;		cpx #40
+;		bcc :mod_load
+;
+;		jsr :inc_write_address
+;
+;		lda :y_pos
+;		inc
+;		cmp #192
+;		sta :y_pos
+;		bccl ]lp
+;
+;		jmp ]alter_loop
+;		jmp :wait
+;
+;:inc_write_address
+;		clc
+;		lda <pDest
+;		adc #<320
+;		sta <pDest
+;		lda <pDest+1
+;		adc #>320
+;		bpl :go_go
+;		; c=0
+;		sbc #$1F
+;		inc mmu3
+;		inc mmu4
+;:go_go
+;		sta <pDest+1
+;
+;		rts
 
 
 
@@ -258,32 +447,7 @@ DMA_CLEAR_LEN  = $12000
 ;-----------------------------------------------------------------------------
 ; take a byte, and crap out pixels that can be used (Bits to pixels)
 byte2pix mac
-;	do ]1&$80
-;	db 1
-;	else
-;	db 0
-;	fin
-	do ]1&$40
-	db 1
-	else
-	db 0
-	fin
-	do ]1&$20
-	db 1
-	else
-	db 0
-	fin
-	do ]1&$10
-	db 1
-	else
-	db 0
-	fin
-	do ]1&$08
-	db 1
-	else
-	db 0
-	fin
-	do ]1&$04
+	do ]1&$01
 	db 1
 	else
 	db 0
@@ -293,7 +457,27 @@ byte2pix mac
 	else
 	db 0
 	fin
-	do ]1&$01
+	do ]1&$04
+	db 1
+	else
+	db 0
+	fin
+	do ]1&$08
+	db 1
+	else
+	db 0
+	fin
+	do ]1&$10
+	db 1
+	else
+	db 0
+	fin
+	do ]1&$20
+	db 1
+	else
+	db 0
+	fin
+	do ]1&$40
 	db 1
 	else
 	db 0
