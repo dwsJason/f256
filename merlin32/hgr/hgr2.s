@@ -36,10 +36,15 @@ LINE0 = 16
 
 SPRITE_TILES = $10000  	; 64k of them
 
-HGR_CODE = $20000       ; 12 blocks = 96k  
+HGR_CODE = $20000       ; 12 blocks = 96k
+BLIT_BLOCK = $A000
+BLIT_MMU   = mmu+{BLIT_BLOCK/8192}
+
 
 DMA_CLEAR_LEN = $10000
 DMA_CLEAR_ADDY = SPRITE_TILES
+
+
  
 
 
@@ -65,6 +70,8 @@ start
 		stz :count
 
 ]alter_loop
+
+		stz <:count ; TEMP HACK for HHM image, for debugging
 
 		lda :count
 		cmp #0
@@ -238,8 +245,34 @@ scanline_table_hi
 ]addr = ]addr+40
 	--^
 
+;------------------------------------------------------------------------------
+;
+; Table of which mmu block needs paged in for this scanline
+;
+blit_block_table
+]addr = HGR_CODE
+	lup 192
+	db ]addr/8192
+]addr = ]addr+512
+	--^
+;------------------------------------------------------------------------------
+;
+; Local address, based on the scanline
+;
+blit_jump_table_hi
 
+]addr = HGR_CODE
 
+	lup 192
+	db	>{]addr&$1FFF}.BLIT_BLOCK
+
+]addr = ]addr+512
+	--^
+
+;------------------------------------------------------------------------------
+
+; This table has pixel patterns, that we use once we load memory from the HGR
+; buffer
 pixelmap_addr_lo
 ]addr = 0
 	lup 256
@@ -399,31 +432,201 @@ init320x240
 
 ;------------------------------------------------------------------------------
 ;     
-; 12 * 40 = 480 clocks
-;
-; 4
-; 4 	  = 8 * 40 = 320 + 20 = 340
-; 4
-
-		ldx #0   ; scanline #     ; 2 -> 1 per scanline
-		stx VKY_SP0_POS_Y_L 	  ; 3 -> 40 per scanline
-
-		lda $2000   			  ; 3 -> 40 per scanline
-		sta VKY_SP0_AD_M		  ; 3   = 9 bytes * 40 = 360 * 192 = 69120
-
-		; How about this, how many lines in 8k?
-		; 8192 / (360+2+1) = 363 = 22,  192/ 22 = 9 blocks, with 22 lines in each
-
-		; or 12 block, each with 16 lines, (12 * 8k = 96k)
-
-		; each IRQ will have to choose a block, and dispatch from 0-15
-
 
 hgr_init
 		; create the glyphs
 		jsr glyph_init
 
+		jsr blit_init
+
 		rts
+
+;------------------------------------------------------------------------------
+;
+; now we're doing a weird thing, generating code into each bank
+; 16 programs in each 8k
+; each program gets 512 bytes
+; line 0 is little longer than the rest, since it has to set all the Y positions
+;
+; 12 * 40 = 480 clocks
+;
+; 4
+; 4 	  = 8 * 40 = 320 + 20 = 340
+; 4
+;
+;		ldx #0   ; scanline #     ; 2 -> 1 per scanline
+;		stx VKY_SP0_POS_Y_L 	  ; 3 -> 40 per scanline
+;
+;		lda $2000   			  ; 3 -> 40 per scanline
+;		sta VKY_SP0_AD_M		  ; 3   = 9 bytes * 40 = 360 * 192 = 69120
+;
+;		; How about this, how many lines in 8k?
+;		; 8192 / (360+2+1) = 363 = 22,  192/ 22 = 9 blocks, with 22 lines in each
+;
+;		; or 12 block, each with 16 lines, (12 * 8k = 96k)
+;
+;		; each IRQ will have to choose a block, and dispatch from 0-15
+;
+blit_init
+
+:pCode   = temp0
+:line_no = temp1
+:pHGR    = temp2
+:pSprite = temp3
+
+		stz <:line_no
+		lda <:line_no
+]lp
+		jsr :get_addr
+
+		jsr :gen_code
+
+		lda <:line_no
+		inc
+		sta <:line_no
+		cmp #192
+		bcc ]lp
+:done
+		rts
+
+:get_addr
+		tax
+		lda |blit_block_table,x
+		sta <BLIT_MMU				; map in the memory
+
+		stz :pCode
+		lda |blit_jump_table_hi,x
+		sta :pCode+1
+
+		rts
+
+:gen_code
+
+		; x has the line #, handy for looking up table stuff
+		lda |scanline_table_lo,x
+		sta <:pHGR
+		lda |scanline_table_hi,x
+		sta <:pHGR+1
+
+		lda |:sprite_start_lo,x
+		sta <:pSprite
+		lda |:sprite_start_hi,x
+		sta <:pSprite+1
+
+		lda #$A2   		; ldx #im
+		jsr :putCode
+		txa
+		clc
+		adc #32
+		jsr :putCode		; start at 32, and work it
+
+		lda |:sprite_count,x  ; count down for how many stores we we need, for y positions
+		tay
+
+:emit_stx_go
+
+		lda #$8D          ; stx |abs
+		jsr :putCode
+		lda <:pSprite
+		jsr :putCode
+		lda <:pSprite+1
+		jsr :putCode
+
+		clc
+		lda <:pSprite
+		adc #8
+		sta <:pSprite
+		bcc :skk
+		inc <:pSprite+1
+:skk
+		dey 			  ; count down
+		bne :emit_stx_go
+
+:emit_sprite_no
+
+		lda #<VKY_SP0_AD_M
+		sta <:pSprite
+		lda #>VKY_SP0_AD_M
+		sta <:pSprite+1
+
+		ldy #40  ; we have 40 sprites to update buddy
+
+]sp_loop
+		lda #$AD      ; LDA |abs - get the hgr data into A
+		jsr :putCode
+		lda <:pHGR
+		jsr :putCode
+		lda <:pHGR+1
+		jsr :putCode
+
+		inc <:pHGR   	; auto increment the read address
+		bne :hgok
+		inc <:pHGR+1
+:hgok
+		lda #$8D     ; STA |ABS
+		jsr :putCode
+		lda <:pSprite
+		jsr :putCode
+		lda <:pSprite+1
+		jsr :putCode
+
+		; inc sprite
+		clc
+		lda <:pSprite
+		adc #8
+		sta <:pSprite
+		bcc :spok
+		inc <:pSprite+1
+:spok
+		dey
+		bne ]sp_loop
+
+		lda #$60  ; RTS
+		jsr :putCode
+
+		rts
+
+:putCode
+		sta (:pCode)
+		inc <:pCode
+		bne :nx
+		inc <:pCode+1
+:nx
+		rts
+
+
+:sprite_start_lo
+]spr_start = VKY_SP0_POS_Y_L
+
+		lup 24
+		db <{]spr_start+{0*40}}
+		db <{]spr_start+{1*40}}
+		db <{]spr_start+{2*40}}
+		db <{]spr_start+{3*40}}
+		db <{]spr_start+{4*40}}
+		db <{]spr_start+{5*40}}
+		db <{]spr_start+{6*40}}
+		db <{]spr_start+{7*40}}
+		--^
+
+:sprite_start_hi
+
+		lup 24
+		db >{]spr_start+{0*40}}
+		db >{]spr_start+{1*40}}
+		db >{]spr_start+{2*40}}
+		db >{]spr_start+{3*40}}
+		db >{]spr_start+{4*40}}
+		db >{]spr_start+{5*40}}
+		db >{]spr_start+{6*40}}
+		db >{]spr_start+{7*40}}
+		--^
+
+:sprite_count
+		db 40
+		lup 191
+		db 5
+		--^
 
 ;------------------------------------------------------------------------------
 ;
