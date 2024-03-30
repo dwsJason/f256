@@ -73,7 +73,9 @@ start
 
 ]alter_loop
 
-		stz <:count ; TEMP HACK for HHM image, for debugging
+		;stz <:count ; TEMP HACK for HHM image, for debugging
+		;lda #0
+		;sta <:count
 
 		lda :count
 		cmp #0
@@ -109,6 +111,7 @@ start
 		jsr set_read_address	; mmu is going to map this to $2000, woot
 
 		jsr WaitVBL
+
 
 		bra ]alter_loop
 
@@ -585,7 +588,7 @@ blit_init
 		jsr :putCode
 		txa
 		clc
-		adc #32
+		adc #49
 		jsr :putCode		; start at 32, and work it
 
 		lda |:sprite_count,x  ; count down for how many stores we we need, for y positions
@@ -593,7 +596,7 @@ blit_init
 
 :emit_stx_go
 
-		lda #$8D          ; stx |abs
+		lda #$8E          ; stx |abs
 		jsr :putCode
 		lda <:pSprite
 		jsr :putCode
@@ -617,7 +620,8 @@ blit_init
 		lda #>VKY_SP0_AD_M
 		sta <:pSprite+1
 
-		ldy #40  ; we have 40 sprites to update buddy
+		;ldy #40  ; we have 40 sprites to update buddy
+		ldy #31
 
 ]sp_loop
 		lda #$AD      ; LDA |abs - get the hgr data into A
@@ -780,15 +784,6 @@ glyph_init
 
 		rts
 
-
-	
-
-
-
-
-
-
-		rts
 ;------------------------------------------------------------------------------
 ; HiJack page $3F, $07E000 -> we will just mirror the ROM, from PAGE $7F
 ; then patch it, in attempt to keep the micro-kernel functioning, but
@@ -886,45 +881,67 @@ return
 
 		inc <dpJiffy			; do VBL
 
-		;bit #INT00_VKY_SOL		; make sure it's not a line interrupt
-		;beq :not_sol
-		stz line_no
+		;stz <line_no
 
 		; DO SPRITE RENDER FOR LINE 0
 		; ALL Y POSITIONS AT 0
 		; FIRST LINE OF SPRITES FILLED IN
 
+		lda |blit_block_table
+		sta <BLIT_MMU
 
-		bra :done_irq
+		lda |blit_jump_table_hi
+		sta :jsr1+2
+
+:jsr1   JSR |$A000
+
+		ldy #0
+
+		bra :done_jibby
 
 :not_jibby
 
 ; line interrupt handled here
 
-		ldx line_no				; which line are we servicing
+		ldy <line_no				; which line are we servicing
 
 		; DO SPRITE DRAW SERVICE
+		lda |blit_block_table,y
+		sta <BLIT_MMU
 
-		inx
-		cpx #192			    ; auto increment, only 192 lines
+		lda |blit_jump_table_hi,y
+		sta :jsr2+2
+
+:jsr2  	JSR |$A000
+:done_jibby
+		iny
+		cpy #192			    ; auto increment, only 192 lines
 		bcc :keep_going
 
-		ldx #0  	   			; wrap back to zero
+		ldy #0  	   			; wrap back to zero
 		clc
 
 :keep_going
-		stx line_no
+		sty line_no
 
+		tya  					; set the line interrupt register, for the next line
 		adc #LINE0
-
-		txa  					; set the line interrupt register, for the next line
-
 		asl
 		sta VKY_LINE_NBR_L		; x2 since vicky counts 480 lines, instead of 240, for high res text
 		
 		lda #0
 		rol
 		sta VKY_LINE_NBR_H
+
+		;sty |VKY_BKG_COL_B
+		;sty |VKY_BKG_COL_R
+
+		;tya
+		;adc #41
+		;sta |VKY_SP0_POS_Y_L
+		;stz |VKY_SP0_POS_Y_H
+
+
 
 ; put stuff back
 :done_irq

@@ -47,7 +47,7 @@ main_code_end
 		; because the binary data is larger than 64K
 		adr images_end-images_start
 
-		org $030000
+		org $040000
 images_start
 blitz_image      putbin data\blitz.hgr
 hardhat_image    putbin data\hardhat.hgr
