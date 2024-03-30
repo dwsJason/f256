@@ -59,6 +59,8 @@ start
 
 		jsr mmu_unlock
 
+;		jsr clear_bitmap
+
 		jsr hgr_init
 
 		jsr irq_install
@@ -424,8 +426,9 @@ init320x240
 
 ;--------------------------------------------
 
-		lda #0
-		jsr DmaClear
+		;lda #0
+		;jsr DmaClear
+		;jsr clear_bitmap
 
 		plp
 		rts
@@ -438,6 +441,71 @@ hgr_init
 		jsr glyph_init
 
 		jsr blit_init
+
+; sprite init
+
+:pSprite = temp0
+:xpos    = temp0+2
+
+; start at x position 32+20
+		lda #32+20
+		sta <:xpos
+		stz <:xpos+1
+
+
+		lda #<VKY_SP0_CTRL
+		sta <:pSprite
+		lda #>VKY_SP0_CTRL
+		sta <:pSprite+1
+
+		ldx #40  ; counter
+]loop
+		lda #%01100001   ; 8x8, layer 0, lut 0, enabled
+		sta (:pSprite)
+
+		ldy #1
+		lda #0
+		sta (:pSprite),y   ; AD_L
+		iny
+		lda #%01010100	   
+		sta (:pSprite),y   ; AD_M
+		iny
+		lda #^SPRITE_TILES
+		sta (:pSprite),y   ; AD_H
+		iny
+
+		; X position
+		lda <:xpos
+		sta (:pSprite),y
+		iny
+		lda <:xpos+1
+		sta (:pSprite),y
+		iny
+
+		clc
+		lda <:xpos
+		adc #7
+		sta <:xpos
+		bcc :xpok
+		inc <:xpos+1
+:xpok
+
+		; YPosition
+		lda #32
+		sta (:pSprite),y
+		iny
+		lda #0
+		sta (:pSprite),y
+
+		clc
+		lda <:pSprite
+		adc #8
+		sta <:pSprite
+		bcc :spkk
+		inc <:pSprite+1
+:spkk
+		dex
+		bne ]loop
 
 		rts
 
@@ -582,6 +650,12 @@ blit_init
 		bne ]sp_loop
 
 		lda #$60  ; RTS
+		jsr :putCode
+
+		lda #0  ; BRK
+		jsr :putCode
+		jsr :putCode
+		jsr :putCode
 		jsr :putCode
 
 		rts
