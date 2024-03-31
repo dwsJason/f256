@@ -37,7 +37,8 @@
 		org $400
 main_code_start
 ;		put hgr.s
-		put hgr2.s
+;		put hgr2.s
+		put hgr3.s
 		put mmu.s
 main_code_end
 
