@@ -112,6 +112,7 @@ start
 
 		jsr WaitVBL
 
+		wai ; stabilize the h-sync
 
 		bra ]alter_loop
 
@@ -919,8 +920,9 @@ return
 		nop
 		nop
 		nop
-		nop
-		nop
+		;nop
+		;nop
+		lda <$40
 
 
 		iny
