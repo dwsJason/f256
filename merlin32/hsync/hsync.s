@@ -383,8 +383,10 @@ init320x240
 		rts
 ;------------------------------------------------------------------------------
 
-txt_title asc 'Horizontal Sync Example'
-		db 13,0
+txt_title asc 'Horizontal Sync Example',0D,0D
+          asc 'The number below should read 010D, followed by 00001101',0D,0D
+		  asc 'On the border, above the x in Example, should be a stable',0D
+		  asc 'dark blue color burst, followed by aqua, followed by white',00
 
 txt_plot asc 'Plot ('
 		db 0
