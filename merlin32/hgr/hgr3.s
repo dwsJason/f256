@@ -580,6 +580,22 @@ blit_init
 		lda |scanline_table_hi,x
 		sta <:pHGR+1
 
+		jsr :y_stores
+		jsr :sprite_stores
+
+		lda #$60  ; RTS
+		jsr :putCode
+
+		lda #0  ; BRK
+		jsr :putCode
+		jsr :putCode
+		jsr :putCode
+		jsr :putCode
+
+		rts
+
+
+:y_stores
 		lda |:sprite_start_lo,x
 		sta <:pSprite
 		lda |:sprite_start_hi,x
@@ -614,6 +630,9 @@ blit_init
 		dey 			  ; count down
 		bne :emit_stx_go
 
+		rts
+
+:sprite_stores
 :emit_sprite_no
 
 		lda #<VKY_SP0_AD_M
@@ -653,15 +672,6 @@ blit_init
 :spok
 		dey
 		bne ]sp_loop
-
-		lda #$60  ; RTS
-		jsr :putCode
-
-		lda #0  ; BRK
-		jsr :putCode
-		jsr :putCode
-		jsr :putCode
-		jsr :putCode
 
 		rts
 
