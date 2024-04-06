@@ -276,6 +276,7 @@ start
 		;
 		; Do Game Logic
 		;
+		jsr GameControls
 
 		jsr FrisbeeLogic
 
@@ -293,6 +294,14 @@ start
 
 		jsr MoveFrisbee
 
+;------------------------------------------------------------------------------
+		; We should let the SNES data come in, while we're waiting
+		stz io_ctrl
+		lda #%10000101
+		sta $D880   		; NES_CTRL, trigger and read
+		lda #2
+		sta io_ctrl
+;------------------------------------------------------------------------------
 
 		inc <jiffy  ; since we don't have IRQ doing this
 		jsr WaitVBLPoll
@@ -305,7 +314,57 @@ start
 ;;  MAIN LOOP HERE ------------------------------------------------------------
 ;;
 ;;-----------------------------------------------------------------------------
+;
+;
+GameControls
 
+		ldx #40
+		ldy #0
+		jsr TermSetXY
+
+		stz io_ctrl
+		ldax $D884
+		ldy #2
+		sty io_ctrl
+
+		jsr TermPrintAXH
+
+		ldx #40
+		ldy #1
+		jsr TermSetXY
+
+		stz io_ctrl
+		ldax $D886
+		ldy #2
+		sty io_ctrl
+
+		jsr TermPrintAXH
+
+		ldx #40
+		ldy #2
+		jsr TermSetXY
+
+		stz io_ctrl
+		ldax $D888
+		ldy #2
+		sty io_ctrl
+
+		jsr TermPrintAXH
+
+		ldx #40
+		ldy #3
+		jsr TermSetXY
+
+		stz io_ctrl
+		ldax $D88A
+		ldy #2
+		sty io_ctrl
+
+		jsr TermPrintAXH
+
+		rts
+
+;------------------------------------------------------------------------------
 ; minx, maxx, miny, maxy
 p1_bounds_table
 		db 8, 128-16,
@@ -822,6 +881,10 @@ FRISB_SP_POS_Y = VKY_SP0_POS_Y_L+FRISB_SP_NUM
 ;------------------------------------------------------------------------------
 ;
 DoKernelEvent
+
+		ldx #0
+		ldy #1
+		jsr TermSetXY
 
 		lda #'$'
 		jsr TermCOUT
