@@ -78,6 +78,24 @@ frisbee_y  ds 2
 frisbee_vx ds 2
 frisbee_vy ds 2
 
+;
+; Red Player Physics
+;
+
+p1_x ds 2
+p1_y ds 2
+p1_vx ds 2
+p1_vy ds 2
+
+;
+; Blue Player Physics
+;
+
+p2_x ds 2
+p2_y ds 2
+p2_vx ds 2
+p2_vy ds 2
+
 	dend
 
 ; we are stomping on some stuff here
@@ -183,17 +201,67 @@ start
 
 ; Initialize some state
 
-		stz frisbee_x
-		stz frisbee_y
+
+		; Frisbee position, and velocity
 
 		lda #128
+		stz frisbee_x
 		sta frisbee_x+1
+		stz frisbee_y
 		sta frisbee_y+1
 
 		stz frisbee_vx
 		stz frisbee_vx+1
 		stz frisbee_vy
 		stz frisbee_vy+1
+
+		; Red Player 1 position, and velocity
+
+		lda #128-64
+		stz p1_x
+		sta p1_x+1
+
+		lda #128
+		stz p1_y
+		sta p1_y+1
+
+		stz p1_vx
+		stz p1_vx+1
+		stz p1_vy
+		stz p1_vy+1
+
+		; Blue Player 2 position, and velocity
+
+		lda #128+64
+		stz p2_x
+		sta p2_x+1
+
+		lda #128
+		stz p2_y
+		sta p2_y+1
+
+		stz p2_vx
+		stz p2_vx+1
+		stz p2_vy
+		stz p2_vy+1
+
+
+		ldax #$080
+		stax p1_vx
+		ldax #$180
+		stax p1_vy
+
+		ldax #$100
+		stax p2_vx
+		ldax #$100
+		stax p2_vy
+
+		ldax #$100
+		stax frisbee_vx
+		ldax #$080
+		stax frisbee_vy
+
+
 
 ;;-----------------------------------------------------------------------------
 ;;
@@ -211,6 +279,18 @@ start
 
 		jsr FrisbeeLogic
 
+		ldax #p1_bounds_table
+		stax temp0
+
+		ldx #p1_x
+		jsr PlayerBounds
+
+		ldax #p2_bounds_table
+		stax temp0
+
+		ldx #p2_x
+		jsr PlayerBounds
+
 		jsr MoveFrisbee
 
 
@@ -226,14 +306,233 @@ start
 ;;
 ;;-----------------------------------------------------------------------------
 
-;------------------------------------------------------------------------------
-FrisbeeLogic
+; minx, maxx, miny, maxy
+p1_bounds_table
+		db 8, 128-16,
+		db 88,171
+p2_bounds_table
+		db 128+16, 248,
+		db 88,171
+
+		dum 0
+minx    ds 1
+maxx    ds 1
+miny    ds 1
+maxy    ds 1
+		dend
+
+		dum 0
+player_x  ds 2
+player_y  ds 2
+player_vx ds 2
+player_vy ds 2
+		dend
+
+PlayerBounds
+
+:minmax = temp0
+
+		lda player_y+1,x
+		ldy #miny
+		cmp (:minmax),y  			; TOP BOUNDS
+		bcs :next_y_check
+
+		jsr :negate_vy
+
+		bra :check_the_x_now
+
+:next_y_check
+
+		ldy #maxy
+		cmp (:minmax),y			    ; BOTTOM BOUNDS
+		bcc :check_the_x_now
+
+		jsr :negate_vy
+
+:check_the_x_now
+
+		lda player_x+1,x
+		ldy #minx
+		cmp (:minmax),y		  	    ; LEFT BOUNDS
+		bcs :next_x_check
+
+		jsr :negate_vx
+
+		rts
+
+:next_x_check
+		ldy #maxx
+		cmp (:minmax),y				; RIGHT BOUNDS
+		bcc :rts
+
+		jsr :negate_vx
+
+:rts
+		rts
+
+:negate_vx
+
+		lda player_vx,x
+		eor #$ff
+		inc
+		sta player_vx,x
+		beq :hi_inc_x
+		lda player_vx+1,x
+		eor #$ff
+		sta player_vx+1,x
+		rts
+
+:hi_inc_x
+		lda player_vx+1,x
+		eor #$ff
+		inc
+		sta player_vx+1,x
+		rts
+
+
+:negate_vy
+
+		lda player_vy,x
+		eor #$ff
+		inc
+		sta player_vy,x
+		beq :hi_inc_y
+		lda player_vy+1,x
+		eor #$ff
+		sta player_vy+1,x
+		rts
+
+:hi_inc_y
+		lda player_vy+1,x
+		eor #$ff
+		inc
+		sta player_vy+1,x
 		rts
 
 
 ;------------------------------------------------------------------------------
+FrisbeeLogic
+
+		lda frisbee_y+1
+		cmp #88 	   			; TOP BOUNDS FOR FRISBEE
+		bcs :next_y_check
+
+		jsr :negate_vy
+
+		bra :check_the_x_now
+
+:next_y_check
+
+		cmp #168+3			    ; BOTTOM BOUNDS FOR FRISBEE
+		bcc :check_the_x_now
+
+		jsr :negate_vy
+
+:check_the_x_now
+
+		lda frisbee_x+1
+		cmp #8  		  	    ; LEFT BOUNDS FOR FRISBEE
+		bcs :next_x_check
+
+		jsr :negate_vx
+
+		rts
+
+:next_x_check
+
+		cmp #248				; RIGHT BOUNDS FOR FRISBEE
+		bcc :rts
+
+		jsr :negate_vx
+
+:rts
+		rts
+
+:negate_vx
+
+		lda frisbee_vx
+		eor #$ff
+		inc
+		sta frisbee_vx
+		beq :hi_inc_x
+		lda frisbee_vx+1
+		eor #$ff
+		sta frisbee_vx+1
+		rts
+
+:hi_inc_x
+		lda frisbee_vx+1
+		eor #$ff
+		inc
+		sta frisbee_vx+1
+		rts
+
+
+:negate_vy
+
+		lda frisbee_vy
+		eor #$ff
+		inc
+		sta frisbee_vy
+		beq :hi_inc_y
+		lda frisbee_vy+1
+		eor #$ff
+		sta frisbee_vy+1
+		rts
+
+:hi_inc_y
+		lda frisbee_vy+1
+		eor #$ff
+		inc
+		sta frisbee_vy+1
+		rts
+
+
+;------------------------------------------------------------------------------
+;
+; I know this is hacky, right now, I just need this stuff to work so
+; keeping it braindead
+;
 MoveFrisbee
 
+; Red Player 1
+
+		clc
+		lda <p1_x
+		adc <p1_vx
+		sta <p1_x
+		lda <p1_x+1
+		adc <p1_vx+1
+		sta <p1_x+1
+
+		clc
+		lda <p1_y
+		adc <p1_vy
+		sta <p1_y
+		lda <p1_y+1
+		adc <p1_vy+1
+		sta <p1_y+1
+
+
+; Blue Player 2
+		clc
+		lda <p2_x
+		adc <p2_vx
+		sta <p2_x
+		lda <p2_x+1
+		adc <p2_vx+1
+		sta <p2_x+1
+
+		clc
+		lda <p2_y
+		adc <p2_vy
+		sta <p2_y
+		lda <p2_y+1
+		adc <p2_vy+1
+		sta <p2_y+1
+
+
+; Frisbee
 		clc
 		lda <frisbee_x
 		adc <frisbee_vx
@@ -308,10 +607,18 @@ FRISB_SP_POS_Y = VKY_SP0_POS_Y_L+FRISB_SP_NUM
 		lda #^SPRITE_TILES
 		sta P1_SP_AD_H
 
-		ldax #32+80-16
-		stax P1_SP_POS_X
-		ldax #32+100-30
-		stax P1_SP_POS_Y
+		clc
+		lda p1_x+1
+		adc #32+32-16
+		sta P1_SP_POS_X
+		lda #0
+		adc #0
+		sta P1_SP_POS_X+1
+
+		lda p1_y+1
+		adc #32-7-31
+		sta P1_SP_POS_Y
+		stz P1_SP_POS_Y+1
 
 		; Draw Blue Player
 
@@ -328,11 +635,18 @@ FRISB_SP_POS_Y = VKY_SP0_POS_Y_L+FRISB_SP_NUM
 		lda #^SPRITE_TILES
 		sta P2_SP_AD_H
 
-		ldax #32+240-16
-		stax P2_SP_POS_X
-		ldax #32+150-30
-		stax P2_SP_POS_Y
+		clc
+		lda p2_x+1
+		adc #32+32-16
+		sta P2_SP_POS_X
+		lda #0
+		adc #0
+		sta P2_SP_POS_X+1
 
+		lda p2_y+1
+		adc #32-7-31
+		sta P2_SP_POS_Y
+		stz P2_SP_POS_Y+1
 
 		; Draw Frisbee
 
@@ -386,11 +700,18 @@ FRISB_SP_POS_Y = VKY_SP0_POS_Y_L+FRISB_SP_NUM
 		lda #^SPRITE_TILES
 		sta P1_SP_AD_H+{8*32}
 
-		ldax #32+80-17
-		stax P1_SP_POS_X+{8*32}
+		clc
+		lda p1_x+1
+		adc #32+32-17
+		sta P1_SP_POS_X+{8*32}
+		lda #0
+		adc #0
+		sta P1_SP_POS_X+1+{8*32}
 
-		ldax #32+100-32+6
-		stax P1_SP_POS_Y+{8*32}
+		lda p1_y+1
+		adc #32-32
+		sta P1_SP_POS_Y+{8*32}
+		stz P1_SP_POS_Y+1+{8*32}
 
 		; Blue Player Shadow
 
@@ -411,11 +732,18 @@ FRISB_SP_POS_Y = VKY_SP0_POS_Y_L+FRISB_SP_NUM
 		lda #^SPRITE_TILES
 		sta P2_SP_AD_H+{8*32}
 
-		ldax #32+240-17
-		stax P2_SP_POS_X+{8*32}
+		clc
+		lda p2_x+1
+		adc #32+32-17
+		sta P2_SP_POS_X+{8*32}
+		lda #0
+		adc #0
+		sta P2_SP_POS_X+1+{8*32}
 
-		ldax #32+150-32+6
-		stax P2_SP_POS_Y+{8*32}
+		lda p2_y+1
+		adc #32-32
+		sta P2_SP_POS_Y+{8*32}
+		stz P2_SP_POS_Y+1+{8*32}
 
 
 		; Frisbee Shadow
