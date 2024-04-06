@@ -560,13 +560,23 @@ MoveFrisbee
 		rts
 
 
+
+		dum 0
+SP_CTRL ds 1
+SP_AD_L ds 1
+SP_AD_M ds 1
+SP_AD_H ds 1
+SP_POS_X ds 2
+SP_POS_Y ds 2
+		dend
+
 ;------------------------------------------------------------------------------
 ;
 DrawSprites
 
 		stz io_ctrl		; edit sprites
 
-P1_SP_NUM = {8*0}
+P1_SP_NUM = {8*1}
 P1_SP_CTRL = VKY_SP0_CTRL+P1_SP_NUM
 P1_SP_AD_L = VKY_SP0_AD_L+P1_SP_NUM
 P1_SP_AD_M = VKY_SP0_AD_M+P1_SP_NUM
@@ -574,7 +584,7 @@ P1_SP_AD_H = VKY_SP0_AD_H+P1_SP_NUM
 P1_SP_POS_X = VKY_SP0_POS_X_L+P1_SP_NUM
 P1_SP_POS_Y = VKY_SP0_POS_Y_L+P1_SP_NUM
 
-P2_SP_NUM = {8*1}
+P2_SP_NUM = {8*2}
 P2_SP_CTRL = VKY_SP0_CTRL+P2_SP_NUM
 P2_SP_AD_L = VKY_SP0_AD_L+P2_SP_NUM
 P2_SP_AD_M = VKY_SP0_AD_M+P2_SP_NUM
@@ -582,7 +592,9 @@ P2_SP_AD_H = VKY_SP0_AD_H+P2_SP_NUM
 P2_SP_POS_X = VKY_SP0_POS_X_L+P2_SP_NUM
 P2_SP_POS_Y = VKY_SP0_POS_Y_L+P2_SP_NUM
 
-FRISB_SP_NUM = {8*2}
+FRISB_SP_NUM = {8*0}
+FRISB_SP_NUM_FRONT   = FRISB_SP_NUM
+FRISB_SP_NUM_BEHIND  = {8*3}
 FRISB_SP_CTRL = VKY_SP0_CTRL+FRISB_SP_NUM
 FRISB_SP_AD_L = VKY_SP0_AD_L+FRISB_SP_NUM
 FRISB_SP_AD_M = VKY_SP0_AD_M+FRISB_SP_NUM
@@ -652,29 +664,51 @@ FRISB_SP_POS_Y = VKY_SP0_POS_Y_L+FRISB_SP_NUM
 
 		; frame 16 will work for now
 
-		lda #%0000101   ; 32x32, layer0, lut2, enable
-		sta FRISB_SP_CTRL
+		;
+		; Erase both
+		; 
+		stz VKY_SP0_CTRL+FRISB_SP_NUM_BEHIND
+		stz VKY_SP0_CTRL+FRISB_SP_NUM_FRONT
 
-		stz FRISB_SP_AD_L
+		ldx #FRISB_SP_NUM_BEHIND
+
+		lda frisbee_x+1
+		bpl :sort_vs_player_1
+
+		; sort vs player 2
+		lda p2_y+1
+		bra :cmp
+
+:sort_vs_player_1
+		lda p1_y+1
+:cmp	cmp frisbee_y+1
+		bcs :behind
+:front
+		ldx #FRISB_SP_NUM_FRONT
+:behind
+		lda #%0000101   ; 32x32, layer0, lut2, enable
+		sta VKY_SP0_CTRL,x
+
+		stz VKY_SP0_AD_L,x
 
 		lda #>0+{16*1024}  ; Frisbee is frame 16
-		sta FRISB_SP_AD_M
+		sta VKY_SP0_AD_M,x
 
 		lda #^SPRITE_TILES
-		sta FRISB_SP_AD_H
+		sta VKY_SP0_AD_H,x
 
 		clc
 		lda frisbee_x+1
 		adc #32+32-8 ; (putting 128 at location 160, half way there) (-8 for sprite cx)
-		sta FRISB_SP_POS_X
+		sta VKY_SP0_POS_X_L,x
 		lda #0
 		adc #0
-		sta FRISB_SP_POS_X+1
+		sta VKY_SP0_POS_X_H,x
 
 		lda frisbee_y+1
 		adc #32-7-4-16	; putting 128 at location 121, half way there) (-4 for sprite cy) (-16 for altitude)
-		sta FRISB_SP_POS_Y 
-		stz FRISB_SP_POS_Y+1
+		sta VKY_SP0_POS_Y_L,x
+		stz VKY_SP0_POS_Y_H,x
 
 
 		;
