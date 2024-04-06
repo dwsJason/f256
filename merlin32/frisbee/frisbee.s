@@ -70,6 +70,14 @@ mod_temp5			ds 4
 
 SongIsPlaying ds 1 ; flag for if a song is playing
 
+;
+; Frisbee Physics
+;
+frisbee_x  ds 2
+frisbee_y  ds 2
+frisbee_vx ds 2
+frisbee_vy ds 2
+
 	dend
 
 ; we are stomping on some stuff here
@@ -173,6 +181,20 @@ start
 		ldax #event_data
 		stax kernel_args_events
 
+; Initialize some state
+
+		stz frisbee_x
+		stz frisbee_y
+
+		lda #128
+		sta frisbee_x+1
+		sta frisbee_y+1
+
+		stz frisbee_vx
+		stz frisbee_vx+1
+		stz frisbee_vy
+		stz frisbee_vy+1
+
 ;;-----------------------------------------------------------------------------
 ;;
 ;;  MAIN LOOP HERE ------------------------------------------------------------
@@ -187,6 +209,11 @@ start
 		; Do Game Logic
 		;
 
+		jsr FrisbeeLogic
+
+		jsr MoveFrisbee
+
+
 		inc <jiffy  ; since we don't have IRQ doing this
 		jsr WaitVBLPoll
 
@@ -198,6 +225,41 @@ start
 ;;  MAIN LOOP HERE ------------------------------------------------------------
 ;;
 ;;-----------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+FrisbeeLogic
+		rts
+
+
+;------------------------------------------------------------------------------
+MoveFrisbee
+
+		clc
+		lda <frisbee_x
+		adc <frisbee_vx
+		sta <frisbee_x
+		lda <frisbee_x+1
+		adc <frisbee_vx+1
+		sta <frisbee_x+1
+
+		; Probably some arena bounds check can happen here, since after we
+		; leave here, we will have lost the carry state, and we haven't
+		; left enough space ni the frisbee coordinate system to help us check later
+
+		clc
+		lda <frisbee_y
+		adc <frisbee_vy
+		sta <frisbee_y
+		lda <frisbee_y+1
+		adc <frisbee_vy+1
+		sta <frisbee_y+1
+
+		; Probably some arena bounds check can happen here, since after we
+		; leave here, we will have lost the carry state, and we haven't
+		; left enough space ni the frisbee coordinate system to help us check later
+
+		rts
+
 
 ;------------------------------------------------------------------------------
 ;
@@ -220,6 +282,15 @@ P2_SP_AD_M = VKY_SP0_AD_M+P2_SP_NUM
 P2_SP_AD_H = VKY_SP0_AD_H+P2_SP_NUM
 P2_SP_POS_X = VKY_SP0_POS_X_L+P2_SP_NUM
 P2_SP_POS_Y = VKY_SP0_POS_Y_L+P2_SP_NUM
+
+FRISB_SP_NUM = {8*2}
+FRISB_SP_CTRL = VKY_SP0_CTRL+FRISB_SP_NUM
+FRISB_SP_AD_L = VKY_SP0_AD_L+FRISB_SP_NUM
+FRISB_SP_AD_M = VKY_SP0_AD_M+FRISB_SP_NUM
+FRISB_SP_AD_H = VKY_SP0_AD_H+FRISB_SP_NUM
+FRISB_SP_POS_X = VKY_SP0_POS_X_L+FRISB_SP_NUM
+FRISB_SP_POS_Y = VKY_SP0_POS_Y_L+FRISB_SP_NUM
+
 
 
 		; Draw Red Player
@@ -261,6 +332,36 @@ P2_SP_POS_Y = VKY_SP0_POS_Y_L+P2_SP_NUM
 		stax P2_SP_POS_X
 		ldax #32+150-30
 		stax P2_SP_POS_Y
+
+
+		; Draw Frisbee
+
+		; frame 16 will work for now
+
+		lda #%0000101   ; 32x32, layer0, lut2, enable
+		sta FRISB_SP_CTRL
+
+		stz FRISB_SP_AD_L
+
+		lda #>0+{16*1024}  ; Frisbee is frame 16
+		sta FRISB_SP_AD_M
+
+		lda #^SPRITE_TILES
+		sta FRISB_SP_AD_H
+
+		clc
+		lda frisbee_x+1
+		adc #32+32-8 ; (putting 128 at location 160, half way there) (-8 for sprite cx)
+		sta FRISB_SP_POS_X
+		lda #0
+		adc #0
+		sta FRISB_SP_POS_X+1
+
+		lda frisbee_y+1
+		adc #32-7-4-16	; putting 128 at location 121, half way there) (-4 for sprite cy) (-16 for altitude)
+		sta FRISB_SP_POS_Y 
+		stz FRISB_SP_POS_Y+1
+
 
 		;
 		; Draw Sprites, + update scroll positions + color animations
@@ -315,6 +416,40 @@ P2_SP_POS_Y = VKY_SP0_POS_Y_L+P2_SP_NUM
 
 		ldax #32+150-32+6
 		stax P2_SP_POS_Y+{8*32}
+
+
+		; Frisbee Shadow
+
+		; frame 17, and 18
+		;
+
+		lda #%0000011   ; 32x32, layer0, lut1, enable
+		sta FRISB_SP_CTRL+{8*32}
+		stz FRISB_SP_AD_L+{8*32}
+
+		lda <jiffy
+		lsr
+		lda #>0+{{21+17}*1024}
+		bcc :sk
+		lda #>0+{{21+18}*1024}
+:sk
+		sta FRISB_SP_AD_M+{8*32}
+		lda #^SPRITE_TILES
+		sta FRISB_SP_AD_H+{8*32}
+
+		clc
+		lda frisbee_x+1
+		adc #32+32-17 ; (putting 128 at location 160, half way there) (-17 for sprite cx)
+		sta FRISB_SP_POS_X+{8*32}
+		lda #0
+		adc #0
+		sta FRISB_SP_POS_X+1+{8*32}
+
+		lda frisbee_y+1
+		adc #32-7-27	; putting 128 at location 121, half way there) (-27 for sprite cy)
+		sta FRISB_SP_POS_Y+{8*32} 
+		stz FRISB_SP_POS_Y+1+{8*32}
+
 
 		lda #2
 		sta io_ctrl     ; edit text
