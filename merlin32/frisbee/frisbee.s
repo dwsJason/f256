@@ -30,6 +30,8 @@ p_sprite_message ds 2
 
 jiffy ds 2 ; IRQ counts this up every VBL, really doesn't need to be 2 bytes
 
+event_data ds 16
+
 ;
 ; mixer - variables - I'm hogging up like 64 bytes here
 ; if need be, we could give mixer it's own DP (by using the mmu)
@@ -165,13 +167,32 @@ start
 		ldax #txt_frisbee
 		jsr TermPUTS
 
+;------------------------------------------------------------------------------
+;
+; Some Kernel Stuff here
+;
+		ldax #event_data
+		stax kernel_args_events
+
 ;;-----------------------------------------------------------------------------
 ;;
 ;;  MAIN LOOP HERE ------------------------------------------------------------
 ;;
 
 ]main_loop
-		jsr WaitVBL
+		jsr kernel_NextEvent
+		bcs :no_events
+		jsr DoKernelEvent
+:no_events
+		;
+		; Do Game Logic
+		;
+
+		jsr WaitVBLPoll
+
+		;
+		; Draw Sprites, + update scroll positions + color animations
+		;
 
 		bra ]main_loop
 
@@ -180,6 +201,42 @@ start
 ;;
 ;;-----------------------------------------------------------------------------
 
+;------------------------------------------------------------------------------
+;
+DoKernelEvent
+
+		lda #'$'
+		jsr TermCOUT
+
+		lda event_data+kernel_event_t
+		jsr TermPrintAH
+
+		lda #' '
+		jsr TermCOUT
+		lda event_data+3
+		jsr TermPrintAH
+
+		lda #' '
+		jsr TermCOUT
+		lda event_data+4
+		jsr TermPrintAH
+
+		lda #' '
+		jsr TermCOUT
+		lda event_data+5
+		jsr TermPrintAH
+
+		lda #' '
+		jsr TermCOUT
+		lda event_data+6
+		jsr TermPrintAH
+		jsr TermCR
+
+		rts
+
+
+
+;------------------------------------------------------------------------------
 ;
 ; Wait for VBL by waitching counter that changes with VBL IRQ
 ;
