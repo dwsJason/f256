@@ -187,11 +187,10 @@ start
 		; Do Game Logic
 		;
 
+		inc <jiffy  ; since we don't have IRQ doing this
 		jsr WaitVBLPoll
 
-		;
-		; Draw Sprites, + update scroll positions + color animations
-		;
+		jsr DrawSprites
 
 		bra ]main_loop
 
@@ -199,6 +198,129 @@ start
 ;;  MAIN LOOP HERE ------------------------------------------------------------
 ;;
 ;;-----------------------------------------------------------------------------
+
+;------------------------------------------------------------------------------
+;
+DrawSprites
+
+		stz io_ctrl		; edit sprites
+
+P1_SP_NUM = {8*0}
+P1_SP_CTRL = VKY_SP0_CTRL+P1_SP_NUM
+P1_SP_AD_L = VKY_SP0_AD_L+P1_SP_NUM
+P1_SP_AD_M = VKY_SP0_AD_M+P1_SP_NUM
+P1_SP_AD_H = VKY_SP0_AD_H+P1_SP_NUM
+P1_SP_POS_X = VKY_SP0_POS_X_L+P1_SP_NUM
+P1_SP_POS_Y = VKY_SP0_POS_Y_L+P1_SP_NUM
+
+P2_SP_NUM = {8*1}
+P2_SP_CTRL = VKY_SP0_CTRL+P2_SP_NUM
+P2_SP_AD_L = VKY_SP0_AD_L+P2_SP_NUM
+P2_SP_AD_M = VKY_SP0_AD_M+P2_SP_NUM
+P2_SP_AD_H = VKY_SP0_AD_H+P2_SP_NUM
+P2_SP_POS_X = VKY_SP0_POS_X_L+P2_SP_NUM
+P2_SP_POS_Y = VKY_SP0_POS_Y_L+P2_SP_NUM
+
+
+		; Draw Red Player
+
+		; frame 1 will work for now
+
+		lda #%0000011   ; 32x32, layer0, lut1, enable
+		sta P1_SP_CTRL
+
+		stz P1_SP_AD_L
+
+		lda #>0+{1*1024}
+		sta P1_SP_AD_M
+
+		lda #^SPRITE_TILES
+		sta P1_SP_AD_H
+
+		ldax #32+80-16
+		stax P1_SP_POS_X
+		ldax #32+100-30
+		stax P1_SP_POS_Y
+
+		; Draw Blue Player
+
+		; frame 1 will work for now
+
+		lda #%0000101   ; 32x32, layer0, lut2, enable
+		sta P2_SP_CTRL
+
+		stz P2_SP_AD_L
+
+		lda #>0+{{21+1}*1024}  ; 21 frame offset for the blue guy
+		sta P2_SP_AD_M
+
+		lda #^SPRITE_TILES
+		sta P2_SP_AD_H
+
+		ldax #32+240-16
+		stax P2_SP_POS_X
+		ldax #32+150-30
+		stax P2_SP_POS_Y
+
+		;
+		; Draw Sprites, + update scroll positions + color animations
+		;
+
+		; Red Player Shadow
+
+		; frame 20, and 21
+		;
+
+		lda #%0000011   ; 32x32, layer0, lut1, enable
+		sta P1_SP_CTRL+{8*32}
+		stz P1_SP_AD_L+{8*32}
+
+		lda <jiffy
+		lsr
+		lda #>0+{19*1024}
+		bcc :kk
+		lda #>0+{20*1024}
+:kk
+		sta P1_SP_AD_M+{8*32}
+		lda #^SPRITE_TILES
+		sta P1_SP_AD_H+{8*32}
+
+		ldax #32+80-17
+		stax P1_SP_POS_X+{8*32}
+
+		ldax #32+100-32+6
+		stax P1_SP_POS_Y+{8*32}
+
+		; Blue Player Shadow
+
+		; frame 20, and 21
+		;
+
+		lda #%0000011   ; 32x32, layer0, lut1, enable
+		sta P2_SP_CTRL+{8*32}
+		stz P2_SP_AD_L+{8*32}
+
+		lda <jiffy
+		lsr
+		lda #>0+{{21+19}*1024}
+		bcc :k2
+		lda #>0+{{21+20}*1024}
+:k2
+		sta P2_SP_AD_M+{8*32}
+		lda #^SPRITE_TILES
+		sta P2_SP_AD_H+{8*32}
+
+		ldax #32+240-17
+		stax P2_SP_POS_X+{8*32}
+
+		ldax #32+150-32+6
+		stax P2_SP_POS_Y+{8*32}
+
+		lda #2
+		sta io_ctrl     ; edit text
+
+		rts
+
 
 ;------------------------------------------------------------------------------
 ;
@@ -288,7 +410,8 @@ init320x200
 		stz io_ctrl
 
 		; enable the graphics mode
-		lda #%01111111  ; everything is enabled
+		;lda #%01111111  ; everything is enabled
+		lda #%00111111  ; everything is enabled
 		sta VKY_MSTR_CTRL_0
 		lda #1 ; CLK_70
 		sta VKY_MSTR_CTRL_1
@@ -450,6 +573,16 @@ init320x200
 
 		jsr decompress_pixels
 
+
+;------- disable the sprites, for the moment
+
+		stz io_ctrl
+
+		ldx #0
+]lp 	stz VKY_SP0_CTRL,x
+		stz VKY_SP0_CTRL+256,x
+		dex
+		bne ]lp
 
 ;------------------------------------------------------------------------------
 ;
