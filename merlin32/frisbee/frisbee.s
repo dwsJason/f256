@@ -152,7 +152,7 @@ start
 
 		jsr initColors
 
-		jsr init320x240
+		jsr init320x200
 
 		jsr TermInit
 
@@ -256,7 +256,8 @@ WaitVBLPoll
 		lda $1
 		pha
 		stz $1
-LINE_NO = 241*2
+;LINE_NO = 241*2
+LINE_NO = 201*2
         lda #<LINE_NO
         ldx #>LINE_NO
 :waitforlineAX		
@@ -280,7 +281,7 @@ LINE_NO = 241*2
 ;------------------------------------------------------------------------------
 ;
 ;
-init320x240
+init320x200
 		php
 		sei
 
@@ -290,7 +291,8 @@ init320x240
 		; enable the graphics mode
 		lda #%01111111  ; everything is enabled
 		sta VKY_MSTR_CTRL_0
-		stz VKY_MSTR_CTRL_1
+		lda #1 ; CLK_70
+		sta VKY_MSTR_CTRL_1
 
 		; layer stuff - take from Jr manual
 		lda #$56
@@ -315,6 +317,8 @@ init320x240
 		lda #16
 		sta VKY_TM0_POS_X_L  ; scroll x lo
 		stz VKY_TM0_POS_X_H  ; scroll x hi
+
+		lda #16+20           ; 200 vertical mode
 		sta VKY_TM0_POS_Y_L  ; scroll y lo
 		stz VKY_TM0_POS_Y_H  ; scroll y hi
 
