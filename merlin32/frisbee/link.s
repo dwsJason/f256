@@ -90,7 +90,10 @@ image1_start
 	;
 	; The course map is 22x17 tiles
 	;
-img_court	putbin data\JapanCourt.256
+img_court	  putbin data\JapanCourt.256
+
+baller_sheet  putbin data\baller_sheet.256
+
 image1_end
 
 ;------------------------------------------------------------------------------

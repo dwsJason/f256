@@ -72,7 +72,6 @@ SongIsPlaying ds 1 ; flag for if a song is playing
 
 	dend
 
-SPRITE_MAP   ds 120   ; 10x6x2 bytes (120 bytes), this can fit anywhere probably
 ; we are stomping on some stuff here
 SPRITE_TILES = $60000 ; could be up to 64k worth, but will be less
 
@@ -447,6 +446,64 @@ init320x200
 		ldaxy #TILE_DATA0
 		jsr set_write_address
 		ldaxy #img_court
+		jsr set_read_address
+
+		jsr decompress_pixels
+
+
+;------------------------------------------------------------------------------
+;
+; Let's Gooo Baller Sprites!!
+;
+
+; Get the LUT Data
+
+		ldaxy #CLUT_DATA
+		jsr set_write_address
+		ldaxy #baller_sheet
+		jsr set_read_address
+
+		jsr decompress_clut
+
+		; set access to vicky CLUTs
+		lda #1
+		sta io_ctrl
+		; copy the clut up there
+		ldx #0
+]lp		lda CLUT_DATA,x
+		sta VKY_GR_CLUT_1,x
+		sta VKY_GR_CLUT_2,x
+		lda CLUT_DATA+$100,x
+		sta VKY_GR_CLUT_1+$100,x
+		sta VKY_GR_CLUT_2+$100,x
+		lda CLUT_DATA+$200,x
+		sta VKY_GR_CLUT_1+$200,x
+		sta VKY_GR_CLUT_2+$200,x
+		lda CLUT_DATA+$300,x
+		sta VKY_GR_CLUT_1+$300,x
+		sta VKY_GR_CLUT_2+$300,x
+		dex
+		bne ]lp
+
+		; Let's go! Blue Baller!
+
+		; Index 62 must be #452EEF
+
+		ldaxy #$452EEF
+		staxy VKY_GR_CLUT_2+{62*4}
+
+		; Index 63 must be #2E2097
+
+		ldaxy #$2E2097
+		staxy VKY_GR_CLUT_2+{63*4}
+
+		stz io_ctrl
+
+; Get the Sprite Pixels
+
+		ldaxy #SPRITE_TILES
+		jsr set_write_address
+		ldaxy #baller_sheet
 		jsr set_read_address
 
 		jsr decompress_pixels
