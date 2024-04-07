@@ -109,8 +109,13 @@ p2_y ds 2
 p2_vx ds 2
 p2_vy ds 2
 
-p1_dpad_input ds 2
-p2_dpad_input ds 2
+p1_dpad_input_raw ds 2
+p1_dpad_input_down ds 2
+p1_dpad_input_up ds 2
+
+p2_dpad_input_raw ds 2
+p2_dpad_input_down ds 2
+p2_dpad_input_up ds 2
 
 	dend
 
@@ -334,28 +339,105 @@ start
 ;
 GameControls
 
+		stz io_ctrl
+
+:prev_input = temp0
+:latch_input = temp0+2
+:inv_input = temp1
+
+		ldax p1_dpad_input_raw
+		stax :prev_input
+
+		ldax $D884
+		stax :inv_input
+		eor #$FF
+		sta p1_dpad_input_raw
+		eor :prev_input
+		sta :latch_input
+
+		txa
+		eor #$FF
+		sta p1_dpad_input_raw+1
+		eor :prev_input+1
+		sta :latch_input+1
+
+; if latch_input is set, and the button is set, then it just went down
+
+		lda :latch_input
+		and p1_dpad_input_raw
+		sta p1_dpad_input_down
+
+		lda :latch_input+1
+		and p1_dpad_input_raw+1
+		sta p1_dpad_input_down+1
+
+; if latch input is set, and the button is clear, then it just came up
+
+		lda :latch_input
+		and :inv_input
+		sta p1_dpad_input_up
+		lda :latch_input+1
+		and :inv_input+1
+		sta p1_dpad_input_up+1
+
+
+;------------------------------------------------------------------------------
+; hack code to test the button up/ button down
+
+		do 0
+		ldy #2
+		sty io_ctrl
+
+		lda p1_dpad_input_down+1
+		and #>SNES_A
+		beq :not_down
+
+		ldax #txt_button_down
+		jsr TermPUTS
+
+:not_down
+
+		lda p1_dpad_input_up+1
+		and #>SNES_A
+		beq :not_up
+
+		ldax #txt_button_up
+		jsr TermPUTS
+:not_up
+		fin
+
+
+;------------------------------------------------------------------------------
+		stz io_ctrl
+		ldax $D886
+		stax p2_dpad_input_raw
+
+		ldy #2
+		sty io_ctrl
+
+
+		lda term_x
+		pha
+		lda term_y
+		pha
+
+; debug show game controls
 		ldx #40
 		ldy #0
 		jsr TermSetXY
 
-		stz io_ctrl
-		ldax $D884
-		ldy #2
-		sty io_ctrl
-
+		ldax p1_dpad_input_raw
 		jsr TermPrintAXH
 
 		ldx #40
 		ldy #1
 		jsr TermSetXY
 
-		stz io_ctrl
-		ldax $D886
-		ldy #2
-		sty io_ctrl
-
+		ldax p2_dpad_input_raw
 		jsr TermPrintAXH
 
+
+		do 0     ; raw snes pad 3 and 4, don't need them
 		ldx #40
 		ldy #2
 		jsr TermSetXY
@@ -377,6 +459,11 @@ GameControls
 		sty io_ctrl
 
 		jsr TermPrintAXH
+		fin
+
+		ply
+		plx
+		jsr TermSetXY
 
 		rts
 
@@ -800,6 +887,8 @@ FRISB_SP_POS_Y = VKY_SP0_POS_Y_L+FRISB_SP_NUM
 		stz P1_SP_AD_L+{8*32}
 
 		lda <jiffy
+;		eor p1_x+1
+;		eor p1_y+1
 		lsr
 		lda #>0+{19*1024}
 		bcc :kk
@@ -1226,6 +1315,9 @@ init320x200
 ;------------------------------------------------------------------------------
 
 txt_frisbee asc 'frisbee 0.1',0D,00
+txt_button_down asc 'button down',0D,00
+txt_button_up asc 'button up',0D,00
+
 
 ;------------------------------------------------------------------------------
 
