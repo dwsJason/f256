@@ -311,6 +311,11 @@ start
 		;
 		jsr GameControls
 
+		; move stuff
+		jsr MoveFrisbee
+
+		; then bounds check stuff
+		; get rid of player bouncing
 		jsr FrisbeeLogic
 
 		ldax #p1_bounds_table
@@ -324,8 +329,6 @@ start
 
 		ldx #p2_x
 		jsr PlayerBounds
-
-		jsr MoveFrisbee
 
 ;------------------------------------------------------------------------------
 		; We should let the SNES data come in, while we're waiting
@@ -632,6 +635,7 @@ ReadHardware
 p1_bounds_table
 		db 8, 128-16,
 		db 88,171
+
 p2_bounds_table
 		db 128+16, 248,
 		db 88,171
@@ -650,7 +654,58 @@ player_vx ds 2
 player_vy ds 2
 		dend
 
+
+;------------------------------------------------------------------------------
+; CLAMP, BORING
+;
 PlayerBounds
+
+:minmax = temp0
+
+		lda player_y+1,x
+		ldy #miny
+		cmp (:minmax),y  			; TOP BOUNDS
+		bcs :next_y_check
+
+		lda (:minmax),y   		    ; stay in here
+		sta player_y+1,x
+
+		bra :check_the_x_now
+
+:next_y_check
+
+		ldy #maxy
+		cmp (:minmax),y			    ; BOTTOM BOUNDS
+		bcc :check_the_x_now
+
+		lda (:minmax),y
+		sta player_y+1,x            ; stay in here
+
+:check_the_x_now
+
+		lda player_x+1,x
+		ldy #minx
+		cmp (:minmax),y		  	    ; LEFT BOUNDS
+		bcs :next_x_check
+
+		lda (:minmax),y
+		sta player_x+1,x            ; stay
+
+		rts
+
+:next_x_check
+		ldy #maxx
+		cmp (:minmax),y				; RIGHT BOUNDS
+		bcc :rts
+
+		lda (:minmax),y
+		sta player_x+1,x              ; stay
+:rts
+		rts
+
+;------------------------------------------------------------------------------
+; BOUNCE LIKE A BALL
+PlayerBounds_Bouncy
 
 :minmax = temp0
 
