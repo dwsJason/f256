@@ -16,7 +16,7 @@ ACCEL_X  = $0030    ; 8.8 fixed point, if max speed is 2.0, then lets spend 16 f
 ACCEL_Y  = $0030
 ACCEL_XY = {ACCEL_X*181}/256  ; SIN of ACCEL_X
 
-MIN_FRISBEE_VX = $0020
+MIN_FRISBEE_VX = $0080
 
 ;NOTE, the largest this can be is 15
 ; with the current code
@@ -603,7 +603,12 @@ GameControls
 		;
 
 		ldax p1_vx
-		jsr  make_ax_positive
+		;jsr  make_ax_positive
+		bpl :fine1
+
+		ldax #MIN_FRISBEE_VX
+
+:fine1
 		stax frisbee_vx
 
 		cpx #0
@@ -620,6 +625,11 @@ GameControls
 		sta frisbee_vy
 		lda p1_vy+1
 		sta frisbee_vy+1
+
+		jsr BoostFrisbeeSpeed
+
+		jmp frisbee_dy
+
 :rts
 		rts
 :not_p1
@@ -653,7 +663,12 @@ GameControls
 		;
 
 		ldax p2_vx
-		jsr  make_ax_negative
+		;jsr  make_ax_negative
+		bmi :isfine2
+
+		ldax #0-MIN_FRISBEE_VX
+
+:isfine2
 		stax frisbee_vx
 
 		jsr negate_ax
@@ -674,10 +689,58 @@ GameControls
 		lda p2_vy+1
 		sta frisbee_vy+1
 
+		jsr BoostFrisbeeSpeed
+
+		jmp frisbee_dy
+
 :not_p2
 		rts
 ;------------------------------------------------------------------------------
+;
+; Frisbee speed feels not good enough
+;
+; Add a 50% speed boost
+;
+BoostFrisbeeSpeed
 
+:temp = temp0
+
+		ldax frisbee_vx
+		stax :temp
+
+		jsr :half
+
+		clc
+		lda :temp
+		adc frisbee_vx
+		sta frisbee_vx
+		lda :temp+1
+		adc frisbee_vx+1
+		sta frisbee_vx+1
+		
+		ldax frisbee_vy
+		stax :temp
+
+		jsr :half
+
+		clc
+		lda :temp
+		adc frisbee_vy
+		sta frisbee_vy
+		lda :temp+1
+		adc frisbee_vy+1
+		sta frisbee_vy+1
+
+		rts
+
+:half
+		lda :temp+1
+		cmp #$80
+		ror :temp+1
+		ror :temp
+		rts
+
+;------------------------------------------------------------------------------
 
 MovePlayerControls
 
@@ -1309,7 +1372,7 @@ MoveFrisbee
 		; Probably some arena bounds check can happen here, since after we
 		; leave here, we will have lost the carry state, and we haven't
 		; left enough space ni the frisbee coordinate system to help us check later
-
+frisbee_dy = *
 		clc
 		lda <frisbee_y
 		adc <frisbee_vy
