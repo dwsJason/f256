@@ -16,6 +16,11 @@ ACCEL_X  = $0030    ; 8.8 fixed point, if max speed is 2.0, then lets spend 16 f
 ACCEL_Y  = $0030
 ACCEL_XY = {ACCEL_X*181}/256  ; SIN of ACCEL_X
 
+MIN_FRISBEE_VX = $0020
+
+;NOTE, the largest this can be is 15
+; with the current code
+CATCH_RADIUS = 8 ; this is +/- pixels radius, so 8 would be 16 pixel sized circle
 
 
 ; System Bus Pointer's
@@ -104,8 +109,18 @@ frisbee_vx ds 2
 frisbee_vy ds 2
 
 ;
+; -1 -> no player
+;  0 -> player 1
+;  1 -> player 2
+;
+frisbee_state ds 1 ; which player has the fris?
+
+
+;-------------------------------
+;
 ; Red Player Physics
 ;
+; DO NOT SEPARATE FROM THE p2 VARIABLES
 
 p1_x ds 2
 p1_y ds 2
@@ -120,6 +135,9 @@ p2_x ds 2
 p2_y ds 2
 p2_vx ds 2
 p2_vy ds 2
+; DO NOT SEPARATE FROM THE p1 VARIABLES
+;-------------------------------
+
 
 p1_dpad_input_raw ds 2
 p1_dpad_input_down ds 2
@@ -294,7 +312,11 @@ start
 		ldax #$080
 		stax frisbee_vy
 
+		; this mostly controls the logic to do collision
+		; and if the frisbee is in someone's posession
 
+		lda #-1
+		sta frisbee_state
 
 ;;-----------------------------------------------------------------------------
 ;;
@@ -311,12 +333,11 @@ start
 		;
 		jsr GameControls
 
-		; move stuff
+		; move stuff - also moves the players
 		jsr MoveFrisbee
 
 		; then bounds check stuff
 		; get rid of player bouncing
-		jsr FrisbeeLogic
 
 		ldax #p1_bounds_table
 		stax temp0
@@ -329,6 +350,13 @@ start
 
 		ldx #p2_x
 		jsr PlayerBounds
+
+		; so to make sure frisbee is ok when being carried
+		jsr FrisbeeLogic
+
+;------------------------------------------------------------------------------
+
+		jsr PlayerDiscCollision
 
 ;------------------------------------------------------------------------------
 		; We should let the SNES data come in, while we're waiting
@@ -351,10 +379,307 @@ start
 ;;
 ;;-----------------------------------------------------------------------------
 ;
+
+PlayerDiscCollision
+
+		; Collision detect disc and player
+		;
+		
+		lda frisbee_state
+		bmi :lets_go		; the frisbee is airborn
+
+		; someone already has frisbee
+		rts
+
+:lets_go
+
+		jsr Player1Check
+		; fall to player2
+
+Player2Check
+
+
+:dx = temp0
+:dy = temp0+1
+
+		; Get DX from player 1
+		sec
+		lda p2_x+1
+		sbc frisbee_x+1
+		bcs :no_borrow
+
+		; negate, so we have a positive value
+		eor #$ff
+		inc
+
+:no_borrow
+		sta :dx
+
+		; Get DY from player 1
+		sec
+		lda p2_y+1
+		sbc frisbee_y+1
+		bcs :no_borrow2
+
+		; negate, so we have a positive value
+		eor #$FF
+		inc
+
+:no_borrow2
+
+		sta :dy
+
+; ok, did we catch it?
+
+		stz io_ctrl
+
+		lda :dx 		; dx * dx
+		sta MULU_A_L
+		stz MULU_A_H
+		sta MULU_B_L
+		stz MULU_B_H
+
+		ldax MULU_LL
+		stax ADD_A_LL
+
+		lda :dy
+		sta MULU_A_L  	; dy * dy
+		stz MULU_A_H
+		sta MULU_B_L
+		stz MULU_B_H
+
+		ldax MULU_LL
+		stax ADD_B_LL
+
+		lda ADD_R_LH   ; total of the squared values
+		bne :no_catch
+
+		lda ADD_R_LL
+		cmp #CATCH_RADIUS*CATCH_RADIUS
+		bcs :no_catch
+
+		; caught it, we'll have to add something
+		; to player movement, to drag this along with us
+		lda #1
+		sta frisbee_state ; P2
+
+		stz frisbee_vx
+		stz frisbee_vx+1
+		stz frisbee_vy
+		stz frisbee_vy+1
+
+:no_catch
+
+		ldy #2
+		sty io_ctrl
+
+		rts
+
+Player1Check
+
+:dx = temp0
+:dy = temp0+1
+
+		; Get DX from player 1
+		sec
+		lda p1_x+1
+		sbc frisbee_x+1
+		bcs :no_borrow
+
+		; negate, so we have a positive value
+		eor #$ff
+		inc
+
+:no_borrow
+		sta :dx
+
+		; Get DY from player 1
+		sec
+		lda p1_y+1
+		sbc frisbee_y+1
+		bcs :no_borrow2
+
+		; negate, so we have a positive value
+		eor #$FF
+		inc
+
+:no_borrow2
+
+		sta :dy
+
+; these values look good
+;		ldx #0
+;		ldy #1
+;		jsr TermSetXY
 ;
+;		ldax :dx
+;		jsr TermPrintAXH
+
+
+; ok, did we catch it?
+
+		stz io_ctrl
+
+		lda :dx 		; dx * dx
+		sta MULU_A_L
+		stz MULU_A_H
+		sta MULU_B_L
+		stz MULU_B_H
+
+		ldax MULU_LL
+		stax ADD_A_LL
+
+		lda :dy
+		sta MULU_A_L  	; dy * dy
+		stz MULU_A_H
+		sta MULU_B_L
+		stz MULU_B_H
+
+		ldax MULU_LL
+		stax ADD_B_LL
+
+		lda ADD_R_LH   ; total of the squared values
+		bne :no_catch
+
+		lda ADD_R_LL
+		cmp #CATCH_RADIUS*CATCH_RADIUS
+		bcs :no_catch
+
+		; caught it, we'll have to add something
+		; to player movement, to drag this along with us
+		stz frisbee_state ; P1
+
+		stz frisbee_vx
+		stz frisbee_vx+1
+		stz frisbee_vy
+		stz frisbee_vy+1
+
+:no_catch
+
+;		ldax MULU_LL
+
+		ldy #2
+		sty io_ctrl
+
+;		jsr TermPrintAXH
+
+		rts
+
+;------------------------------------------------------------------------------
+
+
 GameControls
 
 		jsr ReadHardware
+		jsr MovePlayerControls
+
+		lda frisbee_state
+		bne :not_p1
+
+		; P1 has the frisbee, see if they should throw
+		; Throw the Frisbee!
+
+		lda p1_dpad_input_up
+		asl
+		asl
+		asl
+		asl
+		ora p1_dpad_input_up+1
+		bit #>SNES_A.SNES_X		; checks AXYB
+
+		beq :rts
+
+		lda #-1
+		sta frisbee_state  ; it's launched
+
+		; P1 has the Disc, and they have launched the Frisbee
+		lda p1_x+1
+		adc #16 	   		; this is an attempt to keep me from re-catching
+		sta frisbee_x+1
+
+		;
+		; Here's the thing, VX we aren't going to allow it to be negative
+		; and probably nothing less than than 00.20
+		;
+
+		ldax p1_vx
+		jsr  make_ax_positive
+		stax frisbee_vx
+
+		cpx #0
+		bne :p1_xisok
+
+		cmp #MIN_FRISBEE_VX
+		bcs :p1_xisok
+
+		lda #MIN_FRISBEE_VX
+		sta frisbee_vx
+
+:p1_xisok
+		lda p1_vy
+		sta frisbee_vy
+		lda p1_vy+1
+		sta frisbee_vy+1
+:rts
+		rts
+:not_p1
+		dec
+		bne :not_p2
+
+		; P2 has the frisbee, see if they should throw
+		; Throw the Frisbee!
+
+		lda p2_dpad_input_up
+		asl
+		asl
+		asl
+		asl
+		ora p2_dpad_input_up+1
+		bit #>SNES_A.SNES_X		; checks AXYB
+
+		beq :rts
+
+		lda #-1
+		sta frisbee_state  ; it's launched
+
+		; P1 has the Disc, and they have launched the Frisbee
+		lda p2_x+1
+		sbc #16 	   		; this is an attempt to keep me from re-catching
+		sta frisbee_x+1
+
+		;
+		; Here's the thing, VX we aren't going to allow it to be negative
+		; and probably nothing less than than 00.20
+		;
+
+		ldax p2_vx
+		jsr  make_ax_negative
+		stax frisbee_vx
+
+		jsr negate_ax
+		cpx #0
+		bne :p2_xisok
+
+		cmp #MIN_FRISBEE_VX
+		bcs :p2_xisok
+
+		lda #-MIN_FRISBEE_VX
+		sta frisbee_vx
+		lda #-1
+		sta frisbee_vx+1
+
+:p2_xisok
+		lda p2_vy
+		sta frisbee_vy
+		lda p2_vy+1
+		sta frisbee_vy+1
+
+:not_p2
+		rts
+;------------------------------------------------------------------------------
+
+
+MovePlayerControls
 
 ; Player 1 Control pad do your thing, acceleration!
 
@@ -790,6 +1115,34 @@ PlayerBounds_Bouncy
 ;------------------------------------------------------------------------------
 FrisbeeLogic
 
+		lda frisbee_state
+		bmi :in_flight
+
+		tay
+
+		asl
+		asl
+		asl
+		tax
+
+
+		lda p1_x+1,x  ; DO NOT SEPARATE THESE p1 and p2 variables
+		adc :x_anchor,y
+		sta frisbee_x+1
+
+		lda p1_y+1,x
+		sta frisbee_y+1
+
+		rts
+
+:x_anchor
+		db 8
+		db -8
+
+
+:in_flight
+;-------------- bounce and stuff
+
 		lda frisbee_y+1
 		cmp #88 	   			; TOP BOUNDS FOR FRISBEE
 		bcs :next_y_check
@@ -983,6 +1336,8 @@ MoveFrisbee
 		;jsr :negate
 		; drop through
 :negate
+
+make_ax_positive
 		bpl :no_work
 
 		pha
@@ -997,6 +1352,23 @@ MoveFrisbee
 
 :no_work
 		rts
+
+make_ax_negative
+		bmi no_work
+negate_ax
+		pha
+		txa
+		eor #$ff
+		tax
+		pla
+		eor #$ff
+		inc
+		bne :no_work
+		inx
+
+no_work
+		rts
+
 
 
 
