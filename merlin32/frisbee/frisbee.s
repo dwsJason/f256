@@ -1003,13 +1003,13 @@ ReadHardware
 		pha
 
 ; debug show game controls
-		do 1 ; show SNES PADS for DEBUG
+		do 0 ; show SNES PADS for DEBUG
 		ldx #35
 		ldy #0
 		jsr TermSetXY
 
-		;ldax p1_dpad_input_raw
-		ldax p1_keyboard_raw
+		ldax p1_dpad_input_raw
+		;ldax p1_keyboard_raw
 		jsr TermPrintAXH
 
 		ldx #35
@@ -1732,7 +1732,7 @@ FRISB_SP_POS_Y = VKY_SP0_POS_Y_L+FRISB_SP_NUM
 ;
 DoKernelEvent
 
-		do 0    ; for debugging the kernel events
+		do 1    ; for debugging the kernel events
 		ldx #0
 		ldy #1
 		jsr TermSetXY
@@ -1847,6 +1847,20 @@ DoKeyUp
 		rts
 :nx8
 		fin
+
+		cmp #$78 ; Throw
+		bne :nx9
+		lda #>SNES_A
+		tsb p1_keyboard_raw+1
+		rts
+:nx9
+		cmp #$20 ; Throw
+		bne :nx10
+		lda #>SNES_A
+		tsb p2_keyboard_raw+1
+		rts
+:nx10
+
 		rts
 
 
@@ -1907,6 +1921,21 @@ DoKeyDown
 		rts
 :nx8
 		fin
+
+		cmp #$78 ; Throw
+		bne :nx9
+		lda #>SNES_A
+		trb p1_keyboard_raw+1
+		rts
+:nx9
+
+		cmp #$20 ; Throw
+		bne :nx10
+		lda #>SNES_A
+		trb p2_keyboard_raw+1
+		rts
+:nx10
+
 
 		rts
 
