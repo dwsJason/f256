@@ -3,6 +3,12 @@
 ;
 		mx %11
 
+;
+; TERM reconigured for 40
+; 
+TERM_COLUMNS = 40  ; 80
+TERM_ROWS    = 25  ; 60
+
 TextBuffer = $C000
 
 ; Terminal Variables
@@ -34,9 +40,9 @@ TermInit
 
 		stz term_x
 		stz term_y
-		lda #80
+		lda #TERM_COLUMNS
 		sta term_width
-		lda #60
+		lda #TERM_ROWS
 		sta term_height
 
 		lda #<TextBuffer
@@ -114,7 +120,7 @@ TermCOUT
 :pDst = term_temp0+2
 
 		stz :pDst
-		lda #80
+		lda #TERM_COLUMNS
 		sta :pSrc
 		lda #>TextBuffer
 		sta :pDst+1
@@ -219,16 +225,16 @@ TermClearTextBuffer
 
 Term80Table_lo
 ]var = TextBuffer
-		lup 60
+		lup TERM_ROWS
 		db #<]var
-]var = ]var+80
+]var = ]var+TERM_COLUMNS
 		--^
 
 Term80Table_hi
 ]var = TextBuffer
-		lup 60
+		lup TERM_ROWS
 		db #>]var
-]var = ]var+80
+]var = ]var+TERM_COLUMNS
 		--^
 
 ;------------------------------------------------------------------------------
