@@ -138,11 +138,12 @@ p2_vy ds 2
 ; DO NOT SEPARATE FROM THE p1 VARIABLES
 ;-------------------------------
 
-
+p1_keyboard_raw ds 2
 p1_dpad_input_raw ds 2
 p1_dpad_input_down ds 2
 p1_dpad_input_up ds 2
 
+p2_keyboard_raw ds 2
 p2_dpad_input_raw ds 2
 p2_dpad_input_down ds 2
 p2_dpad_input_up ds 2
@@ -263,6 +264,13 @@ start
 
 ; Initialize some state
 
+
+		; this simulates raw SNES pad
+		lda #-1
+		sta p1_keyboard_raw
+		sta p1_keyboard_raw+1
+		sta p2_keyboard_raw
+		sta p2_keyboard_raw+1
 
 		; Frisbee position, and velocity
 
@@ -875,7 +883,13 @@ ReadHardware
 		ldax p1_dpad_input_raw
 		stax :prev_input
 
-		ldax $D884
+		;ldax $D884
+		lda $D885
+		and p1_keyboard_raw+1
+		tax
+		lda $D884
+		and p1_keyboard_raw
+
 		stax :inv_input
 		eor #$FF
 		sta p1_dpad_input_raw
@@ -913,7 +927,12 @@ ReadHardware
 		ldax p2_dpad_input_raw
 		stax :prev_input
 
-		ldax $D886
+		;ldax $D886
+		lda $D887
+		and p2_keyboard_raw+1
+		tax
+		lda $D886
+		and p2_keyboard_raw
 		stax :inv_input
 
 		eor #$FF
@@ -984,12 +1003,13 @@ ReadHardware
 		pha
 
 ; debug show game controls
-		do 0 ; show SNES PADS for DEBUG
+		do 1 ; show SNES PADS for DEBUG
 		ldx #35
 		ldy #0
 		jsr TermSetXY
 
-		ldax p1_dpad_input_raw
+		;ldax p1_dpad_input_raw
+		ldax p1_keyboard_raw
 		jsr TermPrintAXH
 
 		ldx #35
@@ -1712,6 +1732,7 @@ FRISB_SP_POS_Y = VKY_SP0_POS_Y_L+FRISB_SP_NUM
 ;
 DoKernelEvent
 
+		do 0    ; for debugging the kernel events
 		ldx #0
 		ldy #1
 		jsr TermSetXY
@@ -1742,6 +1763,150 @@ DoKernelEvent
 		lda event_data+6
 		jsr TermPrintAH
 		jsr TermCR
+		fin
+
+
+		lda event_data+kernel_event_t
+		cmp #kernel_event_key_PRESSED
+		beq DoKeyDown
+		cmp #kernel_event_key_RELEASED
+		beq DoKeyUp
+
+		rts
+
+		; Player 1 throw keys
+		;77 = W - up
+		;61 = A - left
+		;73 = S - down
+		;64 = D - right
+		;78 = X
+		;71 = Q
+		;65 = E
+
+		; player 2 keys
+		;B6 = up arrow
+		;B8 = left arrow
+		;B7 = down arrow
+		;B9 = right arrow 
+		;20 = space
+		;94 = enter
+
+
+DoKeyUp
+		lda event_data+kernel_event_event_t_key_raw
+
+		; player 1 keys
+		cmp #$77  ; W - up
+		bne :nx1
+		lda #SNES_UP
+		tsb p1_keyboard_raw
+		rts
+:nx1
+		cmp #$61  ; A - left
+		bne :nx2
+		lda #SNES_LEFT
+		tsb p1_keyboard_raw
+		rts
+:nx2
+		cmp #$73  ; S - down
+		bne :nx3
+		lda #SNES_DOWN
+		tsb p1_keyboard_raw
+		rts
+:nx3
+		cmp #$64  ; D - right
+		bne :nx4
+		lda #SNES_RIGHT
+		tsb p1_keyboard_raw
+		rts
+:nx4
+		do 1
+		; player 2 keys
+		cmp #$B6  ; up
+		bne :nx5
+		lda #SNES_UP
+		tsb p2_keyboard_raw
+		rts
+:nx5
+		cmp #$B8  ; left
+		bne :nx6
+		lda #SNES_LEFT
+		tsb p2_keyboard_raw
+		rts
+:nx6
+		cmp #$B7  ; down
+		bne :nx7
+		lda #SNES_DOWN
+		tsb p2_keyboard_raw
+		rts
+:nx7
+		cmp #$B9  ; right
+		bne :nx8
+		lda #SNES_RIGHT
+		tsb p2_keyboard_raw
+		rts
+:nx8
+		fin
+		rts
+
+
+
+DoKeyDown
+		lda event_data+kernel_event_event_t_key_raw
+
+		; player 1 keys
+		cmp #$77  ; W - up
+		bne :nx1
+		lda #SNES_UP
+		trb p1_keyboard_raw
+		rts
+:nx1
+		cmp #$61  ; A - left
+		bne :nx2
+		lda #SNES_LEFT
+		trb p1_keyboard_raw
+		rts
+:nx2
+		cmp #$73  ; S - down
+		bne :nx3
+		lda #SNES_DOWN
+		trb p1_keyboard_raw
+		rts
+:nx3
+		cmp #$64  ; D - right
+		bne :nx4
+		lda #SNES_RIGHT
+		trb p1_keyboard_raw
+		rts
+
+		do 1
+:nx4
+		; player 2 keys
+		cmp #$B6  ; up
+		bne :nx5
+		lda #SNES_UP
+		trb p2_keyboard_raw
+		rts
+:nx5
+		cmp #$B8  ; left
+		bne :nx6
+		lda #SNES_LEFT
+		trb p2_keyboard_raw
+		rts
+:nx6
+		cmp #$B7  ; down
+		bne :nx7
+		lda #SNES_DOWN
+		trb p2_keyboard_raw
+		rts
+:nx7
+		cmp #$B9  ; right
+		bne :nx8
+		lda #SNES_RIGHT
+		trb p2_keyboard_raw
+		rts
+:nx8
+		fin
 
 		rts
 
