@@ -341,6 +341,8 @@ GameControls
 
 		stz io_ctrl
 
+; player 1 controller read + input latching
+
 :prev_input = temp0
 :latch_input = temp0+2
 :inv_input = temp1
@@ -380,6 +382,44 @@ GameControls
 		and :inv_input+1
 		sta p1_dpad_input_up+1
 
+;------------------------------------------------------------------------------
+; player 2 controller read + input latching
+
+		ldax p2_dpad_input_raw
+		stax :prev_input
+
+		ldax $D886
+		stax :inv_input
+
+		eor #$FF
+		sta p2_dpad_input_raw
+		eor :prev_input
+		sta :latch_input
+
+		txa
+		eor #$FF
+		sta p2_dpad_input_raw+1
+		eor :prev_input+1
+		sta :latch_input+1
+
+; if latch_input is set, and the button is set, then it just went down
+
+		lda :latch_input
+		and p2_dpad_input_raw
+		sta p2_dpad_input_down
+
+		lda :latch_input+1
+		and p2_dpad_input_raw+1
+		sta p2_dpad_input_down+1
+
+; if latch input is set, and the button is clear, then it just came up
+
+		lda :latch_input
+		and :inv_input
+		sta p2_dpad_input_up
+		lda :latch_input+1
+		and :inv_input+1
+		sta p2_dpad_input_up+1
 
 ;------------------------------------------------------------------------------
 ; hack code to test the button up/ button down
@@ -388,7 +428,7 @@ GameControls
 		ldy #2
 		sty io_ctrl
 
-		lda p1_dpad_input_down+1
+		lda p2_dpad_input_down+1
 		and #>SNES_A
 		beq :not_down
 
@@ -397,7 +437,7 @@ GameControls
 
 :not_down
 
-		lda p1_dpad_input_up+1
+		lda p2_dpad_input_up+1
 		and #>SNES_A
 		beq :not_up
 
@@ -408,9 +448,6 @@ GameControls
 
 
 ;------------------------------------------------------------------------------
-		stz io_ctrl
-		ldax $D886
-		stax p2_dpad_input_raw
 
 		ldy #2
 		sty io_ctrl
