@@ -1,0 +1,31 @@
+{
+    "version": "1.0",
+    "fileName": "count_down.png",
+    "width": 320,
+    "height": 1400,
+    "columns": 1,
+    "rows": 7,
+    "frames": [
+        {
+            "duration": 40
+        },
+        {
+            "duration": 40
+        },
+        {
+            "duration": 40
+        },
+        {
+            "duration": 40
+        },
+        {
+            "duration": 40
+        },
+        {
+            "duration": 40
+        },
+        {
+            "duration": 40
+        }
+    ]
+}
