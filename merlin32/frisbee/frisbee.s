@@ -234,11 +234,22 @@ start
 
 		jsr mmu_unlock
 
+		jsr LoadNamcoFont
 
 		plp
 
 		lda #2
 		sta io_ctrl
+
+		ldx #9
+		ldy #24
+		jsr TermSetXY
+		ldax #txt_gamejam
+		jsr TermPUTS
+
+		ldx #13
+		ldy #1
+		jsr TermSetXY
 
 		ldax #txt_frisbee
 		jsr TermPUTS
@@ -973,19 +984,21 @@ ReadHardware
 		pha
 
 ; debug show game controls
-		ldx #40
+		do 0 ; show SNES PADS for DEBUG
+		ldx #35
 		ldy #0
 		jsr TermSetXY
 
 		ldax p1_dpad_input_raw
 		jsr TermPrintAXH
 
-		ldx #40
+		ldx #35
 		ldy #1
 		jsr TermSetXY
 
 		ldax p2_dpad_input_raw
 		jsr TermPrintAXH
+		fin
 
 
 		do 0     ; raw snes pad 3 and 4, don't need them
@@ -1790,7 +1803,8 @@ init320x200
 		;lda #%01111111  ; everything is enabled
 		lda #%00111111  ; everything is enabled
 		sta VKY_MSTR_CTRL_0
-		lda #1 ; CLK_70
+		;lda #1 ; CLK_70
+		lda #%00100111  ; alternate font, double sized font, 70hz
 		sta VKY_MSTR_CTRL_1
 
 		; layer stuff - take from Jr manual
@@ -2026,10 +2040,46 @@ init320x200
 
 ;------------------------------------------------------------------------------
 
-txt_frisbee asc 'frisbee 0.1',0D,00
-txt_button_down asc 'button down',0D,00
-txt_button_up asc 'button up',0D,00
+txt_frisbee asc 'FRISBEE FIGHT',0D,00
+txt_gamejam asc 'F256 GAME JAM APRIL 2024',00
+txt_button_down asc 'BUTTON DOWN',0D,00
+txt_button_up asc 'BUTTON UP',0D,00
 
+;------------------------------------------------------------------------------
+;
+LoadNamcoFont
+
+		lda #1		  ; Font Memory
+		sta io_ctrl
+
+		ldaxy #namco_font
+		jsr set_read_address
+
+		; This font is 64 glyphs / 512 bytes
+
+		ldx #0
+
+]loop	jsr readbyte
+		sta $C900,x		; alternative font
+		inx
+		bne ]loop
+
+]loop	jsr readbyte
+		sta $CA00,x		; alternative font
+		inx
+		bne ]loop
+
+]loop	jsr readbyte
+		sta $CB00,x		; alternative font
+		inx
+		bne ]loop
+
+]loop	jsr readbyte
+		sta $CC00,x		; alternative font
+		inx
+		bne ]loop
+
+		rts
 
 ;------------------------------------------------------------------------------
 

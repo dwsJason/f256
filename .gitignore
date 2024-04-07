@@ -17,3 +17,5 @@ backup/
 fonts/
 jr_fpga/
 *.vpwhistxml
+merlin32/frisbee/bin/makefont/obj/
+merlin32/frisbee/bin/makefont/bin/

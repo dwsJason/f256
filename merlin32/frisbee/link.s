@@ -94,6 +94,11 @@ img_court	  putbin data\JapanCourt.256
 
 baller_sheet  putbin data\baller_sheet.256
 
+	;
+	; This guy is 64 glyps
+	;
+namco_font    putbin data\namco_font.font
+
 image1_end
 
 ;------------------------------------------------------------------------------
