@@ -1,6 +1,6 @@
-; fnXmas demo
-; by two guys
-; december 2023
+; pvp frisbee
+; @dwsJason
+; April F256 GameJam !!
 		mx %11
 ; ifdef for debug vs release
 ; set to 1 for final release!
@@ -10,6 +10,19 @@ RELEASE = 1
 ;pSource  equ $10
 ;pDest    equ pSource+4
 ; Do not use anything below $20, the mmu module owns it
+
+SNES_A       = %0000_1000_0000_0000
+SNES_X       = %0000_0100_0000_0000
+SNES_L       = %0000_0010_0000_0000
+SNES_R       = %0000_0001_0000_0000
+SNES_B       = %0000_0000_1000_0000
+SNES_Y       = %0000_0000_0100_0000
+SNES_SELECT  = %0000_0000_0010_0000
+SNES_START   = %0000_0000_0001_0000
+SNES_UP      = %0000_0000_0000_1000
+SNES_DOWN    = %0000_0000_0000_0100
+SNES_LEFT    = %0000_0000_0000_0010
+SNES_RIGHT   = %0000_0000_0000_0001
 
 	dum $20
 temp0 ds 4
@@ -95,6 +108,9 @@ p2_x ds 2
 p2_y ds 2
 p2_vx ds 2
 p2_vy ds 2
+
+p1_dpad_input ds 2
+p2_dpad_input ds 2
 
 	dend
 
