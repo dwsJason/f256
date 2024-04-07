@@ -6,6 +6,18 @@
 ; set to 1 for final release!
 RELEASE = 1
 
+; Player physics tuning
+
+PLAYER_FRICTION = $00E0   ; 8.8 here
+
+; Player Acceleration constants
+
+ACCEL_X  = $0030    ; 8.8 fixed point, if max speed is 2.0, then lets spend 16 frames getting there
+ACCEL_Y  = $0030
+ACCEL_XY = {ACCEL_X*181}/256  ; SIN of ACCEL_X
+
+
+
 ; System Bus Pointer's
 ;pSource  equ $10
 ;pDest    equ pSource+4
@@ -338,6 +350,117 @@ start
 ;
 ;
 GameControls
+
+		jsr ReadHardware
+
+; Player 1 Control pad do your thing, acceleration!
+
+		lda p1_dpad_input_raw
+		and #$F
+		asl
+		tax
+
+		; when we're pushing we apply an acceleration
+		; these load 4 bits
+		; Up, Down, Left, Right respectively
+
+		;c=0 already
+		lda :accel_table_x,x
+		adc p1_vx
+		sta p1_vx
+		lda :accel_table_x+1,x
+		adc p1_vx+1
+		sta p1_vx+1
+
+		clc
+		lda :accel_table_y,x
+		adc p1_vy
+		sta p1_vy
+		lda :accel_table_y+1,x
+		adc p1_vy+1
+		sta p1_vy+1
+
+; Player 2 Control pad do your thing acceleration
+
+		lda p2_dpad_input_raw
+		and #$F
+		asl
+		tax
+
+		; when we're pushing we apply an acceleration
+		; these load 4 bits
+		; Up, Down, Left, Right respectively
+
+		;c=0 already
+		lda :accel_table_x,x
+		adc p2_vx
+		sta p2_vx
+		lda :accel_table_x+1,x
+		adc p2_vx+1
+		sta p2_vx+1
+
+		clc
+		lda :accel_table_y,x
+		adc p2_vy
+		sta p2_vy
+		lda :accel_table_y+1,x
+		adc p2_vy+1
+		sta p2_vy+1
+
+
+		rts
+
+:accel_table_x
+
+		dw $0000     ; nothing
+		dw ACCEL_X   ; right
+		dw -ACCEL_X  ; left
+		dw $0000     ; left+right
+
+		dw $0000     ; down
+		dw ACCEL_XY  ; down+right
+		dw -ACCEL_XY ; down+left
+		dw $0000     ; down+left+right
+
+		dw $0000     ; up
+		dw ACCEL_XY  ; up+right
+		dw -ACCEL_XY ; up+left
+		dw $0000     ; up+left+right
+
+		dw $0000     ; up+down
+		dw ACCEL_XY  ; up+down+right
+		dw -ACCEL_XY ; up+down+left
+		dw $0000     ; up+down+left+right
+
+:accel_table_y
+
+		dw $0000     ; nothing
+		dw $0000     ; right
+		dw $0000     ; left
+		dw $0000     ; left+right
+
+		dw ACCEL_Y   ; down
+		dw ACCEL_XY  ; down+right
+		dw ACCEL_XY  ; down+left
+		dw ACCEL_Y   ; down+left+right
+
+		dw -ACCEL_Y  ; up
+		dw -ACCEL_XY ; up+right
+		dw -ACCEL_XY ; up+left
+		dw -ACCEL_Y  ; up+left+right
+
+		dw $0000     ; up+down
+		dw $0000     ; up+down+right
+		dw $0000     ; up+down+left
+		dw $0000     ; up+down+left+right
+
+
+
+;------------------------------------------------------------------------------
+;
+; Deal with actual hardware reads
+;
+ReadHardware
 
 		stz io_ctrl
 
@@ -712,6 +835,25 @@ MoveFrisbee
 		adc <p1_vy+1
 		sta <p1_y+1
 
+;---------------------------
+; Apply Friction to Red Player 1 X
+
+		stz io_ctrl
+
+		ldax p1_vx
+		jsr :friction
+		stax p1_vx
+
+; Apply Friction to Red Player 1 u
+
+		ldax p1_vy
+		jsr :friction
+		stax p1_vy
+
+
+		lda #2
+		sta io_ctrl
+
 
 ; Blue Player 2
 		clc
@@ -729,6 +871,22 @@ MoveFrisbee
 		lda <p2_y+1
 		adc <p2_vy+1
 		sta <p2_y+1
+;---------------------------------
+; Apply Blue player friction
+		stz io_ctrl
+
+		ldax p2_vx
+		jsr :friction
+		stax p2_vx
+
+		ldax p2_vy
+		jsr :friction
+		stax p2_vy
+
+		lda #2
+		sta io_ctrl
+
+;---------------------------------
 
 
 ; Frisbee
@@ -756,6 +914,33 @@ MoveFrisbee
 		; leave here, we will have lost the carry state, and we haven't
 		; left enough space ni the frisbee coordinate system to help us check later
 
+		rts
+
+:friction
+		php
+		jsr :negate
+
+		stax MULU_A_L
+		ldax #PLAYER_FRICTION
+		stax MULU_B_L
+		ldax MULU_LH
+		plp
+		;jsr :negate
+		; drop through
+:negate
+		bpl :no_work
+
+		pha
+		txa
+		eor #$ff
+		tax
+		pla
+		eor #$ff
+		inc
+		bne :no_work
+		inx
+
+:no_work
 		rts
 
 
