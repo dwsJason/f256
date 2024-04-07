@@ -242,6 +242,12 @@ start
 		lda #2
 		sta io_ctrl
 
+		ldx #0
+		ldy #23
+		jsr TermSetXY
+		ldax #txt_help
+		jsr TermPUTS
+
 		ldx #9
 		ldy #24
 		jsr TermSetXY
@@ -1732,7 +1738,7 @@ FRISB_SP_POS_Y = VKY_SP0_POS_Y_L+FRISB_SP_NUM
 ;
 DoKernelEvent
 
-		do 1    ; for debugging the kernel events
+		do 0    ; for debugging the kernel events
 		ldx #0
 		ldy #1
 		jsr TermSetXY
@@ -2238,6 +2244,7 @@ txt_frisbee asc 'FRISBEE FIGHT',0D,00
 txt_gamejam asc 'F256 GAME JAM APRIL 2024',00
 txt_button_down asc 'BUTTON DOWN',0D,00
 txt_button_up asc 'BUTTON UP',0D,00
+txt_help asc 'SNES 1VS2 OR WASD+X VS ARROW KEYS+SPACE',00
 
 ;------------------------------------------------------------------------------
 ;
