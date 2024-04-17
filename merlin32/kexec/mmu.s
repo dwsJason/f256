@@ -46,12 +46,6 @@ mmu_unlock
 		lda io_ctrl
 		sta old_io_ctrl
 
-		ldx #7
-]save	lda mmu0,x
-		sta old_mmu0,x
-		dex
-		bpl ]save
-
 		lda mmu_ctrl
 		and #$3
 		sta temp0     ; active MLUT
@@ -62,6 +56,12 @@ mmu_unlock
 		ora temp0     ; active MLUT, copied to the EDIT LUT
 		ora #$80      ; Enable MMU edit - we are editing the active (spooky)
 		sta mmu_ctrl
+
+		ldx #7
+]save	lda mmu0,x
+		sta old_mmu0,x
+		dex
+		bpl ]save
 
 		rts
 
@@ -81,6 +81,7 @@ mmu_lock
 		lda old_mmu_ctrl
 		sta mmu_ctrl
 		rts
+mmu_lock_end
 
 ; Set system bus address for reading
 ;
@@ -237,3 +238,39 @@ writebyte
 		rts
 
 
+; 
+; Determine how many bytes it's possible to write into the write window, max 128
+;
+bytes_can_write
+		lda	pDest+1
+		cmp	#>WRITE_BLOCK+$1F00
+		bne	:use_128
+		lda	pDest
+		bpl	:use_128	; A (pointer) is less than 128, there's room for yet another 128 bytes
+		; Subtract A from 256, in 8 bit two's complement this is the same as negate
+		eor	#$FF
+		clc
+		adc	#1
+		rts
+:use_128
+		lda	#128
+		rts
+
+; 
+; Increment pDest by A
+;
+increment_dest
+		clc
+		adc	pDest
+		sta	pDest
+		bcc	:done
+		lda	pDest+1
+		inc
+		cmp #>WRITE_BLOCK+$2000
+		bne	:no_wrap
+		inc	WRITE_MMU
+		lda	#>WRITE_BLOCK
+:no_wrap
+		sta	pDest+1
+:done
+		rts
