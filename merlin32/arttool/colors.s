@@ -24,13 +24,13 @@ initColors
 
 		; Set the background color, and the border color
 
-		ldx #2
-]lp
-		lda |gs_colors+{4*2},x ; Dark Blue index 2
-		sta |VKY_BKG_COL_B,x
-		sta |VKY_BRDR_COL_B,x
-		dex
-		bpl ]lp
+;		ldx #2
+;]lp
+;		lda |gs_colors+{4*2},x ; Dark Blue index 2
+;		sta |VKY_BKG_COL_B,x
+;		sta |VKY_BRDR_COL_B,x
+;		dex
+;		bpl ]lp
 
 		; copy the first 16 colors up into the normal graphics luts
 

@@ -26,7 +26,7 @@
 ; Shared constants with the pc side
 
 COMMANDLIST_START = $2000     ; need some commmon ground here
-PIXEL_DATA        = $100000
+PIXEL_DATA        = $10000
 CLUT_DATA         = $A000
 
 ;------------------------------------------------------------------------------
@@ -380,6 +380,18 @@ default_hardware_init
 ;------------------------------------------------------------------------------
 ; copy your clut into LUT0
 ;
+
+		lda CLUT_DATA
+		sta VKY_BRDR_COL_B
+		sta VKY_BKG_COL_B
+		lda CLUT_DATA+1
+		sta VKY_BRDR_COL_G
+		sta VKY_BKG_COL_G
+		lda CLUT_DATA+2
+		sta VKY_BRDR_COL_R
+		sta VKY_BKG_COL_R
+
+
 		; set access to vicky CLUTs
 		lda #1
 		sta io_ctrl
@@ -396,15 +408,13 @@ default_hardware_init
 		dex
 		bne ]lp
 
+
 ;------------------------------------------------------------------------------
 
 		; set access back to text buffer, for the text stuff
 		lda #2
 		sta io_ctrl
 
-
-		lda #2
-		sta io_ctrl
 		plp
 
 		rts
