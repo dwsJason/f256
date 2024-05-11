@@ -248,10 +248,10 @@ start
 		ldax #txt_help
 		jsr TermPUTS
 
-		ldx #9
+		ldx #4
 		ldy #24
 		jsr TermSetXY
-		ldax #txt_gamejam
+		ldax #txt_help2
 		jsr TermPUTS
 
 		ldx #13
@@ -347,8 +347,16 @@ start
 ;;
 ;;  MAIN LOOP HERE ------------------------------------------------------------
 ;;
+;		sei ; will the keyboard work, without IRQ?, no it won't
+
+VIRQ = $FFFE
+
 
 ]main_loop
+;		php
+;		ldx #0
+;		jsr (VIRQ,x)  			; fake IRQ?
+
 		jsr kernel_NextEvent
 		bcs :no_events
 		jsr DoKernelEvent
@@ -2242,6 +2250,7 @@ init320x200
 
 txt_frisbee asc 'FRISBEE FIGHT',0D,00
 txt_gamejam asc 'F256 GAME JAM APRIL 2024',00
+txt_help2	asc 'KEEP THE DISC FROM PASSING BY',00
 txt_button_down asc 'BUTTON DOWN',0D,00
 txt_button_up asc 'BUTTON UP',0D,00
 txt_help asc 'SNES 1VS2 OR WASD+X VS ARROW KEYS+SPACE',00
