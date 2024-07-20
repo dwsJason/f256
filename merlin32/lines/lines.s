@@ -32,6 +32,10 @@ target_y0 ds 1
 target_x1 ds 2
 target_y1 ds 1
 
+
+cursor_x ds 2
+cursor_y ds 2
+
 	dend
 
 PIXEL_DATA = $40000
@@ -48,6 +52,10 @@ start
 		jsr initColors
 
 		jsr TermInit
+
+		ldx #70
+		ldy #1
+		jsr TermSetXY
 
 		lda #<txt_title
 		ldx #>txt_title
@@ -78,7 +86,7 @@ start
 
 ;------------------------------------------------------------------------------
 
-
+		do 0 ; random lines
 		lda #$B
 		sta line_color
 ]loop
@@ -93,15 +101,13 @@ start
 		sta <line_y1
 
 		lda |VKY_RNDL
-		;lda line_color
-		;inc
 		and #$F
 		sta line_color
 
 		jsr plot_line
 
 		bra ]loop
-
+		fin
 
 
 
@@ -187,12 +193,140 @@ wow_loop
 		ldy #150+]y 
 		jsr text_plot_too
 
-		lda line_color
-		inc
-		and #$F
-		sta line_color
+		;lda line_color
+		;inc
+		;and #$F
+		;sta line_color
 
-		jmp wow_loop
+		;jmp wow_loop
+
+; Glyphy Test
+
+		lda #8
+		sta <cursor_x
+		asl
+		sta <cursor_y
+
+;		lda #'A'
+;		jsr vectorCOUT
+
+		ldx #0
+		phx
+]loop
+		lda :txt,x
+		beq :done
+		inx
+
+		phx
+		jsr vectorCOUT
+		plx
+
+		bra ]loop
+
+
+:done	bra :done
+
+:txt	asc ' !"#$%&'27'()*+,-./',0D
+		asc '0123456789:;<=>?',0D
+		asc '@ABCDEFGHIJKLMNO'0D
+		db 0
+
+;------------------------------------------------------------------------------
+
+vectorCOUT
+:pGlyph = temp6   ; seems like line doesn't use this
+		cmp #13
+		beq vlinef
+
+		sec
+		sbc #32
+		asl
+		tax
+		lda vector_font,x
+		sta :pGlyph
+		lda vector_font+1,x
+		sta :pGlyph+1
+
+		ldy #0
+]lp 	lda (:pGlyph),y
+		beq :done
+
+		phy
+		pha
+
+		and #$F
+		tax
+
+		clc
+		lda vfont_points_x,x
+		adc cursor_x
+		sta line_x0
+		clc
+		lda vfont_points_y,x
+		adc cursor_y
+		sta line_y0
+
+		pla
+		and #$F0
+		lsr
+		lsr
+		lsr
+		lsr
+		tax
+
+		clc
+		lda vfont_points_x,x
+		adc cursor_x
+		sta line_x1
+		clc
+		lda vfont_points_y,x
+		adc cursor_y
+		sta line_y1
+
+		jsr plot_line
+
+		ply
+		iny
+		bra ]lp
+
+:done
+		; fall through to cursor step
+vcursor_step
+		clc
+		lda <cursor_x
+		adc #14			; width, although these could kern
+		sta <cursor_x
+		cmp #240
+		bcc :ok
+vlinef	clc
+		lda #8
+		sta <cursor_x
+		lda <cursor_y
+		adc #16
+		sta <cursor_y
+		cmp #240-16
+		bcc :ok
+		lda #16
+		sta <cursor_y
+:ok
+		rts
+
+vfont_points_x
+		db 0
+		db -5,0,5
+		db -5,0,5
+		db -5,0,5
+		db -5,0,5
+		db -5,0,5
+
+vfont_points_y
+		db 0
+		db -7,-7,-7
+		db -5,-5,-5
+		db 0,0,0
+		db 5,5,5
+		db 7,7,7
+		
 
 ;------------------------------------------------------------------------------
 
@@ -262,7 +396,7 @@ init320x240
 		rts
 ;------------------------------------------------------------------------------
 
-txt_title asc 'Line Draw Example'
+txt_title asc 'Vectors'
 		db 13,0
 
 txt_plot asc 'Plot ('
@@ -593,7 +727,8 @@ text_plot_too
 		stx <line_x1
 		sty <line_y1
 
-;		jmp plot_line
+		; comment this line out, to get the text
+		jmp plot_line
 
 
 		lda #<txt_plot
@@ -668,7 +803,9 @@ LINE_NO = 241*2
 ;   1   2   3
 ;   4   5   6
 ;
+;
 ;   7   8   9
+;
 ;
 ;   A   B   C
 ;   D   E   F
@@ -684,4 +821,206 @@ LINE_NO = 241*2
 ;   C  D  E  F
 ;
 ;------------------------------------------------------------------------------
+;   *---*---*    *-0-*-1-*
+;   |\  |  /|    |\  |  /|
+;   | \ | / |    2 3 4 5 6
+;   |  \|/  |    |  \|/  |
+;   *---*---*    *-7-*-8-*
+;   |  /|\  |    |  /|\  |
+;   | / | \ |    9 A B C D
+;   |/  |  \|    |/  |  \|
+;   *---*---*    *-E-*-F-*
+;------------------------------------------------------------------------------
+;
+; line segment font
+;
+;LED_SEG0 = %0000_0000_0000_0001
+;LED_SEG1 = %0000_0000_0000_0010
+;LED_SEG2 = %0000_0000_0000_0100
+;LED_SEG3 = %0000_0000_0000_1000
+;LED_SEG4 = %0000_0000_0001_0000
+;LED_SEG5 = %0000_0000_0010_0000
+;LED_SEG6 = %0000_0000_0100_0000
+;LED_SEG7 = %0000_0000_1000_0000
+;LED_SEG8 = %0000_0001_0000_0000
+;LED_SEG9 = %0000_0010_0000_0000
+;LED_SEGA = %0000_0100_0000_0000
+;LED_SEGB = %0000_1000_0000_0000
+;LED_SEGC = %0001_0000_0000_0000
+;LED_SEGD = %0010_0000_0000_0000
+;LED_SEGE = %0100_0000_0000_0000
+;LED_SEGF = %1000_0000_0000_0000
+;
+;LED_SPACE  = $00
+;LED_PERIOD = $FF
+;
+;line_segment_font
+;	dw LED_SPACE
+;	dw LED_SEG2.LED_SEG9
+;	dw LED_SEG4.LED_SEG6
+
+
+vector_font
+
+		da :space,:bang,:quote,:hash,:dolla,:prcnt,:and,:squot
+		da :lpren,:rpren,:star,:plus,:comma,:minus,:peri,:slash
+		da :0,:1,:2,:3,:4,:5,:6,:7
+		da :8,:9,:colon,:semi,:lt,:equ,:gt,:quest
+		da :at,:A,:B,:C,:D,:E,:F,:G,:H,:I,:J,:K,:L,:M,:N,:O
+
+;------------------------------------------------------------------------------
+;
+;   1   2   3
+;   4   5   6
+;
+;
+;   7   8   9
+;
+;
+;   A   B   C
+;   D   E   F
+;
+;------------------------------------------------------------------------------
+
+
+:space hex 00                   ;
+:bang  hex 477ADD00             ; !
+:quote hex 253600               ; "
+:hash  hex 5b4679ac00           ; #
+:dolla hex 2E4647799cac00       ; $
+:prcnt hex 4578475889bc8b9cd300 ; %
+:and   hex 00                   ; &
+:squot hex 2500                 ; '
+:lpren hex 535bbf00             ; (
+:rpren hex 155BBD00             ; )
+:star  hex 4C79A600             ; *
+:plus  hex 795B00               ; +
+:comma hex AD00 				; ,
+:minus hex 7900					;
+:peri  hex DD00                 ; .
+:slash hex A600                 ; /
+:0     hex 42266cceeaa4A600     ; 0
+:1     hex 755B00               ; 1
+:2     hex 4679AC697A00         ; 2
+:3     hex 466CAC8900           ; 3
+:4     hex 47796C00             ; 4
+:5     hex 4679AC479C00         ; 5
+:6     hex 4679AC4A9C00         ; 6
+:7     hex 466C00               ; 7
+:8     hex 4679AC4A6C00         ; 8
+:9     hex 4679AC476C00         ; 9
+:colon hex 55BB00               ; :
+:semi  hex 55BE00               ; ;
+:lt    hex 767C00               ; <
+:equ   hex 79AC00               ; =
+:gt    hex 49A900               ; >
+:quest hex 4669898BEE00         ; ?
+:at    hex 4AAC4689586900       ; @
+:A     hex 7A57599C7900         ; A
+:B     hex 46AC5B6C8900  		; B
+:C     hex 464AAC00             ; C
+:D     hex 46AC5B6C00           ; D
+:E     hex 46AC784A00           ; E
+:F     hex 46784A00             ; F
+:G     hex 46AC4A9C8900         ; G
+:H     hex 4A796C00             ; H
+:I     hex 465bac00             ; I
+:J     hex 7AAEEC6C00           ; J
+:K     hex 4A78868C00           ; K
+:L     hex 4AAC00               ; L
+:M     hex 4A48866C00           ; M
+:N     hex 4A6C4C00             ; N
+:O     hex 46AC4A6C00           ; O
+
+
+
+;
+;
+;  2PI = 256
+;
+sintable_lo
+	hex 00488fd5175690c4f1173347504d3e22f7bd7419ad2e9cf539687f7f6736eb85
+	hex 0468aed8e4d19f4ddb4894bec5aa6b0983d80914faba53c7143b3a13c44eb1ec
+
+sintable_hi
+	hex 00060c12191f252b31383e444a50565c61676d73787e83888e93989da2a7abb0
+	hex b5b9bdc1c5c9cdd1d4d8dbdee1e4e7eaeceef1f3f4f6f8f9fbfcfdfefeffffff
+
+costable_lo
+	hex 00fffffffefefdfcfbf9f8f6f4f3f1eeeceae7e4e1dedbd8d4d1cdc9c5c1bdb9
+	hex b5b0aba7a29d98938e88837e78736d67615c56504a443e38312b251f19120c06
+
+costable_hi
+	hex 00ecb14ec4133a3b14c753bafa1409d883096baac5be9448db4d9fd1e4d8ae68
+	hex 0485eb36677f7f6839f59c2ead1974bdf7223e4d50473317f1c4905617d58f48
+
+;sin cos table
+;0   0.000000 1.000000 00 100  0000 10000
+;1   0.024541 0.999699 06 ff   0648  ffec
+;2   0.049068 0.998795 0c ff   0c8f  ffb1
+;3   0.073565 0.997290 12 ff   12d5  ff4e
+;4   0.098017 0.995185 19 fe   1917  fec4
+;5   0.122411 0.992480 1f fe   1f56  fe13
+;6   0.146730 0.989177 25 fd   2590  fd3a
+;7   0.170962 0.985278 2b fc   2bc4  fc3b
+;8   0.195090 0.980785 31 fb   31f1  fb14
+;9   0.219101 0.975702 38 f9   3817  f9c7
+;10  0.242980 0.970031 3e f8   3e33  f853
+;11  0.266713 0.963776 44 f6   4447  f6ba
+;12  0.290285 0.956940 4a f4   4a50  f4fa
+;13  0.313682 0.949528 50 f3   504d  f314
+;14  0.336890 0.941544 56 f1   563e  f109
+;15  0.359895 0.932993 5c ee   5c22  eed8
+;16  0.382683 0.923880 61 ec   61f7  ec83
+;17  0.405241 0.914210 67 ea   67bd  ea09
+;18  0.427555 0.903989 6d e7   6d74  e76b
+;19  0.449611 0.893224 73 e4   7319  e4aa
+;20  0.471397 0.881921 78 e1   78ad  e1c5
+;21  0.492898 0.870087 7e de   7e2e  debe
+;22  0.514103 0.857729 83 db   839c  db94
+;23  0.534998 0.844854 88 d8   88f5  d848
+;24  0.555570 0.831470 8e d4   8e39  d4db
+;25  0.575808 0.817585 93 d1   9368  d14d
+;26  0.595699 0.803208 98 cd   987f  cd9f
+;27  0.615232 0.788346 9d c9   9d7f  c9d1
+;28  0.634393 0.773010 a2 c5   a267  c5e4
+;29   0.653173 0.757209 a7 c1 a736 c1d8
+;30   0.671559 0.740951 ab bd abeb bdae
+;31  0.689541 0.724247 b0 b9   b085  b968
+;32  0.707107 0.707107 b5 b5   b504  b504
+;33  0.724247 0.689541 b9 b0   b968  b085
+;34  0.740951 0.671559 bd ab   bdae  abeb
+;35  0.757209 0.653173 c1 a7   c1d8  a736
+;36  0.773010 0.634393 c5 a2   c5e4  a267
+;37  0.788346 0.615232 c9 9d   c9d1  9d7f
+;38  0.803208 0.595699 cd 98   cd9f  987f
+;39  0.817585 0.575808 d1 93   d14d  9368
+;40  0.831470 0.555570 d4 8e   d4db  8e39
+;41  0.844854 0.534998 d8 88   d848  88f5
+;42  0.857729 0.514103 db 83   db94  839c
+;43  0.870087 0.492898 de 7e   debe  7e2e
+;44  0.881921 0.471397 e1 78   e1c5  78ad
+;45  0.893224 0.449611 e4 73   e4aa  7319
+;46  0.903989 0.427555 e7 6d   e76b  6d74
+;47  0.914210 0.405241 ea 67   ea09  67bd
+;48  0.923880 0.382683 ec 61   ec83  61f7
+;49  0.932993 0.359895 ee 5c   eed8  5c22
+;50  0.941544 0.336890 f1 56   f109  563e
+;51  0.949528 0.313682 f3 50   f314  504d
+;52  0.956940 0.290285 f4 4a   f4fa  4a50
+;53  0.963776 0.266713 f6 44   f6ba  4447
+;54  0.970031 0.242980 f8 3e   f853  3e33
+;55  0.975702 0.219101 f9 38   f9c7  3817
+;56  0.980785 0.195090 fb 31   fb14  31f1
+;57  0.985278 0.170962 fc 2b   fc3b  2bc4
+;58  0.989177 0.146730 fd 25   fd3a  2590
+;59  0.992480 0.122411 fe 1f   fe13  1f56
+;60  0.995185 0.098017 fe 19   fec4  1917
+;61  0.997290 0.073565 ff 12   ff4e  12d5
+;62  0.998795 0.049068 ff 0c   ffb1  0c8f
+;63  0.999699 0.024541 ff 06   ffec  0648
+;64 1.00000 -0.000000 100 00  10000  0000
+
+
+
 
