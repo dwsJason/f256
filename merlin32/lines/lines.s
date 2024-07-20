@@ -226,9 +226,12 @@ wow_loop
 
 :done	bra :done
 
-:txt	asc ' !"#$%&'27'()*+,-./',0D
-		asc '0123456789:;<=>?',0D
-		asc '@ABCDEFGHIJKLMNO'0D
+:txt	;asc ' !"#$%&'27'()*+,-./',0D
+		;asc '0123456789:;<=>?',0D
+		;asc '@ABCDEFGHIJKLMNO'0D
+		asc 'PQRSTUVWXYZ[\]^_'0D
+		asc '`abcdefghijklmno'0D
+		asc 'pqrstuvwxyz{|}~'0D
 		db 0
 
 ;------------------------------------------------------------------------------
@@ -867,6 +870,9 @@ vector_font
 		da :0,:1,:2,:3,:4,:5,:6,:7
 		da :8,:9,:colon,:semi,:lt,:equ,:gt,:quest
 		da :at,:A,:B,:C,:D,:E,:F,:G,:H,:I,:J,:K,:L,:M,:N,:O
+		da :P,:Q,:R,:S,:T,:U,:V,:W,:X,:Y,:Z,:lb,:back,:rb,:carot,:under
+		da :btick,:a,:b,:c,:d,:e,:f,:g,:h,:i,:j,:k,:l,:m,:n,:o
+		da :p,:q,:r,:s,:t,:u,:v,:w,:x,:y,:z,:lcurl,:vbar,:rcurl,:tilda
 
 ;------------------------------------------------------------------------------
 ;
@@ -931,8 +937,53 @@ vector_font
 :M     hex 4A48866C00           ; M
 :N     hex 4A6C4C00             ; N
 :O     hex 46AC4A6C00           ; O
-
-
+:P     hex 4A46796900			; P
+:Q     hex 46ac4a6c8F00         ; Q
+:R     hex 4A46798C6900         ; R
+:S     hex 4679ac479c00         ; S
+:T     hex 465b00               ; T
+:U     hex 4aac6c00             ; U
+:V     hex 4bb600               ; V
+:W     hex 4aa88c6c00           ; W
+:X     hex 4ca600               ; X
+:Y     hex 48868b00             ; Y
+:Z     hex 466aac00             ; Z
+:lb    hex 232eef00             ; [
+:back  hex 4C00                 ; \
+:rb    hex 122ede00             ; ]
+:carot hex 755900               ; ^
+:under hex DF00                 ; _
+:btick hex 1500                 ; `
+:a     hex 7a78AB8E00           ; a
+:b     hex 4a788bab00           ; b
+:c     hex 78ab7a00             ; c
+:d     hex 89bc8b6c00           ; d
+:e     hex 7a78aba800           ; e
+:f     hex 5b795600             ; f
+:g     hex 4578475bab00         ; g
+:h     hex 4a788b00             ; h
+:i     hex 8b5500               ; i
+:j     hex 225b7aab00           ; j
+:k     hex 5b868c00             ; k
+:l     hex 4a00                 ; l
+:m     hex 797a8b9c00           ; m
+:n     hex 7a788b00             ; n
+:o     hex 78ab7a8b00           ; o
+:p     hex 4a45785800           ; p
+:q     hex 4578475b00           ; q
+:r     hex 7a7800               ; r
+:s     hex 478b4578ab00         ; s
+:t     hex 4a78ab00             ; t
+:u     hex 7A8BAB00             ; u
+:v     hex 7AA800               ; v
+:w     hex 7AA88C9C00           ; w
+:x     hex 7BA800               ; x
+:y     hex 586cbc8900           ; y
+:z     hex 788AAB00             ; z
+:lcurl hex 785B53BF00 			; {
+:vbar  hex 2E00                 ; |
+:rcurl hex 895B15DB00           ; }
+:tilda hex 42532500             ; ~
 
 ;
 ;
