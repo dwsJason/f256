@@ -17,27 +17,7 @@ temp5 ds 4
 temp6 ds 4
 temp7 ds 4
 
-line_color ds 1
-line_x0 ds 2
-line_y0 ds 1
-line_x1 ds 2
-line_y1 ds 1
-
-target_x0 ds 2
-target_y0 ds 1
-
-target_x1 ds 2
-target_y1 ds 1
-
-
-cursor_x ds 2
-cursor_y ds 2
-
 	dend
-
-PIXEL_DATA = $40000
-DMA_CLEAR_ADDY = PIXEL_DATA
-DMA_CLEAR_LEN  = 320*240
 
 RAST_COL = $D018
 RAST_ROW = $D01A
@@ -78,7 +58,146 @@ start
 
 ;------------------------------------------------------------------------------
 
+		stz io_ctrl  ; access sprite registers
+
+;]spr_size = %00000001 ; 32x32
+;]spr_size = %00100001  ; 24x24
+;]spr_size = %01000001  ; 16x16
+]spr_size = %01100001  ; 8x8
+
+:x = temp0
+:y = temp1
+:sprite_frame = temp2
+:pSprite = temp3
+
+		lda #32
+		sta <:x
+		stz <:x+1
+
+		sta <:y
+		stz <:y+1
+		
+
+		lda #<sprite_sheet32
+		lda #<sprite_sheet24
+		lda #<sprite_sheet16
+		lda #<sprite_sheet8
+		sta <:sprite_frame+0
+
+		lda #>sprite_sheet32
+		lda #>sprite_sheet24
+		lda #>sprite_sheet8
+		sta <:sprite_frame+1
+
+		lda #^sprite_sheet32
+		lda #^sprite_sheet24
+		lda #^sprite_sheet8
+		sta <:sprite_frame+2
+
+		lda #<VKY_SP0_CTRL
+		sta <:pSprite
+		lda #>VKY_SP0_CTRL
+		sta <:pSprite+1
+
+		ldx #8
+		ldy #8
+]lp
+		; plot sprite frame a :x,:y
+		lda #]spr_size
+		jsr :store
+		lda :sprite_frame
+		jsr :store
+		lda :sprite_frame+1
+		jsr :store
+		lda :sprite_frame+2
+		jsr :store
+
+		lda :x
+		jsr :store
+		lda :x+1
+		jsr :store
+
+		lda :y
+		jsr :store
+		lda :y+1
+		jsr :store
+
+		; sprite_frame increment
+		clc
+		;32x32
+		;lda <:sprite_frame+1
+		;adc #$04
+		;sta <:sprite_frame+1
+
+		;24x24
+		;lda <:sprite_frame
+		;adc #$40
+		;sta <:sprite_frame
+		;lda <:sprite_frame+1
+		;adc #$02
+		;sta <:sprite_frame+1
+
+		;16x16
+		;inc <:sprite_frame+1
+
+		;8x8
+		lda <:sprite_frame
+		adc #64
+		sta <:sprite_frame
+		lda <:sprite_frame+1
+		adc #0
+		sta <:sprite_frame+1
+
+		clc
+		lda <:x
+		adc #32
+		sta <:x
+		lda <:x+1
+		adc #0
+		sta <:x+1
+
+		dex
+		bne ]lp
+
+		; next line
+		ldx #8
+
+		clc
+		lda <:y
+		adc #32  	; inc y
+		sta <:y
+
+		lda #32
+		sta <:x  	; reset x
+		stz <:x+1
+
+		dey
+		bne ]lp
+
+]wait
+		bra ]wait
+
+:store
+		sta (:pSprite)
+		inc :pSprite
+		bne :rts
+		inc :pSprite+1
+:rts	rts
+
+
+
+;------------------------------------------------------------------------------
+;
+; Some Kernel Stuff here
+;
+		;ldax #event_data
+		;stax kernel_args_events
 main_loop
+
+		;jsr kernel_NextEvent
+		;bcs :no_events
+		;jsr DoKernelEvent
+:no_events
 
 		bra main_loop
 
@@ -92,21 +211,19 @@ init320x240
 		stz io_ctrl
 
 		; enable the graphics mode
-		lda #%00100111  ; sprite + graph + +overlay + text
+		; X GAMMA SPRITE TILE BITMAP GRAPH OVRLY TEXT
+
+		lda #%00100111  ; sprite + graph + overlay + text
 		sta VKY_MSTR_CTRL_0
 
 		lda #0
 		sta VKY_MSTR_CTRL_1
 
 		; layer stuff - take from Jr manual
-		lda #$10
-		sta VKY_LAYER_CTRL_0  ; tile map layers
-		lda #$02
-		sta VKY_LAYER_CTRL_1  ; tile map layers
-
-		; Tile Map 0
-		lda #$11
-		sta $D200 ; tile size 8x8 + enable
+		;lda #$10
+		;sta VKY_LAYER_CTRL_0  ; tile map layers
+		;lda #$02
+		;sta VKY_LAYER_CTRL_1  ; tile map layers
 
 		; Tile Map Disable
 		stz VKY_TM0_CTRL
@@ -114,21 +231,11 @@ init320x240
 		stz VKY_TM2_CTRL
 
 		; bitmap disables
-		lda #1
-		stz VKY_BM0_CTRL  ; enable
-		sta VKY_BM1_CTRL  ; disable
-		stz $D110  ; disable
+		stz VKY_BM0_CTRL  ; disable
+		stz VKY_BM1_CTRL  ; disable
+		stz VKY_BM2_CTRL  ; disable
 
-		; set address of image, since image uncompressed, we just display it
-		; where we loaded it.
-		stz VKY_BM0_ADDR_L
-		stz VKY_BM0_ADDR_M
-		lda #1
-		sta VKY_BM0_ADDR_H
-
-		stz VKY_BM1_ADDR_L
-		stz VKY_BM1_ADDR_M
-		sta VKY_BM1_ADDR_H
+		stz VKY_BRDR_CTRL
 
 		lda #2
 		sta io_ctrl

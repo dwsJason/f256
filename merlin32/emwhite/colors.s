@@ -29,7 +29,7 @@ initColors
 ]lp
 		lda |gs_colors+{4*2},x ; Dark Blue index 2
 		stz |VKY_BKG_COL_B,x
-		stz |VKY_BRDR_COL_B,x
+		stz |VKY_BRDR_COL_B,x  ; <--- zero background on purpose
 		dex
 		bpl ]lp
 
@@ -45,7 +45,7 @@ initColors
 
 		ldx #{16*4}-1       ; 16 colors
 ]lp
-		lda |gs_colors,x
+		lda |game_colors,x
 		sta |VKY_GR_CLUT_0,x
 		sta |VKY_GR_CLUT_1,x
 		sta |VKY_GR_CLUT_2,x
@@ -108,6 +108,27 @@ gs_colors
 	adrl $ffffff00	;D Yellow
 	adrl $ff55ff99	;E Aquamarine
 	adrl $ffffffff	;F White
+
+game_colors
+	adrl $ff000000
+	adrl $ff2121FF
+	adrl $ff00FF00
+	adrl $ff00FFFF
+	adrl $ff47B7AE
+	adrl $ff47B7FF
+	adrl $ffFF0000
+	adrl $ffDE9751
+	adrl $ffFFB751
+	adrl $ffFFFF00
+	adrl $ffFFB7AE
+	adrl $ffFFB7FF
+	adrl $ffDEDEFF
+	adrl $ffffff00	;D Yellow
+	adrl $ff55ff99	;E Aquamarine
+	adrl $ffffffff	;F White
+
+
+
 
 
 ;------------------------------------------------------------------------------
