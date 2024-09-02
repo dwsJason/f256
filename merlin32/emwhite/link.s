@@ -46,27 +46,35 @@ main_code_end
 ; place raw sprite data into upper 192k
 		org $0
 		adr bank1_start
-		adr $10000 ;length  bank1_end-bank1_start
+		adr bank1_end-bank1_start
 		org $010000
 bank1_start
-sprite_sheet32 putbin data\sheet32.data
+sprite_sheet32 putbin data\tiles32.raw
 bank1_end
 
 		org $0
 		adr bank2_start
-		adr $10000 ;length  bank2_end-bank2_start
+		adr bank2_end-bank2_start
 		org $020000
 bank2_start
-sprite_sheet24 putbin data\sheet24.data
+sprite_sheet24 putbin data\tiles24.raw
 bank2_end
 
 		org $0
 		adr bank3_start
-		adr $10000 ;length  bank3_end-bank3_start
+		adr bank3_end-bank3_start
 		org $030000
 bank3_start
-sprite_sheet816 putbin data\sheet816.data
+sprite_sheet16 putbin data\tiles16.raw
 bank3_end
+
+		org $0
+		adr bank4_start
+		adr bank4_end-bank4_start
+		org $038000
+bank4_start
+sprite_sheet8  putbin data\tiles8.raw
+bank4_end
 
 ; Launch Address
 		adr start
