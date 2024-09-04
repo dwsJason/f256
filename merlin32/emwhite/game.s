@@ -750,6 +750,7 @@ SpawnEnemy
 		ldy #1
 
 		ldx spawn_no    ; which sprite #
+		lda sprite_to_frame_table,x
 		sta (:pSprite),y
 		iny
 
@@ -1310,12 +1311,218 @@ UpdateSprite
 :no_pac_warp_right
 		jmp :doPhysics
 
-
 :pac_left
-:ghost_left
-:ghost_right
-:ghost_zombie
 
+		stz <:vx
+		lda #-1
+		sta <:vx+1
+		sta <:vx+2
+
+		lda #1
+		stz <:vy
+		sta <:vy+1
+		stz <:vy+2
+
+		ldy #spr_logic
+		lda (:pSprite),y
+		inc
+		sta (:pSprite),y
+		cmp #4
+		bcc :skip_pac_anim_left
+		; increment frame
+		lda #0
+		sta (:pSprite),y
+
+		ldy #spr_glyph
+		lda (:pSprite),y
+		inc
+		cmp #FRAME_PAC_CLOSED+3
+		bcc :pac_frame_okl
+		lda #FRAME_PAC_CLOSED
+:pac_frame_okl
+		sta (:pSprite),y
+
+		; look up the sprite frame
+		tax
+		; update the hardware
+		ldy #spr_size
+		lda (:pSprite),y
+		jsr GetFrame
+
+		ldy #1   		; get the hardware frame updated
+		lda pSpriteFrame
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+1
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+2
+		sta (:pHW),y
+
+:skip_pac_anim_left
+
+		; if ms pac is off the side of the screen, lets move her over
+
+		ldy #spr_xpos+2
+		lda (:pSprite),y
+		bpl :no_pac_warp_left
+
+		; Warp the xposition
+		ldy #spr_xpos+1
+		lda #<352
+		sta (:pSprite),y
+		iny
+		lda #>352
+		sta (:pSprite),y
+
+:no_pac_warp_left
+
+		jmp :doPhysics
+
+:ghost_left
+
+		stz <:vx
+		lda #-1
+		sta <:vx+1
+		sta <:vx+2
+
+		lda #1
+		stz <:vy
+		sta <:vy+1
+		stz <:vy+2
+
+		ldy #spr_logic
+		lda (:pSprite),y
+		inc
+		sta (:pSprite),y
+		cmp #8
+		bcc :skip_ghost_anim_left
+		; increment frame
+		lda #0
+		sta (:pSprite),y
+
+		ldy #spr_glyph
+		lda (:pSprite),y
+		eor #1  			; 2 frame toggle
+		sta (:pSprite),y
+
+		; look up the sprite frame
+		tax
+		; update the hardware
+		ldy #spr_size
+		lda (:pSprite),y
+		jsr GetFrame
+
+		ldy #1   		; get the hardware frame updated
+		lda pSpriteFrame
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+1
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+2
+		sta (:pHW),y
+
+:skip_ghost_anim_left
+
+		; if is off the side of the screen, lets move her over
+
+		ldy #spr_xpos+2
+		lda (:pSprite),y
+		bpl :no_ghost_warp_left
+
+		; Warp the xposition
+		ldy #spr_xpos+1
+		lda #<352
+		sta (:pSprite),y
+		iny
+		lda #>352
+		sta (:pSprite),y
+
+:no_ghost_warp_left
+		jmp :doPhysics
+
+
+:ghost_right
+
+		ldy #spr_size
+		lda (:pSprite),y
+		inc
+		stz <:vx
+		lda #1
+		sta <:vx+1
+		stz <:vx+2
+
+		stz <:vy
+		sta <:vy+1
+		stz <:vy+2
+
+		ldy #spr_logic
+		lda (:pSprite),y
+		inc
+		sta (:pSprite),y
+		cmp #8
+		bcc :skip_ghost_anim_right
+		; increment frame
+		lda #0
+		sta (:pSprite),y
+
+		ldy #spr_glyph
+		lda (:pSprite),y
+		eor #1             ; 2 frame toggle
+		sta (:pSprite),y
+
+		; look up the sprite frame
+		tax
+		; update the hardware
+		ldy #spr_size
+		lda (:pSprite),y
+		jsr GetFrame
+
+		ldy #1   		; get the hardware frame updated
+		lda pSpriteFrame
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+1
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+2
+		sta (:pHW),y
+
+:skip_ghost_anim_right
+
+		; if ms pac is off the side of the screen, lets move her over
+
+		ldy #spr_xpos
+		lda (:pSprite),y
+		sta :xpos
+		iny
+		lda (:pSprite),y
+		sta :xpos+1
+		iny
+		lda (:pSprite),y
+		sta :xpos+2
+
+		ldax :xpos+1
+		cmpax #352
+		bcc :no_ghost_warp_right
+
+		; zero out x
+		lda #0
+		ldy #spr_xpos
+		sta (:pSprite),y
+		iny
+		sta (:pSprite),y
+		iny
+		sta (:pSprite),y
+		iny
+
+:no_ghost_warp_right
+
+
+		jmp :doPhysics
+
+:ghost_zombie
 :fruit
 		; apply wind
 		ldy #spr_logic
@@ -1564,8 +1771,8 @@ sprite_to_frame_table
 		db FRAME_PINKY_LEFT
 		db FRAME_INKY_RIGHT
 		db FRAME_INKY_LEFT
-		db FRAME_CLYDE_LEFT
 		db FRAME_CLYDE_RIGHT
+		db FRAME_CLYDE_LEFT
 		db FRAME_GHOST_BLUE
 		db FRAME_GHOST_WHITE
 		db FRAME_CHERRY
