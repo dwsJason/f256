@@ -986,6 +986,57 @@ UpdateSprite
 		da :fruit
 		da :explode
 
+:explode      
+		stz :vx
+		stz :vx+1
+		stz :vx+2
+
+		stz :vy
+		stz :vy+1
+		stz :vy+2
+
+		ldy #spr_logic
+		lda (:pSprite),y
+		inc
+		sta (:pSprite),y
+		cmp #5
+		bcc :skip_explode_anim
+
+		lda #0   			; reset timer
+		sta (:pSprite),y
+
+		ldy #spr_glyph
+		lda (:pSprite),y
+		cmp #FRAME_BOOM+5
+		bcc :update_anim
+
+		lda #>512  ; which will be 2
+		ldy #spr_ypos+2
+		sta (:pSprite),y	; this will trigger, destruction, by moving off the bottom of the screen
+
+:update_anim
+		inc
+		sta (:pSprite),y
+		; look up the sprite frame
+		tax
+		; update the hardware
+		ldy #spr_size
+		lda (:pSprite),y
+		jsr GetFrame
+
+		ldy #1   		; get the hardware frame updated
+		lda pSpriteFrame
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+1
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+2
+		sta (:pHW),y
+
+:skip_explode_anim
+		jmp :doPhysics
+
 :mspac_right  
 :mspac_left   
 :pac_right    
@@ -993,8 +1044,6 @@ UpdateSprite
 :ghost_left   
 :ghost_right  
 :ghost_zombie 
-:fruit        
-:explode      
 
 :fruit
 		; apply wind
@@ -1040,7 +1089,7 @@ UpdateSprite
 :no_ady
 
 		; Get new sprite positions
-
+:doPhysics
 		; copy x into local
 		ldy #spr_xpos
 		lda (:pSprite),y
