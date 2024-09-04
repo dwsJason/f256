@@ -7,6 +7,41 @@
 
 io_ctrl  equ 1
 
+;
+; Enemy #s
+;
+
+	dum 0
+SPRITE_MSPAC_RIGHT   ds 1  ; 0
+SPRITE_MSPAC_LEFT    ds 1  ; 1
+SPRITE_PAC_RIGHT     ds 1  ; 2
+SPRITE_PAC_LEFT      ds 1  ; 3
+SPRITE_BLINKY_RIGHT  ds 1  ; 4
+SPRITE_BLINKY_LEFT   ds 1  ; 5
+SPRITE_PINKY_RIGHT   ds 1  ; 6
+SPRITE_PINKY_LEFT    ds 1  ; 7
+SPRITE_INKY_RIGHT    ds 1  ; 8
+SPRITE_INKY_LEFT     ds 1  ; 9
+SPRITE_CLYDE_LEFT    ds 1  ; 10
+SPRITE_CLYDE_RIGHT   ds 1  ; 11
+SPRITE_GHOST_BLUE    ds 1  ; 12
+SPRITE_GHOST_WHITE   ds 1  ; 13
+SPRITE_CHERRY        ds 1  ; 14
+SPRITE_STRAWBERRY    ds 1  ; 15
+SPRITE_ORANGE        ds 1  ; 16
+SPRITE_PRETZEL       ds 1  ; 17
+SPRITE_APPLE         ds 1  ; 18
+SPRITE_PEAR          ds 1  ; 19
+SPRITE_BANANA        ds 1  ; 20
+SPRITE_HEART         ds 1  ; 21
+SPRITE_GRENADE       ds 1  ; 22
+SPRITE_SHIP          ds 1  ; 23
+SPRITE_BELL          ds 1  ; 24
+SPRITE_KEY           ds 1  ; 25
+SPRITE_BOOM          ds 1  ; 26
+	dend
+
+
 	dum $20
 temp0 ds 4
 temp1 ds 4
@@ -22,6 +57,8 @@ jiffy ds 1
 spawn_x    ds 2  ; x position
 spawn_no   ds 1  ; sprite type
 spawn_size ds 1  ; which size
+
+pSpriteFrame ds 3      ; sprite frame pointer
 
 	dend
 
@@ -241,31 +278,33 @@ main_loop
 		lda jiffy
 		inc
 		sta jiffy
-		and #$3f
+		and #$1f
 		bne main_loop
 
 ; about once per second spawn
-
 		lda |VKY_RNDL
-		and #$3F
+		and #$1F
+		ora #$20
 		sta <spawn_x
 		clc
 		lda |VKY_RNDL
 		adc <spawn_x
 		sta <spawn_x
+		lda #0
 		adc #0
 		sta <spawn_x+1
 
-		lda #<176
-		sta spawn_x
-		lda #>176
-		sta spawn_x+1
+;		lda #<]spawn
+;		sta spawn_x
+;		lda #>]spawn
+;		sta spawn_x+1
 
 		lda #SPRITE_CHERRY
 		sta <spawn_no
 
 		;lda #%01000001
-		lda #1
+		;lda #1  		  ; 0=8,1=16,2=24,3=32
+		lda |VKY_RNDL
 		sta <spawn_size
 
 		jsr SpawnEnemy
@@ -358,37 +397,37 @@ LINE_NO = 241*2
 ; Sprite Character Index Definitions
 
 	dum 0
-SPRITE_BLANK         ds 1
-SPRITE_MSPAC_RIGHT   ds 3
-SPRITE_MSPAC_LEFT    ds 3
-SPRITE_PAC_RIGHT     ds 2
-SPRITE_PAC_CLOSED    ds 1
-SPRITE_PAC_LEFT      ds 2
-SPRITE_BLINKY_RIGHT  ds 2
-SPRITE_BLINKY_LEFT   ds 2
-SPRITE_PINKY_RIGHT   ds 2
-SPRITE_PINKY_LEFT    ds 2
-SPRITE_INKY_RIGHT    ds 2
-SPRITE_INKY_LEFT     ds 2
-SPRITE_CLYDE_LEFT    ds 2
-SPRITE_CLYDE_RIGHT   ds 2
-SPRITE_GHOST_BLUE    ds 2
-SPRITE_GHOST_WHITE   ds 2
-SPRITE_CHERRY        ds 1
-SPRITE_STRAWBERRY    ds 1
-SPRITE_ORANGE        ds 1
-SPRITE_PRETZEL       ds 1
-SPRITE_APPLE         ds 1
-SPRITE_PEAR          ds 1
-SPRITE_BANANA        ds 1
-SPRITE_HEART         ds 1
-SPRITE_GRENADE       ds 1
-SPRITE_SHIP          ds 1
-SPRITE_BELL          ds 1
-SPRITE_KEY           ds 1
-SPRITE_BIRD_LEFT     ds 3
-SPRITE_BIRD_RIGHT    ds 3
-SPRITE_BOOM          ds 6
+FRAME_BLANK         ds 1
+FRAME_MSPAC_RIGHT   ds 3
+FRAME_MSPAC_LEFT    ds 3
+FRAME_PAC_RIGHT     ds 2
+FRAME_PAC_CLOSED    ds 1
+FRAME_PAC_LEFT      ds 2
+FRAME_BLINKY_RIGHT  ds 2
+FRAME_BLINKY_LEFT   ds 2
+FRAME_PINKY_RIGHT   ds 2
+FRAME_PINKY_LEFT    ds 2
+FRAME_INKY_RIGHT    ds 2
+FRAME_INKY_LEFT     ds 2
+FRAME_CLYDE_LEFT    ds 2
+FRAME_CLYDE_RIGHT   ds 2
+FRAME_GHOST_BLUE    ds 2
+FRAME_GHOST_WHITE   ds 2
+FRAME_CHERRY        ds 1
+FRAME_STRAWBERRY    ds 1
+FRAME_ORANGE        ds 1
+FRAME_PRETZEL       ds 1
+FRAME_APPLE         ds 1
+FRAME_PEAR          ds 1
+FRAME_BANANA        ds 1
+FRAME_HEART         ds 1
+FRAME_GRENADE       ds 1
+FRAME_SHIP          ds 1
+FRAME_BELL          ds 1
+FRAME_KEY           ds 1
+FRAME_BIRD_LEFT     ds 3
+FRAME_BIRD_RIGHT    ds 3
+FRAME_BOOM          ds 6
 	dend
 
 	dum 0
@@ -570,7 +609,6 @@ SpawnEnemy
 :pSprite = temp0
 :pHW     = temp0+2
 
-
 		jsr AllocSprite
 		bcc :good2go
 
@@ -595,7 +633,7 @@ SpawnEnemy
 		sta (:pSprite)  ; spr_number
 		ldy #1
 
-		lda spawn_no    ; which sprite glyph number
+		ldx spawn_no    ; which sprite #
 		sta (:pSprite),y
 		iny
 
@@ -620,6 +658,7 @@ SpawnEnemy
 		lda #0				; y fraction
 		sta (:pSprite),y
 		iny
+		lda #32
 		sta (:pSprite),y    ; y position
 		iny
 		sta (:pSprite),y    ; y high
@@ -644,18 +683,33 @@ SpawnEnemy
 		pla
 		jsr AddActiveSprite
 
-		lda #%01000001  ; 16x16
+		lda spawn_size
+		and #3				; clamp to 4 sizes
+		tax
+		lda obj_size_table,x ; get the right size here
 		sta (:pHW)
 		ldy #1
 
-		lda #<sprite_sheet16
+		; need to take sprite_no x size
+		; and add it to the base address of the sprite
+		; sheet
+		phy
+		ldx spawn_no
+		lda sprite_to_frame_table,x
+		tax
+		lda spawn_size
+		and #3
+		jsr GetFrame
+		ply
+
+		lda pSpriteFrame
 		sta (:pHW),y
 		iny
-		lda #>{sprite_sheet16+$100}
+		lda pSpriteFrame+1
 		sta (:pHW),y
 		iny
 
-		lda #^sprite_sheet16
+		lda pSpriteFrame+2
 		sta (:pHW),y
 		iny
 
@@ -982,5 +1036,258 @@ UpdateSprite
 		sta (:pHW) ; disable the hardware
 		sec
 		rts
+
+;------------------------------------------------------------------------------
+obj_size_table
+		db %01100001  ; 8x8
+		db %01000001  ; 16x16
+		db %00100001  ; 24x24
+		db %00000001  ; 32x32
+
+pix_size_table
+		db 8
+		db 16
+		db 24
+		db 32
+
+sprite_to_frame_table
+		db FRAME_MSPAC_RIGHT
+		db FRAME_MSPAC_LEFT
+		db FRAME_PAC_RIGHT
+		db FRAME_PAC_LEFT
+		db FRAME_BLINKY_RIGHT
+		db FRAME_BLINKY_LEFT
+		db FRAME_PINKY_RIGHT
+		db FRAME_PINKY_LEFT
+		db FRAME_INKY_RIGHT
+		db FRAME_INKY_LEFT
+		db FRAME_CLYDE_LEFT
+		db FRAME_CLYDE_RIGHT
+		db FRAME_GHOST_BLUE
+		db FRAME_GHOST_WHITE
+		db FRAME_CHERRY
+		db FRAME_STRAWBERRY
+		db FRAME_ORANGE
+		db FRAME_PRETZEL
+		db FRAME_APPLE
+		db FRAME_PEAR
+		db FRAME_BANANA
+		db FRAME_HEART
+		db FRAME_GRENADE
+		db FRAME_SHIP
+		db FRAME_BELL
+		db FRAME_KEY
+		db FRAME_BOOM
+
+;LOGIC_MSPAC_RIGHT  db 1
+;LOGIC_MSPAC_LEFT   db 1
+;LOGIC_PAC_RIGHT    db 1
+;LOGIC_PAC_LEFT     db 1
+;LOGIC_GHOST_LEFT   db 1
+;LOGIC_GHOST_RIGHT  db 1
+;LOGIC_GHOST_ZOMBIE db 1
+;LOGIC_FRUIT        db 1
+;LOGIC_EXPLODE      db 1
+
+sprite_to_logic_table
+		db LOGIC_MSPAC_RIGHT   ;FRAME_MSPAC_RIGHT
+		db LOGIC_MSPAC_LEFT    ;FRAME_MSPAC_LEFT
+		db LOGIC_PAC_RIGHT     ;FRAME_PAC_RIGHT
+		db LOGIC_PAC_LEFT      ;FRAME_PAC_LEFT
+		db LOGIC_GHOST_RIGHT   ;FRAME_BLINKY_RIGHT
+		db LOGIC_GHOST_LEFT    ;FRAME_BLINKY_LEFT
+		db LOGIC_GHOST_RIGHT   ;FRAME_PINKY_RIGHT
+		db LOGIC_GHOST_LEFT    ;FRAME_PINKY_LEFT
+		db LOGIC_GHOST_RIGHT   ;FRAME_INKY_RIGHT
+		db LOGIC_GHOST_LEFT    ;FRAME_INKY_LEFT
+		db LOGIC_GHOST_LEFT    ;FRAME_CLYDE_LEFT
+		db LOGIC_GHOST_RIGHT   ;FRAME_CLYDE_RIGHT
+		db LOGIC_GHOST_ZOMBIE  ;FRAME_GHOST_BLUE
+		db LOGIC_GHOST_ZOMBIE  ;FRAME_GHOST_WHITE
+		db LOGIC_FRUIT         ;FRAME_CHERRY
+		db LOGIC_FRUIT         ;FRAME_STRAWBERRY
+		db LOGIC_FRUIT         ;FRAME_ORANGE
+		db LOGIC_FRUIT         ;FRAME_PRETZEL
+		db LOGIC_FRUIT         ;FRAME_APPLE
+		db LOGIC_FRUIT         ;FRAME_PEAR
+		db LOGIC_FRUIT         ;FRAME_BANANA
+		db LOGIC_FRUIT         ;FRAME_HEART
+		db LOGIC_FRUIT         ;FRAME_GRENADE
+		db LOGIC_FRUIT         ;FRAME_SHIP
+		db LOGIC_FRUIT         ;FRAME_BELL
+		db LOGIC_FRUIT         ;FRAME_KEY
+		db LOGIC_EXPLODE       ;FRAME_BOOM
+
+sprite_sheet_table_lo
+		db sprite_sheet8
+		db sprite_sheet16
+		db sprite_sheet24
+		db sprite_sheet32
+
+sprite_sheet_table_med
+		db >sprite_sheet8
+		db >sprite_sheet16
+		db >sprite_sheet24
+		db >sprite_sheet32
+
+sprite_sheet_table_hi
+		db ^sprite_sheet8
+		db ^sprite_sheet16
+		db ^sprite_sheet24
+		db ^sprite_sheet32
+
+;------------------------------------------------------------------------------
+; pre compute sprite addresses, so I don't have to do math
+sprite_addy8_lo
+]var = $38000 ;sprite_sheet8
+		lup 256
+		db ]var
+]var = ]var+$40
+		--^
+sprite_addy8_med
+]var = $38000 ;sprite_sheet8
+		lup 256
+		db >]var
+]var = ]var+$40
+		--^
+sprite_addy8_hi
+]var = $38000 ;sprite_sheet8
+		lup 256
+		db ^]var
+]var = ]var+$40
+		--^
+
+;------------------------------------------------------------------------------
+
+sprite_addy16_lo
+]var = $30000 ;sprite_sheet16
+		lup 256
+		db ]var
+]var = ]var+$100
+		--^
+
+sprite_addy16_med
+]var = $30000 ;sprite_sheet16
+		lup 256
+		db >]var
+]var = ]var+$100
+		--^
+
+sprite_addy16_hi
+]var = $30000 ;sprite_sheet16
+		lup 256
+		db ^]var
+]var = ]var+$100
+		--^
+
+;------------------------------------------------------------------------------
+
+sprite_addy24_lo
+]var = $20000 ;sprite_sheet24
+		lup 256
+		db ]var
+]var = ]var+$240
+		--^
+sprite_addy24_med
+]var = $20000 ;sprite_sheet24
+		lup 256
+		db >]var
+]var = ]var+$240
+		--^
+sprite_addy24_hi
+]var = $20000 ;sprite_sheet24
+		lup 256
+		db ^]var
+]var = ]var+$240
+		--^
+
+;------------------------------------------------------------------------------
+
+sprite_addy32_lo
+]var = $10000 ;sprite_sheet32
+		lup 256
+		db ]var
+]var = ]var+$400
+		--^
+sprite_addy32_med
+]var = $10000 ;sprite_sheet32
+		lup 256
+		db >]var
+]var = ]var+$400
+		--^
+sprite_addy32_hi
+]var = $10000 ;sprite_sheet32
+		lup 256
+		db ^]var
+]var = ]var+$400
+		--^
+;------------------------------------------------------------------------------
+;
+; use spawn_no, and spawn_size
+; to return frame address
+;
+; A = size
+; X = frame #
+; 
+GetFrame
+	phy
+	;txy
+	phx
+	ply
+
+	and #3
+	asl 
+	tax
+	jmp (:table,x)
+
+:table
+	da :do8
+	da :do16
+	da :do24
+	da :do32
+
+:do8
+	lda sprite_addy8_lo,y
+	sta pSpriteFrame
+	lda sprite_addy8_med,y
+	sta pSpriteFrame+1
+	lda sprite_addy8_hi,y
+	sta pSpriteFrame+2
+
+	ply
+	rts
+
+:do16
+	lda sprite_addy16_lo,y
+	sta pSpriteFrame
+	lda sprite_addy16_med,y
+	sta pSpriteFrame+1
+	lda sprite_addy16_hi,y
+	sta pSpriteFrame+2
+
+	ply
+	rts
+
+:do24
+	lda sprite_addy24_lo,y
+	sta pSpriteFrame
+	lda sprite_addy24_med,y
+	sta pSpriteFrame+1
+	lda sprite_addy24_hi,y
+	sta pSpriteFrame+2
+
+	ply
+	rts
+
+:do32
+	lda sprite_addy32_lo,y
+	sta pSpriteFrame
+	lda sprite_addy32_med,y
+	sta pSpriteFrame+1
+	lda sprite_addy32_hi,y
+	sta pSpriteFrame+2
+
+	ply
+	rts
 
 
