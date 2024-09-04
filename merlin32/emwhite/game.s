@@ -600,7 +600,7 @@ sizeof_spr  ds 0
 			dend
 ;------------------------------------------------------------------------------
 ; Values from XMAS Demo for physics on the Letters
-GRAVITY = $29       ; 9.8/60
+GRAVITY = $14    ;$29       ; 9.8/60
 ;WIND    = $14   	; about half gravity?
 WIND    = 5   	; about half gravity?
 
@@ -1050,13 +1050,271 @@ UpdateSprite
 :skip_explode_anim
 		jmp :doPhysics
 
-:mspac_right  
-:mspac_left   
-:pac_right    
-:pac_left     
-:ghost_left   
-:ghost_right  
-:ghost_zombie 
+:mspac_right
+		ldy #spr_size
+		lda (:pSprite),y
+		inc
+		stz <:vx
+		lda #1
+		sta <:vx+1
+		stz <:vx+2
+
+		stz <:vy
+		sta <:vy+1
+		stz <:vy+2
+
+		ldy #spr_logic
+		lda (:pSprite),y
+		inc
+		sta (:pSprite),y
+		cmp #4
+		bcc :skip_ms_anim_right
+		; increment frame
+		lda #0
+		sta (:pSprite),y
+
+		ldy #spr_glyph
+		lda (:pSprite),y
+		inc
+		cmp #FRAME_MSPAC_RIGHT+3
+		bcc :ms_pac_frame_ok
+		lda #FRAME_MSPAC_RIGHT
+:ms_pac_frame_ok
+		sta (:pSprite),y
+
+		; look up the sprite frame
+		tax
+		; update the hardware
+		ldy #spr_size
+		lda (:pSprite),y
+		jsr GetFrame
+
+		ldy #1   		; get the hardware frame updated
+		lda pSpriteFrame
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+1
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+2
+		sta (:pHW),y
+
+:skip_ms_anim_right
+
+		; if ms pac is off the side of the screen, lets move her over
+
+		ldy #spr_xpos
+		lda (:pSprite),y
+		sta :xpos
+		iny
+		lda (:pSprite),y
+		sta :xpos+1
+		iny
+		lda (:pSprite),y
+		sta :xpos+2
+
+		ldax :xpos+1
+		cmpax #352
+		bcc :no_ms_pac_warp_right
+
+		; time to warp
+		;ldy #spr_ypos
+		;lda (:pSprite),y
+		;sta :ypos
+		;iny
+		;lda (:pSprite),y
+		;sta :ypos+1
+		;iny
+		;lda (:pSprite),y
+		;sta :ypos+2
+
+		; zero out x
+		lda #0
+		ldy #spr_xpos
+		sta (:pSprite),y
+		iny
+		sta (:pSprite),y
+		iny
+		sta (:pSprite),y
+		iny
+
+		; adjust y
+		;ldy #spr_size
+		;lda (:pSprite),y
+		;tax
+		;lda sprite_size_pixels,x
+
+		;clc
+		;adc :ypos+1
+		;sta :ypos+1
+		;lda :ypos+2
+		;adc #0
+		;sta :ypos+2
+		
+		;ldy #spr_ypos+1
+		;lda :ypos+1
+		;sta (:pSprite),y
+		;iny
+		;lda :ypos+2
+		;sta (:pSprite),y
+
+:no_ms_pac_warp_right
+		jmp :doPhysics
+
+:mspac_left
+
+		stz <:vx
+		lda #-1
+		sta <:vx+1
+		sta <:vx+2
+
+		lda #1
+		stz <:vy
+		sta <:vy+1
+		stz <:vy+2
+
+		ldy #spr_logic
+		lda (:pSprite),y
+		inc
+		sta (:pSprite),y
+		cmp #4
+		bcc :skip_ms_anim_left
+		; increment frame
+		lda #0
+		sta (:pSprite),y
+
+		ldy #spr_glyph
+		lda (:pSprite),y
+		inc
+		cmp #FRAME_MSPAC_LEFT+3
+		bcc :mspac_frame_okl
+		lda #FRAME_MSPAC_LEFT
+:mspac_frame_okl
+		sta (:pSprite),y
+
+		; look up the sprite frame
+		tax
+		; update the hardware
+		ldy #spr_size
+		lda (:pSprite),y
+		jsr GetFrame
+
+		ldy #1   		; get the hardware frame updated
+		lda pSpriteFrame
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+1
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+2
+		sta (:pHW),y
+
+:skip_ms_anim_left
+
+		; if ms pac is off the side of the screen, lets move her over
+
+		ldy #spr_xpos+2
+		lda (:pSprite),y
+		bpl :no_ms_pac_warp_left
+
+		; Warp the xposition
+		ldy #spr_xpos+1
+		lda #<352
+		sta (:pSprite),y
+		iny
+		lda #>352
+		sta (:pSprite),y
+
+:no_ms_pac_warp_left
+
+		jmp :doPhysics
+
+:pac_right
+
+		ldy #spr_size
+		lda (:pSprite),y
+		inc
+		stz <:vx
+		lda #1
+		sta <:vx+1
+		stz <:vx+2
+
+		stz <:vy
+		sta <:vy+1
+		stz <:vy+2
+
+		ldy #spr_logic
+		lda (:pSprite),y
+		inc
+		sta (:pSprite),y
+		cmp #4
+		bcc :skip_pac_anim_right
+		; increment frame
+		lda #0
+		sta (:pSprite),y
+
+		ldy #spr_glyph
+		lda (:pSprite),y
+		inc
+		cmp #FRAME_PAC_RIGHT+3
+		bcc :pac_frame_ok
+		lda #FRAME_PAC_RIGHT
+:pac_frame_ok
+		sta (:pSprite),y
+
+		; look up the sprite frame
+		tax
+		; update the hardware
+		ldy #spr_size
+		lda (:pSprite),y
+		jsr GetFrame
+
+		ldy #1   		; get the hardware frame updated
+		lda pSpriteFrame
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+1
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+2
+		sta (:pHW),y
+
+:skip_pac_anim_right
+
+		; if ms pac is off the side of the screen, lets move her over
+
+		ldy #spr_xpos
+		lda (:pSprite),y
+		sta :xpos
+		iny
+		lda (:pSprite),y
+		sta :xpos+1
+		iny
+		lda (:pSprite),y
+		sta :xpos+2
+
+		ldax :xpos+1
+		cmpax #352
+		bcc :no_pac_warp_right
+
+		; zero out x
+		lda #0
+		ldy #spr_xpos
+		sta (:pSprite),y
+		iny
+		sta (:pSprite),y
+		iny
+		sta (:pSprite),y
+		iny
+
+:no_pac_warp_right
+		jmp :doPhysics
+
+
+:pac_left
+:ghost_left
+:ghost_right
+:ghost_zombie
 
 :fruit
 		; apply wind
@@ -1380,6 +1638,12 @@ sprite_sheet_table_hi
 		db ^sprite_sheet16
 		db ^sprite_sheet24
 		db ^sprite_sheet32
+
+sprite_size_pixels
+		db 8
+		db 16
+		db 24
+		db 32
 
 ;------------------------------------------------------------------------------
 ; pre compute sprite addresses, so I don't have to do math
