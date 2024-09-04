@@ -302,6 +302,15 @@ main_loop
 		lda #SPRITE_CHERRY
 		sta <spawn_no
 
+:again	lda |VKY_RNDL
+		and #$1f ; down to 31
+		cmp #SPRITE_BOOM
+		bcc :ok
+		bra :again
+:ok
+		sta <spawn_no
+
+
 		;lda #%01000001
 		;lda #1  		  ; 0=8,1=16,2=24,3=32
 		lda |VKY_RNDL
