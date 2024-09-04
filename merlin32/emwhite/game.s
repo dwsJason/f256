@@ -763,10 +763,23 @@ SpawnEnemy
 		sta (:pSprite),y
 		iny
 
+		cmp #LOGIC_FRUIT
+		bne :not_fruit
+
+		lda |VKY_RNDL
+		and #$F
+		sec
+		sbc #7  		  ; spr_logic
+		sta (:pSprite),y  ; wind direction
+		iny
+		bra :wefruit
+
+
+:not_fruit
 		lda #0 				; spr_logic
 		sta (:pSprite),y
 		iny
-
+:wefruit
 		lda #0 				; spr_anim
 		sta (:pSprite),y
 		iny
@@ -1047,18 +1060,40 @@ UpdateSprite
 
 :fruit
 		; apply wind
+		ldy #spr_logic
+		lda (:pSprite),y
+		bpl :east
+		; west
+		eor #$FF
+		dec
+		and #$7 			; shouldn't need this
+		sta :ww+1			; self mod code
 		ldy #spr_vel_x
 		sec
 		lda (:pSprite),y
-		sbc #WIND
-		;sta (:pSprite),y
+:ww		sbc #WIND
 		sta <:vx
 		iny
 		lda (:pSprite),y
 		sbc #0
-		;sta (:pSprite),y
 		sta <:vx+1
 
+		bra :do_gravity
+
+:east
+		sta :ew+1  ; self mod code
+
+		ldy #spr_vel_x
+		clc
+		lda (:pSprite),y
+:ew		adc #WIND
+		sta <:vx
+		iny
+		lda (:pSprite),y
+		adc #0
+		sta <:vx+1
+		; fall through to gravity
+:do_gravity
 		; apply gravity
 		ldy #spr_vel_y
 		clc
