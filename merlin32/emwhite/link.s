@@ -37,7 +37,7 @@
 		adr main_code_start 			 	; Address to load into memory
 		adr main_code_end-main_code_start   ; Length of data to load into their
 
-		org $300
+		org $8000
 main_code_start
 		put game.s
 		put term.s

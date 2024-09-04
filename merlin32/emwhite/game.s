@@ -19,10 +19,29 @@ temp7 ds 4
 
 jiffy ds 1
 
+spawn_x    ds 2  ; x position
+spawn_no   ds 1  ; sprite type
+spawn_size ds 1  ; which size
+
 	dend
 
 RAST_COL = $D018
 RAST_ROW = $D01A
+
+;------------------------------------------------------------------------------
+;
+		;jmp Initialize		; set video mode, hide sprites, reset stuff, designed to be called once
+		jmp FramePump
+		jmp SpawnEnemy
+		;jmp CollideMissile
+		jmp WaitVBLPoll
+		jmp RandomTest
+
+		; diagnostic code, verify the sprites are good
+		;jmp show8
+		;jmp show16
+		;jmp show24
+		;jmp show32
 
 start
 
@@ -60,6 +79,15 @@ start
 
 ;------------------------------------------------------------------------------
 
+		jmp RandomTest
+
+;------------------------------------------------------------------------------
+show8
+show16
+show24
+show32
+
+
 		stz io_ctrl  ; access sprite registers
 
 ;]spr_size = %00000001 ; 32x32
@@ -67,10 +95,13 @@ start
 ]spr_size = %01000001  ; 16x16
 ;]spr_size = %01100001  ; 8x8
 
-:x = temp0
-:y = temp1
+:x            = temp0
+:y            = temp1
 :sprite_frame = temp2
-:pSprite = temp3
+:pSprite      = temp3
+;:sp_size      = temp4
+;:sp_delta     = temp5
+
 
 		lda #32
 		sta <:x
@@ -196,11 +227,44 @@ start
 ;
 		;ldax #event_data
 		;stax kernel_args_events
-main_loop
+RandomTest
+		jsr InitSpriteFont
 
+main_loop
 		;jsr kernel_NextEvent
 		;bcs :no_events
 		;jsr DoKernelEvent
+		jsr WaitVBLPoll
+
+		jsr FramePump
+
+		lda jiffy
+		inc
+		sta jiffy
+		and #$3f
+		bne main_loop
+
+; about once per second spawn
+
+		lda |VKY_RNDL
+		and #$3F
+		sta <spawn_x
+		clc
+		lda |VKY_RNDL
+		adc <spawn_x
+		sta <spawn_x
+		adc #0
+		sta <spawn_x+1
+
+		lda #SPRITE_CHERRY
+		sta <spawn_no
+
+		;lda #%01000001
+		lda #1
+		sta <spawn_size
+
+		jsr SpawnEnemy
+
 :no_events
 
 		bra main_loop
@@ -254,6 +318,8 @@ txt_title asc 'game thing'
 ;------------------------------------------------------------------------------
 
 WaitVBLPoll
+		php
+		sei
 		lda $1
 		pha
 		stz $1
@@ -276,6 +342,7 @@ LINE_NO = 241*2
         bne ]wait
 		pla 
 		sta $1
+		plp
         rts
 
 ;------------------------------------------------------------------------------
@@ -286,37 +353,49 @@ LINE_NO = 241*2
 ; Sprite Character Index Definitions
 
 	dum 0
-SPRITE_BLANK  ds 1
-MSPAC_RIGHT   ds 3
-MSPAC_LEFT    ds 3
-PAC_RIGHT     ds 2
-PAC_CLOSED    ds 1
-PAC_LEFT      ds 2
-BLINKY_RIGHT  ds 2
-BLINKY_LEFT   ds 2
-PINKY_RIGHT   ds 2
-PINKY_LEFT    ds 2
-INKY_RIGHT    ds 2
-INKY_LEFT     ds 2
-CLYDE_LEFT    ds 2
-CLYDE_RIGHT   ds 2
-GHOST_BLUE    ds 2
-GHOST_WHITE   ds 2
-CHERRY        ds 1
-STRAWBERRY    ds 1
-ORANGE        ds 1
-PRETZEL       ds 1
-APPLE         ds 1
-PEAR          ds 1
-BANANA        ds 1
-HEART         ds 1
-GRENADE       ds 1
-SHIP          ds 1
-BELL          ds 1
-KEY           ds 1
-BIRD_LEFT     ds 3
-BIRD_RIGHT    ds 3
-BOOM          ds 6
+SPRITE_BLANK         ds 1
+SPRITE_MSPAC_RIGHT   ds 3
+SPRITE_MSPAC_LEFT    ds 3
+SPRITE_PAC_RIGHT     ds 2
+SPRITE_PAC_CLOSED    ds 1
+SPRITE_PAC_LEFT      ds 2
+SPRITE_BLINKY_RIGHT  ds 2
+SPRITE_BLINKY_LEFT   ds 2
+SPRITE_PINKY_RIGHT   ds 2
+SPRITE_PINKY_LEFT    ds 2
+SPRITE_INKY_RIGHT    ds 2
+SPRITE_INKY_LEFT     ds 2
+SPRITE_CLYDE_LEFT    ds 2
+SPRITE_CLYDE_RIGHT   ds 2
+SPRITE_GHOST_BLUE    ds 2
+SPRITE_GHOST_WHITE   ds 2
+SPRITE_CHERRY        ds 1
+SPRITE_STRAWBERRY    ds 1
+SPRITE_ORANGE        ds 1
+SPRITE_PRETZEL       ds 1
+SPRITE_APPLE         ds 1
+SPRITE_PEAR          ds 1
+SPRITE_BANANA        ds 1
+SPRITE_HEART         ds 1
+SPRITE_GRENADE       ds 1
+SPRITE_SHIP          ds 1
+SPRITE_BELL          ds 1
+SPRITE_KEY           ds 1
+SPRITE_BIRD_LEFT     ds 3
+SPRITE_BIRD_RIGHT    ds 3
+SPRITE_BOOM          ds 6
+	dend
+
+	dum 0
+LOGIC_MSPAC_RIGHT  db 1
+LOGIC_MSPAC_LEFT   db 1
+LOGIC_PAC_RIGHT    db 1
+LOGIC_PAC_LEFT     db 1
+LOGIC_GHOST_LEFT   db 1
+LOGIC_GHOST_RIGHT  db 1
+LOGIC_GHOST_ZOMBIE db 1
+LOGIC_FRUIT        db 1
+LOGIC_EXPLODE      db 1
 	dend
 
 ;------------------------------------------------------------------------------
@@ -346,7 +425,10 @@ vky_sp_posy ds 2
 
 			dum 0
 spr_number 	ds 1    ; which hardware sprite are we using
-spr_glyph   ds 1    ; what the glyph number from the map
+
+spr_glyph   ds 1    ; which sprite #
+spr_size    ds 1    ; which sprite size
+spr_type    ds 1    ; which sprite logic
 
 spr_xpos    ds 3    ; 16.8 fixed point
 spr_ypos    ds 3	; 16.8 fixed point
@@ -433,10 +515,6 @@ InitSpriteFont
 		pla
 		sta io_ctrl
 
-		; start at the beginning of the message
-		;ldax #sprite_message
-		;stax p_sprite_message
-
 		rts
 
 ;------------------------------------------------------------------------------		
@@ -478,6 +556,116 @@ FreeSprite
 		stx num_available_sprites
 
 		rts
+;------------------------------------------------------------------------------
+; A = enemy number
+; temp0 = enemy X position
+SpawnEnemy
+
+:pSprite = temp0
+:pHW     = temp0+2
+
+
+		jsr AllocSprite
+		bcc :good2go
+
+		; oh no, we couldn't get a sprite
+		rts
+
+:good2go
+
+		pha
+		jsr GetSpriteObjPtr     ; our fancy object structure
+		stax :pSprite
+
+		pla
+		pha
+
+		jsr GetSpriteHWPtr		; hardware sprite
+
+		stax :pHW
+
+		pla
+		pha
+		sta (:pSprite)  ; spr_number
+		ldy #1
+
+		lda spawn_no    ; which sprite glyph number
+		sta (:pSprite),y
+		iny
+
+		lda spawn_size  	; needed so we grab the correct sprite address for each frame
+		sta (:pSprite),y
+		iny
+
+		lda #LOGIC_FRUIT    ; logic $$TODO fetch from table, base on the glyph
+		sta (:pSprite),y
+		iny
+
+		lda #0
+		sta (:pSprite),y	; x fraction
+		iny
+		lda spawn_x   		; x position
+		sta (:pSprite),y
+		iny
+		lda spawn_x+1   	; x high
+		sta (:pSprite),y
+		iny
+
+		lda #0				; y fraction
+		sta (:pSprite),y
+		iny
+		sta (:pSprite),y    ; y position
+		iny
+		sta (:pSprite),y    ; y high
+
+		; velocity
+
+		lda #0				; vel x
+		sta (:pSprite),y
+		iny
+		sta (:pSprite),y    ; vel x m
+		iny
+		sta (:pSprite),y    ; vel x high
+
+		lda #0				; vel y
+		sta (:pSprite),y
+		iny
+		sta (:pSprite),y    ; vel y m
+		iny
+		sta (:pSprite),y    ; vel y high
+
+		; we did it!
+		pla
+		jsr AddActiveSprite
+
+		lda #%01000001  ; 16x16
+		sta (:pHW)
+		ldy #1
+
+		lda #<sprite_sheet16
+		sta (:pHW),y
+		iny
+		lda #>{sprite_sheet16+$100}
+		sta (:pHW),y
+		iny
+
+		lda #^sprite_sheet16
+		sta (:pHW),y
+		iny
+
+		lda spawn_x
+		sta (:pHW),y
+		iny
+		lda spawn_x+1
+		sta (:pHW),y
+		iny
+		lda #0
+		sta (:pHW),y
+		iny
+		sta (:pHW),y
+		iny
+
+		rts
 
 ;------------------------------------------------------------------------------		
 ;
@@ -486,214 +674,11 @@ FreeSprite
 ; This assumes we get called once per frame
 ;
 ShowSpriteFont
-
-		do 0
-; Animate the spawn point
-		lda <jiffy
-		and #3
-		bne :spawn_movement_done
-
-		lda text_up_down
-		beq :text_up
-
-; text down
-
-		lda text_spawn_y
-		inc
-		cmp #MAX_TEXT_SPAWN_Y
-		bcc :down_ok
-
-		lda #MAX_TEXT_SPAWN_Y
-		stz text_up_down ; change to going up
-
-:down_ok
-		sta text_spawn_y
-		bra :spawn_movement_done
-
-:text_up
-		lda text_spawn_y
-		bne :up_ok
-		inc text_up_down ; going down
-		sta text_spawn_y
-		bra :spawn_movement_done
-:up_ok
-		dec
-		sta text_spawn_y
-
-:spawn_movement_done
-		fin
+FramePump
 
 		jsr MoveSprites
 
-		dec :tick
-		beq :spawn
 		rts
-:spawn
-		lda #SPRITE_SPAWN_TIME
-		sta :tick
-
-;		lda (p_sprite_message)
-;		bne :spawn_glyph
-
-		; we're out of message, loop the message
-		;ldax #sprite_message
-		;stax p_sprite_message
-
-		rts
-
-:spawn_glyph
-		cmp #' '
-		bne :not_a_space
-		; skip spaces
-		jmp :get_glyph   ; auto increment, but don't do work
-
-
-:not_a_space
-		jsr AllocSprite
-		bcc :ok
-		rts					; if we didn't get one, then do nothing
-:ok
-
-:pSprite = temp0
-:pHW     = temp0+2
-
-		pha
-		jsr GetSpriteObjPtr
-
-		stax :pSprite		; we get to initialize the object
-
-		pla
-		pha
-		jsr GetSpriteHWPtr ; we get to initialize hw, so we don't have update it all the time
-
-		stax :pHW
-
-		; let's initialize the sprite
-		pla
-		sta (:pSprite)  ; spr_number
-
-		ldy #spr_glyph
-		jsr :get_glyph ; we have the ASCII CHARACTER, lets translate it into an index
-		               ; we only have 60 or so possible sprites with the current setup
-		sec
-		sbc #' '
-		cmp #60
-		bcc :in_range
-		lda #0			; out of range, make it blank
-:in_range
-		asl
-		tax
-		;lda SPRITE_MAP,x ; we don't have a map
-
-		sta (:pSprite),y ; spr_glyph
-
-; SPAWN LOCATION ON THE SCREEN
-
-		iny
-		lda #0
-		sta (:pSprite),y ; xpos .8
-		iny
-;		lda text_spawn_x
-		sta (:pSprite),y ; xpos lo
-		iny
-;		lda text_spawn_x+1
-		sta (:pSprite),y ; xpos hi
-		iny
-
-		lda #0
-		sta (:pSprite),y ; ypos.8
-		iny
-;		lda text_spawn_y
-		sta (:pSprite),y ; ypos lo
-;		lda text_spawn_y+1
-		iny
-		sta (:pSprite),y ; ypos hi
-
-; SPAWN VELOCITY
-
-		lda #0
-		iny
-		sta (:pSprite),y ; spr_vel_x
-		iny
-		sta (:pSprite),y ; spr_vel_x
-		iny
-		sta (:pSprite),y ; spr_vel_y
-		iny
-		sta (:pSprite),y ; spr_vel_y
-
-		ldy #spr_glyph
-		lda (:pSprite),y
-		asl
-		asl
-		tax ; we got this
-
-		lda io_ctrl
-		pha
-
-		stz io_ctrl
-
-		ldy #vky_sp_addy
-		lda #0
-		sta (:pHW),y
-		iny
-		txa
-		sta (:pHW),y
-;		lda #^SPRITE_TILES
-		iny
-		sta (:pHW),y
-
-		; we need to copy the x and y
-
-		; load X
-		ldy #spr_xpos+2
-		lda (:pSprite),y
-		tax
-		dey
-		lda (:pSprite),y
-		; store X
-		ldy #vky_sp_posx
-		sta (:pHW),y
-		iny
-		txa
-		sta (:pHW),y
-		; load y
-		ldy #spr_ypos+2
-		lda (:pSprite),y
-		tax
-		dey
-		lda (:pSprite),y
-
-		; store y
-		ldy #vky_sp_posy
-		sta (:pHW),y
-		iny
-		txa
-		sta (:pHW),y
-
-		lda #%111  ; enable the sprite
-		sta (:pHW) ; vky_sp_ctrl -> do this last
-
-		lda (:pSprite) ; spr_number
-		jsr AddActiveSprite
-
-		pla
-		sta io_ctrl
-
-		rts
-
-;------------------------------------------------------------------------------
-
-:get_glyph
-;		lda (p_sprite_message)
-;		inc p_sprite_message
-		bne :rts
-;		inc p_sprite_message+1
-:rts
-		rts
-
-:tick ds 1
-
-
 
 ;----------------------------------------------------------------------
 ;    A = hw sprite number
