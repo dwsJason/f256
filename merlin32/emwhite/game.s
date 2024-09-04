@@ -278,7 +278,7 @@ main_loop
 		lda jiffy
 		inc
 		sta jiffy
-		and #$1f
+		and #$3
 		bne main_loop
 
 ; about once per second spawn
@@ -318,9 +318,69 @@ main_loop
 
 		jsr SpawnEnemy
 
+		; choose something to splode
+		lda in_use_sprites_count
+		cmp #11
+		bcc :no_events
+
+		jsr RandomExplode
+
+
 :no_events
 
 		bra main_loop
+
+
+;------------------------------------------------------------------------------
+
+RandomExplode
+
+		lda |VKY_RNDL
+		and #3
+		clc
+		adc #7
+		pha
+		tax
+		lda in_use_sprites,x
+
+:pSprite = temp0
+:pHW     = temp0+2
+:vx      = temp1
+:vy      = temp2
+
+:xpos    = temp3
+:ypos    = temp4
+
+
+		pha
+		jsr GetSpriteObjPtr
+		stax :pSprite
+
+		pla
+		jsr GetSpriteHWPtr ; we get to initialize hw, so we don't have update it all the time
+		stax :pHW
+
+
+		pla
+
+		do 0
+		pha
+		jsr FreeSprite
+
+		plx
+
+		ldy in_use_sprites_count
+		dey
+		sty in_use_sprites_count
+		beq :happy
+
+		lda in_use_sprites,y
+		sta in_use_sprites,x
+
+:happy
+		fin
+		rts
+
 
 ;------------------------------------------------------------------------------
 
@@ -376,7 +436,7 @@ WaitVBLPoll
 		lda $1
 		pha
 		stz $1
-LINE_NO = 241*2
+LINE_NO = 261*2
         lda #<LINE_NO
         ldx #>LINE_NO
 :waitforlineAX		
@@ -482,6 +542,8 @@ spr_number 	ds 1    ; which hardware sprite are we using
 spr_glyph   ds 1    ; which sprite #
 spr_size    ds 1    ; which sprite size
 spr_type    ds 1    ; which sprite logic
+spr_logic   ds 1    ; temp space
+spr_anim    ds 2    ;
 
 spr_xpos    ds 3    ; 16.8 fixed point
 spr_ypos    ds 3	; 16.8 fixed point
@@ -639,7 +701,7 @@ SpawnEnemy
 
 		pla
 		pha
-		sta (:pSprite)  ; spr_number
+		sta (:pSprite)  ; spr_number 
 		ldy #1
 
 		ldx spawn_no    ; which sprite #
@@ -650,7 +712,19 @@ SpawnEnemy
 		sta (:pSprite),y
 		iny
 
-		lda #LOGIC_FRUIT    ; logic $$TODO fetch from table, base on the glyph
+		ldx spawn_no
+		lda sprite_to_logic_table,x
+		;lda #LOGIC_FRUIT    ; logic $$TODO fetch from table, base on the glyph
+		sta (:pSprite),y
+		iny
+
+		lda #0 				; spr_logic
+		sta (:pSprite),y
+		iny
+
+		lda #0 				; spr_anim
+		sta (:pSprite),y
+		iny
 		sta (:pSprite),y
 		iny
 
@@ -850,6 +924,34 @@ UpdateSprite
 
 		; adjust sprite velocity
 
+		ldy #spr_type
+		lda (:pSprite),y
+		asl
+		tax
+		jmp (:logic,x)
+
+:logic
+		da :mspac_right
+		da :mspac_left
+		da :pac_right
+		da :pac_left
+		da :ghost_left
+		da :ghost_right
+		da :ghost_zombie
+		da :fruit
+		da :explode
+
+:mspac_right  
+:mspac_left   
+:pac_right    
+:pac_left     
+:ghost_left   
+:ghost_right  
+:ghost_zombie 
+:fruit        
+:explode      
+
+:fruit
 		; apply wind
 		ldy #spr_vel_X
 		sec
@@ -942,15 +1044,20 @@ UpdateSprite
 ; also we can detect destruction here
 
 		ldax :ypos+1
-		cmpax #240
+		cmpax #240+32  ; bottom of the screen
 		bcc :y_remains_good
 
+		; sprite is dead now
+		; c=1, important for the kill
+		jmp :kill_sprite
+
+
+		do 0
 		ldax #240 		; clamp
 		stax :ypos+1
 		stz  :ypos
 
 		; I think Dagen says this is better
-		do 1
 		; cut vy in half
 		lda :vy+2
 		cmp #$80
@@ -958,7 +1065,6 @@ UpdateSprite
 		sta :vy+2
 		ror :vy+1
 		ror :vy 
-		fin
 
 		; negate vy
 		lda :vy
@@ -978,6 +1084,7 @@ UpdateSprite
 		inc :vy+2
 
 :done_negate
+		fin
 
 :y_remains_good
 
@@ -1299,4 +1406,4 @@ GetFrame
 	ply
 	rts
 
-
+;------------------------------------------------------------------------------
