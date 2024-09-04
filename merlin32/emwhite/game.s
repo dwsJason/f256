@@ -339,31 +339,77 @@ RandomExplode
 		and #3
 		clc
 		adc #7
-		pha
+		;pha
 		tax
 		lda in_use_sprites,x
 
 :pSprite = temp0
 :pHW     = temp0+2
-:vx      = temp1
-:vy      = temp2
 
-:xpos    = temp3
-:ypos    = temp4
-
-
-		pha
 		jsr GetSpriteObjPtr
 		stax :pSprite
 
-		pla
+		ldy #spr_number
+
+		lda (:pSprite),y
 		jsr GetSpriteHWPtr ; we get to initialize hw, so we don't have update it all the time
 		stax :pHW
 
 
-		pla
+		ldy #spr_type
+		lda #LOGIC_EXPLODE
+		cmp (:pSprite),y
+		beq :rts
+		sta (:pSprite),y
+
+		; zero sprite velocity
+		ldy #spr_vel_x
+		lda #0
+		sta (:pSprite),y
+		iny
+		sta (:pSprite),y
+		ldy #spr_vel_y
+		sta (:pSprite),y
+		iny
+		sta (:pSprite),y
+
+		ldy #spr_size
+		lda (:pSprite),y
+		sta spawn_size
+		
+		lda #0
+		ldy #spr_logic
+		sta (:pSprite),y
+		
+		ldy #spr_glyph
+		lda #FRAME_BOOM
+		sta (:pSprite),y
+		
+		ldx #FRAME_BOOM
+		lda spawn_size
+		jsr GetFrame
+		
+		ldy #1   		; get the hardware frame updated
+		lda pSpriteFrame
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+1
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+2
+		sta (:pHW),y
+
+:rts
+		rts
+
+
 
 		do 0
+		pla
+		jsr GetSpriteHWPtr ; we get to initialize hw, so we don't have update it all the time
+		stax :pHW
+		pla
+
 		pha
 		jsr FreeSprite
 
@@ -380,7 +426,6 @@ RandomExplode
 :happy
 		fin
 		rts
-
 
 ;------------------------------------------------------------------------------
 
@@ -548,7 +593,7 @@ spr_anim    ds 2    ;
 spr_xpos    ds 3    ; 16.8 fixed point
 spr_ypos    ds 3	; 16.8 fixed point
 
-spr_vel_X   ds 2	; 8.8 fixed point
+spr_vel_x   ds 2	; 8.8 fixed point
 spr_vel_y   ds 2    ; 8.8 fixed point
 
 sizeof_spr  ds 0
@@ -953,7 +998,7 @@ UpdateSprite
 
 :fruit
 		; apply wind
-		ldy #spr_vel_X
+		ldy #spr_vel_x
 		sec
 		lda (:pSprite),y
 		sbc #WIND
@@ -1110,7 +1155,7 @@ UpdateSprite
 		sta (:pSprite),y
 
 		; copy the vx and vy back into the object
-		ldy #spr_vel_X
+		ldy #spr_vel_x
 		lda <:vx
 		sta (:pSprite),y
 		iny
