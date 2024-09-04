@@ -256,6 +256,11 @@ main_loop
 		adc #0
 		sta <spawn_x+1
 
+		lda #<176
+		sta spawn_x
+		lda #>176
+		sta spawn_x+1
+
 		lda #SPRITE_CHERRY
 		sta <spawn_no
 
@@ -441,7 +446,8 @@ sizeof_spr  ds 0
 ;------------------------------------------------------------------------------
 ; Values from XMAS Demo for physics on the Letters
 GRAVITY = $29       ; 9.8/60
-WIND    = $14   	; about half gravity?
+;WIND    = $14   	; about half gravity?
+WIND    = 5   	; about half gravity?
 
 
 ;
