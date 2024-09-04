@@ -70,7 +70,7 @@ RAST_ROW = $D01A
 		;jmp Initialize		; set video mode, hide sprites, reset stuff, designed to be called once
 		jmp FramePump
 		jmp SpawnEnemy
-		;jmp CollideMissile
+		jmp CollideMissile
 		jmp WaitVBLPoll
 		jmp RandomTest
 
@@ -271,6 +271,12 @@ main_loop
 		;jsr kernel_NextEvent
 		;bcs :no_events
 		;jsr DoKernelEvent
+
+		ldax #160
+		ldy #120
+		jsr CollideMissile
+
+
 		jsr WaitVBLPoll
 
 		jsr FramePump
@@ -319,19 +325,249 @@ main_loop
 		jsr SpawnEnemy
 
 		; choose something to splode
-		lda in_use_sprites_count
-		cmp #11
-		bcc :no_events
-
-		jsr RandomExplode
-
+		;lda in_use_sprites_count
+		;cmp #11
+		;bcc :no_events
+		;
+		;jsr RandomExplode
 
 :no_events
 
 		bra main_loop
 
+;------------------------------------------------------------------------------
+;
+; Check to see if we collide with anything, and if so make that thing
+; go boom
+;
+;  AX = X pixel position 0-319
+;   Y = Y pixel position 0-240
+;
+; return    c=0    ; no collision
+;           c=1    ; collision
+;
+;           A=number of collisions
+;
+CollideMissile
+
+:pSprite = temp0
+:pHW     = temp0+2
+
+:missile_x = temp1
+:missile_y = temp1+2
+:spr_x     = temp2
+:spr_y     = temp2+2
+:dx        = temp3
+:dy        = temp4
+:radius    = temp5   ; radius squared
+:sp_size   = temp6
+:did_boom  = temp6+2
+:delta     = temp7
+
+		stz :did_boom
+
+		stax :missile_x
+		sty  :missile_y
+		stz  :missile_y
+
+		ldx	 in_use_sprites_count
+		bne	 :keep_going
+		; there are no sprites, return c=0
+		clc
+		rts
+
+:keep_going
+
+]loop
+		phx
+
+		lda in_use_sprites,x   	 ; index to the sprite object
+
+		jsr GetSpriteObjPtr 	 ; get the pointer to the sprite object
+		stax :pSprite
+
+		ldy #spr_number
+		lda (:pSprite),y	     ; the hardware sprite#, should match, the in_use above
+		jsr GetSpriteHWPtr
+		stax :pHW   			 ; hardware register pointer
+
+		; Pull out X position
+		ldy #spr_xpos+1 		 ; skipping the 8 bit fraction
+		lda (:pSprite),y
+		iny
+		sta :spr_x
+		lda (:pSprite),y
+		sta :spr_x+1
+
+		; Pull out Y Position
+		ldy #spr_ypos+1
+		lda (:pSprite),y
+		iny
+		sta :spr_y
+		lda (:pSprite),y
+		sta :spr_y+1
+
+		; size, of the sprite, for nice radius check
+		ldy #spr_size
+		lda (:pSprite),y
+		sta :sp_size
+		asl
+		tax
+
+		; the squared collision radius
+		lda radius_sq_table,x
+		sta :radius
+		lda radius_sq_table+1,x
+		sta :radius+1
+
+		; we have to center the sprite, in missile space
+		ldx :sp_size
+		sec
+		lda :spr_x
+		sbc sprite_size_center,x
+		sta :spr_x
+		sta :spr_x+1
+		sbc #0
+		sta :spr_x+1
+
+		sec
+		lda :spr_y
+		sbc sprite_size_center,x
+		sta :spr_y
+		lda :spr_y+1
+		sbc #0
+		sta :spr_y+1
+
+		; dx
+		sec
+		lda :missile_x
+		sbc :spr_x
+		sta :dx
+		lda :missile_x+1
+		sbc :spr_x+1
+		sta :dx+1
+
+		;dy
+		sec
+		lda :missile_y
+		sbc :spr_y
+		sta :dy
+		lda :missile_y+1
+		sbc :spr_y+1
+		sta :dy+1
+
+		; absolute value dx
+		ldax :dx
+		bpl :dx_is_good
+		jsr negate_ax
+:dx_is_good
+		stax :dx
+		stax MULU_A_L
+		stax MULU_B_L
+
+		ldaxy MULU_LL
+		staxy :delta
+
+		; absolute value dy
+		ldax :dy
+		bpl :dy_is_good
+		jsr negate_ax
+:dy_is_good
+		stax :dy
+		stax MULU_A_L
+		stax MULU_B_L
+
+		clc
+		lda MULU_LL
+		adc :delta
+		sta :delta
+		lda MULU_LL+1
+		adc :delta+1
+		sta :delta+1
+		lda MULU_LL+2
+		adc :delta+2
+		sta :delta+2
+
+; now delta is our distance square
+; lets check to see if it's less than :radius (which is radius square)
+
+		lda :delta+2
+		bne :miss
+
+		ldax :delta
+		cpx :radius+1
+		bne :done
+		cmp :radius
+:done
+		bcs :miss
+		; we have a hit
+
+;--------------------------------------------------------------------------
+;
+;  splode it
+;
+		ldy #spr_type
+		lda #LOGIC_EXPLODE
+		cmp (:pSprite),y
+		beq :miss			; it's already exploding, do skip
+		sta (:pSprite),y
+
+		; zero sprite velocity
+		ldy #spr_vel_x
+		lda #0
+		sta (:pSprite),y
+		iny
+		sta (:pSprite),y
+		ldy #spr_vel_y
+		sta (:pSprite),y
+		iny
+		sta (:pSprite),y
+
+		ldy #spr_size
+		lda (:pSprite),y
+		sta spawn_size
+		
+		lda #0
+		ldy #spr_logic
+		sta (:pSprite),y
+		
+		ldy #spr_glyph
+		lda #FRAME_BOOM
+		sta (:pSprite),y
+		
+		ldx #FRAME_BOOM
+		lda spawn_size
+		jsr GetFrame
+		
+		ldy #1   		; get the hardware frame updated
+		lda pSpriteFrame
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+1
+		sta (:pHW),y
+		iny
+		lda pSpriteFrame+2
+		sta (:pHW),y
+
+		inc :did_boom
+;--------------------------------------------------------------------------
+
+:miss
+		plx
+		dex
+		bnel ]loop
+
+		clc
+		lda :did_boom
+		beq :rts2
+		sec 			; collided
+:rts2
+		rts
+
+
 
 ;------------------------------------------------------------------------------
+
 
 RandomExplode
 
@@ -1852,6 +2088,19 @@ sprite_size_pixels
 		db 24
 		db 32
 
+sprite_size_center
+		db 32-4
+		db 32-8
+		db 32-12
+		db 32-16
+
+
+radius_sq_table
+		dw 16
+		dw 64
+		dw 144
+		dw 256
+
 ;------------------------------------------------------------------------------
 ; pre compute sprite addresses, so I don't have to do math
 sprite_addy8_lo
@@ -2007,3 +2256,19 @@ GetFrame
 	rts
 
 ;------------------------------------------------------------------------------
+
+negate_ax
+		pha
+		txa
+		eor #$ff
+		tax
+		pla
+		eor #$ff
+		inc
+		bne no_work
+		inx
+no_work
+		rts
+
+;------------------------------------------------------------------------------
+
