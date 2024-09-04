@@ -378,6 +378,7 @@ CollideMissile
 
 :keep_going
 
+		dex
 ]loop
 		phx
 
@@ -555,7 +556,7 @@ CollideMissile
 :miss
 		plx
 		dex
-		bnel ]loop
+		bpll ]loop
 
 		clc
 		lda :did_boom
