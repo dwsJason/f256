@@ -68,7 +68,7 @@ RAST_ROW = $D01A
 ;------------------------------------------------------------------------------
 ;
 		jmp start			; chaos
-		;jmp Initialize		; set video mode, hide sprites, reset stuff, designed to be called once
+		jmp Initialize		; set video mode, hide sprites, reset stuff, designed to be called once
 		jmp FramePump
 		jmp SpawnEnemy
 		jmp CollideMissile
@@ -80,6 +80,25 @@ RAST_ROW = $D01A
 		;jmp show16
 		;jmp show24
 		;jmp show32
+Initialize
+		jsr init320x240
+		jsr initColors
+		jsr TermInit
+
+		stz io_ctrl
+
+		lda #$12
+		sta |VKY_SEEDL
+		lda #$34
+		sta |VKY_SEEDH
+		lda #3
+		sta |VKY_RND_CTRL
+		lda #1
+		sta |VKY_RND_CTRL
+
+		jsr InitSpriteFont
+
+		rts
 
 start
 
