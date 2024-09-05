@@ -67,6 +67,7 @@ RAST_ROW = $D01A
 
 ;------------------------------------------------------------------------------
 ;
+		jmp start			; chaos
 		;jmp Initialize		; set video mode, hide sprites, reset stuff, designed to be called once
 		jmp FramePump
 		jmp SpawnEnemy
@@ -2125,19 +2126,19 @@ radius_sq_table
 ;------------------------------------------------------------------------------
 ; pre compute sprite addresses, so I don't have to do math
 sprite_addy8_lo
-]var = $38000 ;sprite_sheet8
+]var = sprite_sheet8
 		lup 256
 		db ]var
 ]var = ]var+$40
 		--^
 sprite_addy8_med
-]var = $38000 ;sprite_sheet8
+]var = sprite_sheet8
 		lup 256
 		db >]var
 ]var = ]var+$40
 		--^
 sprite_addy8_hi
-]var = $38000 ;sprite_sheet8
+]var = sprite_sheet8
 		lup 256
 		db ^]var
 ]var = ]var+$40
@@ -2146,21 +2147,21 @@ sprite_addy8_hi
 ;------------------------------------------------------------------------------
 
 sprite_addy16_lo
-]var = $30000 ;sprite_sheet16
+]var = sprite_sheet16
 		lup 256
 		db ]var
 ]var = ]var+$100
 		--^
 
 sprite_addy16_med
-]var = $30000 ;sprite_sheet16
+]var = sprite_sheet16
 		lup 256
 		db >]var
 ]var = ]var+$100
 		--^
 
 sprite_addy16_hi
-]var = $30000 ;sprite_sheet16
+]var = sprite_sheet16
 		lup 256
 		db ^]var
 ]var = ]var+$100
@@ -2169,19 +2170,19 @@ sprite_addy16_hi
 ;------------------------------------------------------------------------------
 
 sprite_addy24_lo
-]var = $20000 ;sprite_sheet24
+]var = sprite_sheet24
 		lup 256
 		db ]var
 ]var = ]var+$240
 		--^
 sprite_addy24_med
-]var = $20000 ;sprite_sheet24
+]var = sprite_sheet24
 		lup 256
 		db >]var
 ]var = ]var+$240
 		--^
 sprite_addy24_hi
-]var = $20000 ;sprite_sheet24
+]var = sprite_sheet24
 		lup 256
 		db ^]var
 ]var = ]var+$240
@@ -2190,19 +2191,19 @@ sprite_addy24_hi
 ;------------------------------------------------------------------------------
 
 sprite_addy32_lo
-]var = $10000 ;sprite_sheet32
+]var = sprite_sheet32
 		lup 256
 		db ]var
 ]var = ]var+$400
 		--^
 sprite_addy32_med
-]var = $10000 ;sprite_sheet32
+]var = sprite_sheet32
 		lup 256
 		db >]var
 ]var = ]var+$400
 		--^
 sprite_addy32_hi
-]var = $10000 ;sprite_sheet32
+]var = sprite_sheet32
 		lup 256
 		db ^]var
 ]var = ]var+$400

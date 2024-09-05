@@ -26,6 +26,10 @@
 		put macros.i.s
 ;------------------------------------------------------------------------------
 
+sprite_sheet32 = $010000
+sprite_sheet24 = $020000
+sprite_sheet16 = $030000
+sprite_sheet8  = $038000
 
 		mx %11
 		org $0
@@ -37,7 +41,7 @@
 		adr main_code_start 			 	; Address to load into memory
 		adr main_code_end-main_code_start   ; Length of data to load into their
 
-		org $8000
+		org $2000
 main_code_start
 		put game.s
 		put term.s
@@ -51,7 +55,7 @@ main_code_end
 		adr bank1_end-bank1_start
 		org $010000
 bank1_start
-sprite_sheet32 putbin data\tiles32.raw
+		putbin data\tiles32.raw
 bank1_end
 
 		org $0
@@ -59,7 +63,7 @@ bank1_end
 		adr bank2_end-bank2_start
 		org $020000
 bank2_start
-sprite_sheet24 putbin data\tiles24.raw
+		putbin data\tiles24.raw
 bank2_end
 
 		org $0
@@ -67,7 +71,7 @@ bank2_end
 		adr bank3_end-bank3_start
 		org $030000
 bank3_start
-sprite_sheet16 putbin data\tiles16.raw
+		putbin data\tiles16.raw
 bank3_end
 
 		org $0
@@ -75,7 +79,7 @@ bank3_end
 		adr bank4_end-bank4_start
 		org $038000
 bank4_start
-sprite_sheet8  putbin data\tiles8.raw
+		putbin data\tiles8.raw
 bank4_end
 
 ; Launch Address
