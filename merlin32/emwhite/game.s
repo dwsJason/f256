@@ -276,8 +276,10 @@ main_loop
 		ldy #120
 		jsr CollideMissile
 
-
 		jsr WaitVBLPoll
+		nop
+		nop
+		nop
 
 		jsr FramePump
 
@@ -290,7 +292,6 @@ main_loop
 ; about once per second spawn
 		lda |VKY_RNDL
 		and #$1F
-		ora #$20
 		sta <spawn_x
 		clc
 		lda |VKY_RNDL
@@ -306,8 +307,10 @@ main_loop
 ;		sta spawn_x+1
 
 		lda #SPRITE_CHERRY
+		lda #SPRITE_GHOST_BLUE
 		sta <spawn_no
 
+		do 1 ; random
 :again	lda |VKY_RNDL
 		and #$1f ; down to 31
 		cmp #SPRITE_BOOM
@@ -315,12 +318,18 @@ main_loop
 		bra :again
 :ok
 		sta <spawn_no
+		fin
 
 
 		;lda #%01000001
 		;lda #1  		  ; 0=8,1=16,2=24,3=32
 		lda |VKY_RNDL
 		sta <spawn_size
+
+		;lda #<160
+		;sta <spawn_x
+		;lda #>160
+		;sta <spawn_x+1
 
 		jsr SpawnEnemy
 
@@ -368,7 +377,7 @@ CollideMissile
 
 		stax :missile_x
 		sty  :missile_y
-		stz  :missile_y
+		stz  :missile_y+1
 
 		ldx	 in_use_sprites_count
 		bne	 :keep_going
@@ -377,7 +386,6 @@ CollideMissile
 		rts
 
 :keep_going
-
 		dex
 ]loop
 		phx
@@ -427,7 +435,7 @@ CollideMissile
 		lda :spr_x
 		sbc sprite_size_center,x
 		sta :spr_x
-		sta :spr_x+1
+		lda :spr_x+1
 		sbc #0
 		sta :spr_x+1
 
@@ -955,9 +963,16 @@ FreeSprite
 
 		rts
 ;------------------------------------------------------------------------------
-; A = enemy number
-; temp0 = enemy X position
+;
+; spawnx
+; spawn_no
+; spawn_size
+;
 SpawnEnemy
+
+		lda spawn_size
+		and #3
+		sta spawn_size
 
 :pSprite = temp0
 :pHW     = temp0+2
@@ -1027,10 +1042,15 @@ SpawnEnemy
 		lda #0
 		sta (:pSprite),y	; x fraction
 		iny
+
+		ldx spawn_size
+		clc
 		lda spawn_x   		; x position
+		adc sprite_size_center,x
 		sta (:pSprite),y
 		iny
 		lda spawn_x+1   	; x high
+		adc #0
 		sta (:pSprite),y
 		iny
 
