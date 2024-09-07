@@ -491,29 +491,32 @@ CollideMissile
 		jsr negate_ax
 :dx_is_good
 		stax :dx
-		stax MULU_A_L
-		stax MULU_B_L
+		cmpax #31
+		bcsl :miss
 
-		ldaxy MULU_LL
-		staxy :delta
+		tax
+		lda fast_sq_math_lo,x
+		sta :delta
+		lda fast_sq_math_hi,x
+		sta :delta+1
+		stz :delta+2
 
-		; absolute value dy
 		ldax :dy
 		bpl :dy_is_good
 		jsr negate_ax
 :dy_is_good
 		stax :dy
-		stax MULU_A_L
-		stax MULU_B_L
+		cmpax #31
+		bcs :miss
 
-		clc
-		lda MULU_LL
+		tax
+		lda fast_sq_math_lo,x
 		adc :delta
 		sta :delta
-		lda MULU_LL+1
+		lda fast_sq_math_hi,x
 		adc :delta+1
 		sta :delta+1
-		lda MULU_LL+2
+		lda #0
 		adc :delta+2
 		sta :delta+2
 
@@ -2141,6 +2144,20 @@ radius_sq_table
 		dw 64
 		dw 144
 		dw 256
+
+fast_sq_math_lo
+]var = 0
+		lup 32
+		db ]var*]var
+]var = ]var+1
+		--^
+
+fast_sq_math_hi
+]var = 0
+		lup 32
+		db {]var*]var}/256
+]var = ]var+1
+		--^
 
 ;------------------------------------------------------------------------------
 ; pre compute sprite addresses, so I don't have to do math
