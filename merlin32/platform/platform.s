@@ -2139,15 +2139,14 @@ init320x200
 
 ;------------------------------------------------------------------------------
 ;
-; Let's Gooo Baller Sprites!!
+; Decompress the Platformer Dude
 ;
 
-		do 0
 ; Get the LUT Data
 
 		ldaxy #CLUT_DATA
 		jsr set_write_address
-		ldaxy #baller_sheet
+		ldaxy #sprite_idle
 		jsr set_read_address
 
 		jsr decompress_clut
@@ -2172,35 +2171,72 @@ init320x200
 		dex
 		bne ]lp
 
-		; Let's go! Blue Baller!
-
-		; Index 62 must be #452EEF
-
-		ldaxy #$452EEF
-		staxy VKY_GR_CLUT_2+{62*4}
-
-		; Index 63 must be #2E2097
-
-		ldaxy #$2E2097
-		staxy VKY_GR_CLUT_2+{63*4}
+;------------------------------------------------------------------------------
+;
+; Decompress the 32x32 sprite frames
+;
 
 		stz io_ctrl
 
-; Get the Sprite Pixels
+		ldx #3*7
 
-		ldaxy #SPRITE_TILES
-		jsr set_write_address
-		ldaxy #baller_sheet
+]lp
+		phx
+
+		lda :anims+2,x
+		tay
+		lda :anims+1,x
+		pha
+		lda :anims,x
+		plx
+
 		jsr set_read_address
 
+		plx
+		phx
+
+		lda :targets+2,x
+		tay
+		lda :targets+1,x
+		pha
+		lda :targets,x
+		plx
+
+		jsr set_write_address
+
 		jsr decompress_pixels
-		fin
+
+		plx
+		dex
+		dex
+		dex
+		bpl ]lp
 
 		lda #2 			; back to text mapping
 		sta io_ctrl
 		plp
 
 		rts
+
+
+
+:anims  adr sprite_idle
+		adr sprite_idlel
+		adr sprite_jump
+		adr sprite_jumpl
+		adr sprite_run
+		adr sprite_runl
+		adr sprite_walk
+		adr sprite_walkl
+
+:targets adr SPRITE_TILES
+		adr SPRITE_TILES+{1024*10}
+		adr SPRITE_TILES+{1024*20}
+		adr SPRITE_TILES+{1024*23}
+		adr SPRITE_TILES+{1024*26}
+		adr SPRITE_TILES+{1024*32}
+		adr SPRITE_TILES+{1024*40}
+		adr SPRITE_TILES+{1024*48}
 
 ;------------------------------------------------------------------------------
 
