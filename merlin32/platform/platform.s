@@ -2090,6 +2090,16 @@ init320x200
 
 		stz io_ctrl
 
+; Get the Collision Attributes
+
+		ldaxy #AT_MAP
+		jsr set_write_address
+		ldaxy #img_court
+		jsr set_read_address
+
+		jsr decompress_map		; grabs layer 0, which is collision in these level files
+
+
 ; Get the Map
 
 		ldaxy #MAP_DATA0
@@ -2101,7 +2111,7 @@ init320x200
 		; second map layer is the foreground
 		; third map layer is the background
 
-		lda #1  					; Get map layer 2, if it exists
+		lda #1  					; Get map layer 1, if it exists
 		jsr decompress_map_layer
 
 		ldaxy #MAP_DATA1
