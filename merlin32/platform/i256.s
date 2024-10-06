@@ -145,6 +145,96 @@ decompress_clut
 ; set_read_address  - the source address for the image.256 file
 ; set_write_address - the destination address of the pixels data
 ;
+; Input A = which map layer do you want to decompress
+;
+; if c=0, then operation success
+; if c=1, then operation fail, error code in A
+;
+
+decompress_map_layer
+
+:temp = i256_temp0
+
+		pha
+		jsr c256init
+		bcc :noerror
+		plx
+		rts
+:noerror
+:try_again
+		lda #<CHNK_TMAP
+		ldx #>CHNK_TMAP
+		jsr FindChunk
+
+		sta i256_pChunk
+		stx i256_pChunk+1
+		sty i256_pChunk+2
+
+		ora i256_pChunk+1
+		ora i256_pChunk+2
+		bne :hasMap
+
+		sec
+		pla
+		lda #i256_error_nomap
+		rts
+:hasMap
+		pla
+		dec
+		bmi hasMap
+
+		pha  ; preserve counter
+
+		ldaxy i256_pChunk
+		phy
+		phx
+		pha
+
+		jsr set_read_address
+
+		jsr readbyte 		; pop off the header chars
+		jsr readbyte
+		jsr readbyte
+		jsr readbyte
+
+		pla
+		plx
+		ply
+		sta :temp
+		stx :temp+1
+		sty :temp+2
+
+		jsr readbyte
+		clc
+		adc :temp
+		sta :temp
+		php
+		jsr readbyte
+		plp
+		adc :temp+1
+		sta :temp+1
+		php
+		jsr readbyte
+		plp
+		adc :temp+2
+		sta :temp+2
+		jsr readbyte  ; if throw away 4th byte
+
+		lda :temp
+		ldx :temp+1
+		ldy :temp+2
+		jsr set_read_address
+
+		bra :try_again
+
+;------------------------------------------------------------------------------
+;
+; This works with the mmu utils, and the lzsa2 decompressor
+; Addresses are in System Memory BUS space
+;
+; set_read_address  - the source address for the image.256 file
+; set_write_address - the destination address of the pixels data
+;
 ; if c=0, then operation success
 ; if c=1, then operation fail, error code in A
 ;
@@ -168,8 +258,8 @@ decompress_map
 		sec
 		lda #i256_error_nomap
 		rts
-
 :hasMap
+hasMap
 		; add 8 bytes, to skip up to width      
 		clc
 		lda i256_pChunk
@@ -211,7 +301,7 @@ decompress_map
 decompress_pixels
 		jsr c256init
 		bcs :error
-:error
+
 		lda #<CHNK_PIXL
 		ldx #>CHNK_PIXL
 		jsr FindChunk
@@ -436,7 +526,6 @@ FindChunk
 
 		rts
 :nextChunk
-
 		pla
 		plx
 		ply

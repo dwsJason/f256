@@ -42,6 +42,12 @@ main_code_start
 		put lzsa2.s
 		put i256.s
 		put colors.s
+
+		dum *
+; Uinitialized Memory, that we need for decompression
+CLUT_DATA ds 1024
+		dend
+
 main_code_end
 
 ;------------------------------------------------------------------------------
@@ -54,6 +60,18 @@ image1_start
 img_court	  putbin data\maps\test.256
 
 namco_font    putbin data\namco_font.font
+
+sprite_idle   putbin data\sprites\idle.256  	  ; 10
+sprite_idlel  putbin data\sprites\idle_flip.256   ; 10
+
+sprite_jump   putbin data\sprites\jump.256  	  ; 3
+sprite_jumpl  putbin data\sprites\jump_flip.256   ; 3
+
+sprite_run    putbin data\sprites\run.256   	  ; 8
+sprite_runl   putbin data\sprites\run_flip.256    ; 8
+
+sprite_walk   putbin data\sprites\walk.256  	  ; 8
+sprite_walkl  putbin data\sprites\walk_flip.256   ; 8
 
 image1_end
 
