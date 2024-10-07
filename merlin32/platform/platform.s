@@ -136,7 +136,8 @@ MAP_DATA2 = SKY_MAP
 SKY_CHAR = $20000   ; up to 256 tiles for the SKY
 MAP_CHAR = $30000   ; up to 256 tiles for the Current MAP
 
-SPRITE_TILES  = $40000  ; currently hold to 64k
+SPRITE_TILES       = $40000  ; currently hold to 64k
+SPRITE_TILES_HFLIP = $50000  ; the same tiles, all HFlipped
 
 TILE_DATA0 = MAP_CHAR
 TILE_DATA1 = SKY_CHAR
@@ -2205,11 +2206,11 @@ init320x200
 		plx
 		phx
 
-		lda :targets+2,x
+		lda :target+2,x
 		tay
-		lda :targets+1,x
+		lda :target+1,x
 		pha
-		lda :targets,x
+		lda :target,x
 		plx
 
 		jsr set_write_address
@@ -2239,14 +2240,16 @@ init320x200
 		adr sprite_walk
 		adr sprite_walkl
 
-:targets adr SPRITE_TILES
+:target adr SPRITE_TILES
+		adr SPRITE_TILES_HFLIP
 		adr SPRITE_TILES+{1024*10}
-		adr SPRITE_TILES+{1024*20}
-		adr SPRITE_TILES+{1024*23}
-		adr SPRITE_TILES+{1024*26}
-		adr SPRITE_TILES+{1024*32}
-		adr SPRITE_TILES+{1024*40}
-		adr SPRITE_TILES+{1024*48}
+		adr SPRITE_TILES_HFLIP+{1024*10}
+		adr SPRITE_TILES+{1024*13}
+		adr SPRITE_TILES_HFLIP+{1024*13}
+		adr SPRITE_TILES+{1024*21}
+		adr SPRITE_TILES_HFLIP+{1024*21}
+
+		; next space is at 1024*29
 
 ;------------------------------------------------------------------------------
 
