@@ -746,29 +746,25 @@ txt_title asc 'game thing'
 WaitVBLPoll
 		php
 		sei
-		lda $1
+		lda $1				; save the io page
 		pha
-		stz $1
-LINE_NO = 261*2
-        lda #<LINE_NO
-        ldx #>LINE_NO
+		stz $1  			; switch over to see registers
+LINE_NO = 261*2 		 	; text mode on the machine is actually 480 lines tall
+        lda #<LINE_NO		; this number 522, determined via experimentation
+        ldx #>LINE_NO		; (you could change the border color, and see where on the screen this line changes color)
+
 :waitforlineAX		
-]wait
-        cpx $D01B
-        beq ]wait
-]wait
-        cmp $D01A
-        beq ]wait
 
 ]wait
-        cpx $D01B
+        cpx $D01B			; wait for hi byte to match
         bne ]wait
 ]wait
-        cmp $D01A
+        cmp $D01A			; then wait for lo byte to match
         bne ]wait
-		pla 
+
+		pla 				; restore io page
 		sta $1
-		plp
+		plp 			   	; restore interrupts
         rts
 
 ;------------------------------------------------------------------------------
@@ -831,7 +827,7 @@ LOGIC_EXPLODE      db 1
 
 ; lower this number, if you want to reserve some sprites
 ; for things outside this system
-MAX_NUM_SPRITES = 64
+MAX_NUM_SPRITES = 48
 SPRITE_SPAWN_TIME = 7 ; 8x per second
 
 ;------------------------------------------------------------------------------
