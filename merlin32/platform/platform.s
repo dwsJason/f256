@@ -62,7 +62,6 @@ jiffy ds 2 ; IRQ counts this up every VBL, really doesn't need to be 2 bytes
 
 event_data ds 16
 
-
 ;
 ; Frisbee Physics
 ;
@@ -118,6 +117,32 @@ map_height_tiles ds 1
 
 	dend
 
+
+;------------------------------------------------------------------------------
+; frame enumeration
+	dum 0
+sp_frames_idle ds 10 	 ; first of 10 frames
+sp_frames_jump ds 1 	 ; first of 3 frames
+sp_frames_jump_peak ds 1 ;
+sp_frames_jump_fall ds 1 ;
+sp_frames_run  ds 8 	 ; first of 8 frames
+sp_frames_walk ds 8 	 ; first of 8 frames
+	dend
+
+; animation commands
+	dum $80
+anim_cmd_end   ds 1       ; animation end
+anim_cmd_loop  ds 1  	  ; jump back to start address
+anim_cmd_speed ds 1       ; set animation speed $100=60fps, $80=30fps, $40=15fps
+	dend
+
+	dum 0
+; animation enum
+sp_anim_idle ds 1
+sp_anim_jump ds 1
+sp_anim_run  ds 1
+sp_anim_walk ds 1
+	dend	   
 
 ;------------------------------------------------------------------------------
 ; The plan here is to keep the attribute map under 8k bytes
@@ -2296,4 +2321,48 @@ LoadNamcoFont
 		rts
 
 ;------------------------------------------------------------------------------
+; Animation Data for our guy sprite
 
+; List of addresses to the start of animations
+
+anim_table_lo
+		db anim_def_idle
+		db anim_def_jump
+		db anim_def_run
+		db anim_def_walk
+
+anim_table_hi
+		db >anim_def_idle
+		db >anim_def_jump
+		db >anim_def_run
+		db >anim_def_walk
+
+anim_def_idle
+		db anim_cmd_speed
+		dw 256/6		  ; 10 fps
+		db sp_anim_idle+0,sp_anim_idle+1,sp_anim_idle+2,sp_anim_idle+3,sp_anim_idle+4
+		db sp_anim_idle+5,sp_anim_idle+6,sp_anim_idle+7,sp_anim_idle+8,sp_anim_idle+9
+		db anim_cmd_loop
+
+anim_def_jump
+		db anim_cmd_speed
+		dw 0			  ; frozen
+		db sp_frames_jump,sp_frames_jump_peak,sp_frames_jump_fall,anim_cmd_end
+
+anim_def_run
+		db anim_cmd_speed
+		dw 256/6		  ; 10 fps
+		db sp_frames_run+0,sp_frames_run+1,sp_frames_run+2,sp_frames_run+3
+		db sp_frames_run+4,sp_frames_run+5,sp_frames_run+6,sp_frames_run+7
+		db anim_cmd_loop
+
+anim_def_walk
+		db anim_cmd_speed
+		dw 256/6		  ; 10 fps
+		db sp_frames_walk+0,sp_frames_walk+1,sp_frames_walk+2,sp_frames_walk+3
+		db sp_frames_walk+4,sp_frames_walk+5,sp_frames_walk+6,sp_frames_walk+7
+		db anim_cmd_loop
+
+
+
+		 
