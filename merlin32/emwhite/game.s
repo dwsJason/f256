@@ -758,7 +758,7 @@ LINE_NO = 261*2 		 	; text mode on the machine is actually 480 lines tall
 ]wait
         cpx $D01B			; wait for hi byte to match
         bne ]wait
-]wait
+
         cmp $D01A			; then wait for lo byte to match
         bne ]wait
 
