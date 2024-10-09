@@ -81,6 +81,9 @@ p1_vx ds 2
 p1_vy ds 2
 
 pAnim ds 2 ; pointer to the current animation sequence 
+anim_index ds 1
+anim_timer ds 2
+anim_sprite_frame ds 1
 
 ;-------------------------------
 
@@ -278,6 +281,10 @@ VIRQ = $FFFE
 		jsr PlayerDiscCollision
 
 ;------------------------------------------------------------------------------
+
+		jsr AnimUpdate
+
+;------------------------------------------------------------------------------
 		; We should let the SNES data come in, while we're waiting
 		stz io_ctrl
 		lda #%10000101
@@ -297,7 +304,13 @@ VIRQ = $FFFE
 ;;  MAIN LOOP HERE ------------------------------------------------------------
 ;;
 ;;-----------------------------------------------------------------------------
-;
+
+AnimUpdate
+
+		rts
+
+
+;;-----------------------------------------------------------------------------
 
 PlayerDiscCollision
 		rts
