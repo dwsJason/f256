@@ -83,6 +83,7 @@ p1_vy ds 2
 pAnim ds 2 ; pointer to the current animation sequence 
 anim_index ds 1
 anim_timer ds 2
+anim_speed ds 2
 anim_sprite_frame ds 1
 
 ;-------------------------------
@@ -305,10 +306,101 @@ VIRQ = $FFFE
 ;;
 ;;-----------------------------------------------------------------------------
 
+;
+; We just assume this is called once per jiffy, if you want frame rate
+; compensation, then put that logic outside of here, you can call this more
+; than once per frame
+;
+; The animation parses a command list, which is compromised of frames, and commands
+; most commands execute immediately, and move forward
+;
+; When a valid frame is encountered, we set it, and are done parsing for the frame
+;
 AnimUpdate
+
+		sec
+		lda anim_timer
+		sbc anim_speed
+		sta anim_timer
+		lda anim_timer+1
+		sbc anim_speed+1
+		sta anim_timer+1
+		bcc :update_anim
+
+		rts	; nothing to do until time runs out
+
+
+:update_anim
+		; c = 0
+		; we want to maintain the fractional update, so instead of reseting
+		; the time back to $100, we just add $100
+		inc anim_timer+1
+
+AnimUpdateImediate  ; used by the AnimSet functions to get us into the first frame
+
+		ldy anim_index ; anim_index points to the next command
+]loop
+		lda (pAnim),y
+		bpl :set_frame
+
+		; we have a command
+		asl
+		tax
+		jmp (:commands,x)
+
+:commands
+		da :anim_cmd_end
+		da :anim_cmd_loop
+		da :anim_cmd_speed
+
+:anim_cmd_end
+		; end command will just keep coming here, and doing nothing
+		; because we are done
+		rts
+
+:anim_cmd_loop
+		ldy #0  ; loop takes us back to the beginning of the anim, no waiting
+		bra ]loop
+
+:anim_cmd_speed ; set the speed of the anim, no waiting
+		iny
+		lda (pAnim),y
+		sta anim_speed
+		iny
+		lda (pAnim),y
+		sta anim_speed+1
+		iny
+		bra ]loop
+
+:set_frame
+		sta anim_sprite_frame
+		iny
+		sty anim_index
 
 		rts
 
+;------------------------------------------------------------------------------
+;
+; AX has pointer to the anim
+;
+AnimSetAX
+		; set the pointer to the animation in memory
+		sta pAnim
+		stx pAnim+1
+
+		; set Anim Timer to $100
+		stz anim_timer
+		ldy #1
+		sty anim_timer+1
+
+		; default anim speed to 10fps
+		stz anim_speed+1
+		ldy #256/6
+		sty anim_speed
+
+		stz anim_index			; zero the animation index
+
+		jmp AnimUpdateImediate  ; jsr+rts
 
 ;;-----------------------------------------------------------------------------
 
