@@ -62,53 +62,32 @@ jiffy ds 2 ; IRQ counts this up every VBL, really doesn't need to be 2 bytes
 
 event_data ds 16
 
+;-------------------------------
 ;
-; Frisbee Physics
+; Camera Variables
 ;
-frisbee_x  ds 2
-frisbee_y  ds 2
-frisbee_vx ds 2
-frisbee_vy ds 2
 
-;
-; -1 -> no player
-;  0 -> player 1
-;  1 -> player 2
-;
-frisbee_state ds 1 ; which player has the fris?
-
+camera_x ds 2
+camera_y ds 2
 
 ;-------------------------------
 ;
-; Red Player Physics
+; Player Physics
 ;
-; DO NOT SEPARATE FROM THE p2 VARIABLES
 
-p1_x ds 2
-p1_y ds 2
+p1_x ds 3
+p1_y ds 3
 p1_vx ds 2
 p1_vy ds 2
 
-;
-; Blue Player Physics
-;
+pAnim ds 2 ; pointer to the current animation sequence 
 
-p2_x ds 2
-p2_y ds 2
-p2_vx ds 2
-p2_vy ds 2
-; DO NOT SEPARATE FROM THE p1 VARIABLES
 ;-------------------------------
 
 p1_keyboard_raw ds 2
 p1_dpad_input_raw ds 2
 p1_dpad_input_down ds 2
 p1_dpad_input_up ds 2
-
-p2_keyboard_raw ds 2
-p2_dpad_input_raw ds 2
-p2_dpad_input_down ds 2
-p2_dpad_input_up ds 2
 
 map_width_pixels ds 2
 map_width_tiles  ds 1
@@ -233,28 +212,13 @@ start
 		lda #-1
 		sta p1_keyboard_raw
 		sta p1_keyboard_raw+1
-		sta p2_keyboard_raw
-		sta p2_keyboard_raw+1
+		;sta p2_keyboard_raw
+		;sta p2_keyboard_raw+1
 
 
 ; Wait here for now
 
-]wait_here bra ]wait_here
-
-		; Frisbee position, and velocity
-
-		lda #128
-		stz frisbee_x
-		sta frisbee_x+1
-		stz frisbee_y
-		sta frisbee_y+1
-
-		stz frisbee_vx
-		stz frisbee_vx+1
-		stz frisbee_vy
-		stz frisbee_vy+1
-
-		; Red Player 1 position, and velocity
+		; Player 1 position, and velocity
 
 		lda #128-64
 		stz p1_x
@@ -269,42 +233,11 @@ start
 		stz p1_vy
 		stz p1_vy+1
 
-		; Blue Player 2 position, and velocity
-
-		lda #128+64
-		stz p2_x
-		sta p2_x+1
-
-		lda #128
-		stz p2_y
-		sta p2_y+1
-
-		stz p2_vx
-		stz p2_vx+1
-		stz p2_vy
-		stz p2_vy+1
-
-
 		ldax #$080
 		stax p1_vx
 		ldax #$180
 		stax p1_vy
 
-		ldax #$100
-		stax p2_vx
-		ldax #$100
-		stax p2_vy
-
-		ldax #$100
-		stax frisbee_vx
-		ldax #$080
-		stax frisbee_vy
-
-		; this mostly controls the logic to do collision
-		; and if the frisbee is in someone's posession
-
-		lda #-1
-		sta frisbee_state
 
 ;;-----------------------------------------------------------------------------
 ;;
@@ -314,11 +247,7 @@ start
 
 VIRQ = $FFFE
 
-
 ]main_loop
-;		php
-;		ldx #0
-;		jsr (VIRQ,x)  			; fake IRQ?
 
 		jsr kernel_NextEvent
 		bcs :no_events
@@ -339,12 +268,6 @@ VIRQ = $FFFE
 		stax temp0
 
 		ldx #p1_x
-		jsr PlayerBounds
-
-		ldax #p2_bounds_table
-		stax temp0
-
-		ldx #p2_x
 		jsr PlayerBounds
 
 		; so to make sure frisbee is ok when being carried
@@ -377,54 +300,9 @@ VIRQ = $FFFE
 ;
 
 PlayerDiscCollision
-
-		; Collision detect disc and player
-		;
-		
-		lda frisbee_state
-		bmi :lets_go		; the frisbee is airborn
-
-		; someone already has frisbee
 		rts
 
-:lets_go
-
-		jsr Player1Check
-		; fall to player2
-
-Player2Check
-
-
-:dx = temp0
-:dy = temp0+1
-
-		; Get DX from player 1
-		sec
-		lda p2_x+1
-		sbc frisbee_x+1
-		bcs :no_borrow
-
-		; negate, so we have a positive value
-		eor #$ff
-		inc
-
-:no_borrow
-		sta :dx
-
-		; Get DY from player 1
-		sec
-		lda p2_y+1
-		sbc frisbee_y+1
-		bcs :no_borrow2
-
-		; negate, so we have a positive value
-		eor #$FF
-		inc
-
-:no_borrow2
-
-		sta :dy
-
+		do 0
 ; ok, did we catch it?
 
 		stz io_ctrl
@@ -457,22 +335,23 @@ Player2Check
 		; caught it, we'll have to add something
 		; to player movement, to drag this along with us
 		lda #1
-		sta frisbee_state ; P2
+		;sta frisbee_state ; P2
 
-		stz frisbee_vx
-		stz frisbee_vx+1
-		stz frisbee_vy
-		stz frisbee_vy+1
+		;stz frisbee_vx
+		;stz frisbee_vx+1
+		;stz frisbee_vy
+		;stz frisbee_vy+1
 
 :no_catch
 
 		ldy #2
 		sty io_ctrl
-
+		fin
 		rts
 
 Player1Check
-
+		rts
+		do 0
 :dx = temp0
 :dy = temp0+1
 
@@ -558,7 +437,7 @@ Player1Check
 		sty io_ctrl
 
 ;		jsr TermPrintAXH
-
+		fin
 		rts
 
 ;------------------------------------------------------------------------------
@@ -569,6 +448,7 @@ GameControls
 		jsr ReadHardware
 		jsr MovePlayerControls
 
+		do 0
 		lda frisbee_state
 		bne :not_p1
 
@@ -690,6 +570,7 @@ GameControls
 		jmp frisbee_dy
 
 :not_p2
+		fin
 		rts
 ;------------------------------------------------------------------------------
 ;
@@ -698,7 +579,7 @@ GameControls
 ; Add a 50% speed boost
 ;
 BoostFrisbeeSpeed
-
+		do 0
 :temp = temp0
 
 		ldax frisbee_vx
@@ -734,6 +615,7 @@ BoostFrisbeeSpeed
 		cmp #$80
 		ror :temp+1
 		ror :temp
+		fin
 		rts
 
 ;------------------------------------------------------------------------------
@@ -767,6 +649,7 @@ MovePlayerControls
 		adc p1_vy+1
 		sta p1_vy+1
 
+		do 0
 ; Player 2 Control pad do your thing acceleration
 
 		lda p2_dpad_input_raw
@@ -793,7 +676,7 @@ MovePlayerControls
 		lda :accel_table_y+1,x
 		adc p2_vy+1
 		sta p2_vy+1
-
+		fin
 
 		rts
 
@@ -900,7 +783,7 @@ ReadHardware
 
 ;------------------------------------------------------------------------------
 ; player 2 controller read + input latching
-
+		do 0
 		ldax p2_dpad_input_raw
 		stax :prev_input
 
@@ -941,7 +824,7 @@ ReadHardware
 		lda :latch_input+1
 		and :inv_input+1
 		sta p2_dpad_input_up+1
-
+		fin
 ;------------------------------------------------------------------------------
 ; hack code to test the button up/ button down
 
@@ -1187,7 +1070,9 @@ PlayerBounds_Bouncy
 
 ;------------------------------------------------------------------------------
 FrisbeeLogic
+		rts
 
+		do 0
 		lda frisbee_state
 		bmi :in_flight
 
@@ -1289,6 +1174,7 @@ FrisbeeLogic
 		inc
 		sta frisbee_vy+1
 		rts
+		fin
 
 
 ;------------------------------------------------------------------------------
@@ -1331,7 +1217,9 @@ MoveFrisbee
 		jsr :friction
 		stax p1_vy
 
+		rts
 
+		do 0
 		lda #2
 		sta io_ctrl
 
@@ -1394,7 +1282,7 @@ frisbee_dy = *
 		; Probably some arena bounds check can happen here, since after we
 		; leave here, we will have lost the carry state, and we haven't
 		; left enough space ni the frisbee coordinate system to help us check later
-
+		fin
 		rts
 
 :friction
@@ -1459,6 +1347,8 @@ SP_POS_Y ds 2
 DrawSprites
 
 		stz io_ctrl		; edit sprites
+
+		do 0
 
 P1_SP_NUM = {8*1}
 P1_SP_CTRL = VKY_SP0_CTRL+P1_SP_NUM
@@ -1698,6 +1588,7 @@ FRISB_SP_POS_Y = VKY_SP0_POS_Y_L+FRISB_SP_NUM
 		sta FRISB_SP_POS_Y+{8*32} 
 		stz FRISB_SP_POS_Y+1+{8*32}
 
+		fin
 
 		lda #2
 		sta io_ctrl     ; edit text
@@ -1797,7 +1688,7 @@ DoKeyUp
 		tsb p1_keyboard_raw
 		rts
 :nx4
-		do 1
+		do 0
 		; player 2 keys
 		cmp #$B6  ; up
 		bne :nx5
@@ -1831,11 +1722,11 @@ DoKeyUp
 		tsb p1_keyboard_raw+1
 		rts
 :nx9
-		cmp #$20 ; Throw
-		bne :nx10
-		lda #>SNES_A
-		tsb p2_keyboard_raw+1
-		rts
+		;cmp #$20 ; Throw
+		;bne :nx10
+		;lda #>SNES_A
+		;tsb p2_keyboard_raw+1
+		;rts
 :nx10
 
 		rts
@@ -1870,7 +1761,7 @@ DoKeyDown
 		trb p1_keyboard_raw
 		rts
 
-		do 1
+		do 0
 :nx4
 		; player 2 keys
 		cmp #$B6  ; up
@@ -1906,11 +1797,11 @@ DoKeyDown
 		rts
 :nx9
 
-		cmp #$20 ; Throw
-		bne :nx10
-		lda #>SNES_A
-		trb p2_keyboard_raw+1
-		rts
+		;cmp #$20 ; Throw
+		;bne :nx10
+		;lda #>SNES_A
+		;trb p2_keyboard_raw+1
+		;rts
 :nx10
 
 
