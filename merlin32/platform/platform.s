@@ -224,11 +224,11 @@ start
 
 		; Player 1 position, and velocity
 
-		ldax #128-64
 		stz p1_x
+		ldax #128
 		stax p1_x+1
 		
-		ldax #128
+		ldax #168
 		stz p1_y
 		stax p1_y+1
 
@@ -238,8 +238,8 @@ start
 		stz p1_vy+1
 
 		ldax #anim_def_idle
-		ldax #anim_def_walk
-		ldax #anim_def_run
+		;ldax #anim_def_walk
+		;ldax #anim_def_run
 		jsr  AnimSetAX
 
 ;;-----------------------------------------------------------------------------
@@ -1044,7 +1044,7 @@ player_vy ds 2
 ; CLAMP, BORING
 ;
 PlayerBounds
-
+		rts
 :minmax = temp0
 
 		lda player_y+1,x
