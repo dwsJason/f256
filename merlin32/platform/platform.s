@@ -224,24 +224,23 @@ start
 
 		; Player 1 position, and velocity
 
-		lda #128-64
+		ldax #128-64
 		stz p1_x
-		sta p1_x+1
-
-		lda #128
+		stax p1_x+1
+		
+		ldax #128
 		stz p1_y
-		sta p1_y+1
+		stax p1_y+1
 
 		stz p1_vx
 		stz p1_vx+1
 		stz p1_vy
 		stz p1_vy+1
 
-		ldax #$080
-		stax p1_vx
-		ldax #$180
-		stax p1_vy
-
+		ldax #anim_def_idle
+		ldax #anim_def_walk
+		ldax #anim_def_run
+		jsr  AnimSetAX
 
 ;;-----------------------------------------------------------------------------
 ;;
@@ -1452,6 +1451,38 @@ SP_POS_Y ds 2
 DrawSprites
 
 		stz io_ctrl		; edit sprites
+
+;
+; If I do something here, I can see my man idling in the middle of the screen "ish"
+;
+
+P1_SP_NUM = {8*32}
+P1_SP_CTRL = VKY_SP0_CTRL+P1_SP_NUM
+P1_SP_AD_L = VKY_SP0_AD_L+P1_SP_NUM
+P1_SP_AD_M = VKY_SP0_AD_M+P1_SP_NUM
+P1_SP_AD_H = VKY_SP0_AD_H+P1_SP_NUM
+P1_SP_POS_X = VKY_SP0_POS_X_L+P1_SP_NUM
+P1_SP_POS_Y = VKY_SP0_POS_Y_L+P1_SP_NUM
+
+
+		lda #%00_01_01_1   ; 32x32, layer1, lut1, enable
+		sta P1_SP_CTRL
+
+		stz P1_SP_AD_L
+
+		lda anim_sprite_frame
+		asl 					; seems quicker than table lookup
+		asl
+		sta P1_SP_AD_M
+
+		lda #^SPRITE_TILES  ; change this to a ram address, so we can set bit 1 for hflip
+		sta P1_SP_AD_H
+
+		ldax p1_x+1
+		stax P1_SP_POS_X
+
+		ldax p1_y+1
+		stax P1_SP_POS_Y
 
 		do 0
 
