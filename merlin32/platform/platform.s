@@ -225,11 +225,12 @@ start
 		; Player 1 position, and velocity
 
 		stz p1_x
-		ldax #128
+		;ldax #128
+		ldax #500
 		stax p1_x+1
 		
 		stz p1_y
-		ldax #1024-48
+		ldax #1024-48-32
 		stax p1_y+1
 
 		stz p1_vx
@@ -360,14 +361,14 @@ CameraUpdate
 
 :keep_going
 		; if camerax > (1024-320), then camerax must be 1024-320
-		cmp #>{1024-320}
+		cmp #>{1008-320}
 		bcc :check_that_y
 
 		lda camera_x
-		cmp #<{1024-320}
+		cmp #<{1008-320}
 		bcc :check_that_y
 
-		ldax #1024-320
+		ldax #1008-320
 		stax camera_x
 
 :check_that_y
@@ -383,14 +384,14 @@ CameraUpdate
 		; if cameray > (1024-320), then cameray must be 1024-200
 :keep_going2
 
-		cmp #>{1024-200}
+		cmp #>{1008-200}
 		bcc :we_done
 
 		lda camera_y
-		cmp #<{1024-200}
+		cmp #<{1008-200}
 		bcc :we_done
 
-		ldax #1024-200
+		ldax #1008-200
 		sta camera_y
 :we_done
 
