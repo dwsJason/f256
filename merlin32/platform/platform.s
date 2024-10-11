@@ -318,6 +318,10 @@ CameraBlit
 		stax VKY_TM0_POS_X_L
 		stax VKY_TM1_POS_X_L
 
+		ldax camera_y
+		stax VKY_TM0_POS_Y_L
+		stax VKY_TM1_POS_Y_L
+
 		lda #2
 		sta io_ctrl
 		rts
@@ -332,7 +336,7 @@ CameraUpdate
 		; for now, put him in the center of the screen
 		sec
 		lda p1_x+1
-		sbc #160
+		sbc #160+32
 		sta camera_x
 		lda p1_x+2
 		sbc #0
@@ -340,7 +344,7 @@ CameraUpdate
 
 		sec
 		lda p1_y+1
-		sbc #100
+		sbc #100+32-48
 		sta camera_y
 		lda p1_y+2
 		sbc #0
@@ -352,12 +356,43 @@ CameraUpdate
 
 		stz camera_x
 		stz camera_x+1
+		lda #0
 
 :keep_going
 		; if camerax > (1024-320), then camerax must be 1024-320
+		cmp #>{1024-320}
+		bcc :check_that_y
 
+		lda camera_x
+		cmp #<{1024-320}
+		bcc :check_that_y
+
+		ldax #1024-320
+		stax camera_x
+
+:check_that_y
 		; if cameray < 0, then cameray must be 0
+
+		lda camera_y+1
+		bpl :keep_going2
+
+		stz camera_y
+		stz camera_y+1
+		lda #0
+
 		; if cameray > (1024-320), then cameray must be 1024-200
+:keep_going2
+
+		cmp #>{1024-200}
+		bcc :we_done
+
+		lda camera_y
+		cmp #<{1024-200}
+		bcc :we_done
+
+		ldax #1024-200
+		sta camera_y
+:we_done
 
 		rts
 
