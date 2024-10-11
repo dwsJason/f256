@@ -228,8 +228,8 @@ start
 		ldax #128
 		stax p1_x+1
 		
-		ldax #168
 		stz p1_y
+		ldax #1024-48
 		stax p1_y+1
 
 		stz p1_vx
@@ -284,6 +284,8 @@ VIRQ = $FFFE
 
 		jsr AnimUpdate
 
+		jsr CameraUpdate
+
 ;------------------------------------------------------------------------------
 		; We should let the SNES data come in, while we're waiting
 		stz io_ctrl
@@ -296,6 +298,7 @@ VIRQ = $FFFE
 		inc <jiffy  ; since we don't have IRQ doing this
 		jsr WaitVBLPoll
 
+		jsr CameraBlit
 		jsr DrawSprites
 
 		bra ]main_loop
@@ -304,6 +307,59 @@ VIRQ = $FFFE
 ;;  MAIN LOOP HERE ------------------------------------------------------------
 ;;
 ;;-----------------------------------------------------------------------------
+
+;
+; It's VBLANK, update those video registers
+;
+CameraBlit
+		stz io_ctrl
+
+		ldax camera_x
+		stax VKY_TM0_POS_X_L
+		stax VKY_TM1_POS_X_L
+
+		lda #2
+		sta io_ctrl
+		rts
+
+;
+; What the heck
+; We need to follow the dude around
+;
+CameraUpdate
+
+
+		; for now, put him in the center of the screen
+		sec
+		lda p1_x+1
+		sbc #160
+		sta camera_x
+		lda p1_x+2
+		sbc #0
+		sta camera_x+1
+
+		sec
+		lda p1_y+1
+		sbc #100
+		sta camera_y
+		lda p1_y+2
+		sbc #0
+		sta camera_y+1
+
+		; if camerax < 0, then camerax must be 0
+		lda camera_x+1
+		bpl :keep_going
+
+		stz camera_x
+		stz camera_x+1
+
+:keep_going
+		; if camerax > (1024-320), then camerax must be 1024-320
+
+		; if cameray < 0, then cameray must be 0
+		; if cameray > (1024-320), then cameray must be 1024-200
+
+		rts
 
 ;
 ; We just assume this is called once per jiffy, if you want frame rate
@@ -1478,11 +1534,21 @@ P1_SP_POS_Y = VKY_SP0_POS_Y_L+P1_SP_NUM
 		lda #^SPRITE_TILES  ; change this to a ram address, so we can set bit 1 for hflip
 		sta P1_SP_AD_H
 
-		ldax p1_x+1
-		stax P1_SP_POS_X
+		sec
+		lda p1_x+1
+		sbc camera_x
+		sta P1_SP_POS_X
+		lda p1_x+2
+		sbc camera_x+1
+		sta P1_SP_POS_X+1
 
-		ldax p1_y+1
-		stax P1_SP_POS_Y
+		sec
+		lda p1_y+1
+		sbc camera_y
+		sta P1_SP_POS_Y
+		lda p1_y+2
+		sbc camera_y+1
+		sta P1_SP_POS_Y+1
 
 		do 0
 
