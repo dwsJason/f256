@@ -277,15 +277,15 @@ VIRQ = $FFFE
 		ldax #p1_bounds_table
 		stax temp0
 
-		ldx #p1_x
-		jsr PlayerBounds
+		;ldx #p1_x
+		;jsr PlayerBounds
 
 		; so to make sure frisbee is ok when being carried
-		jsr FrisbeeLogic
+		;jsr FrisbeeLogic
 
 ;------------------------------------------------------------------------------
 
-		jsr PlayerDiscCollision
+		;jsr PlayerDiscCollision
 
 ;------------------------------------------------------------------------------
 
@@ -837,48 +837,25 @@ MovePlayerControls
 
 		;c=0 already
 		lda :accel_table_x,x
-		adc p1_vx
-		sta p1_vx
+		adc p1_x
+		sta p1_x
 		lda :accel_table_x+1,x
-		adc p1_vx+1
-		sta p1_vx+1
+		adc p1_x+1
+		sta p1_x+1
+		lda p1_x+2
+		adc #0
+		sta p1_x+2
 
 		clc
 		lda :accel_table_y,x
-		adc p1_vy
-		sta p1_vy
+		adc p1_y
+		sta p1_y
 		lda :accel_table_y+1,x
-		adc p1_vy+1
-		sta p1_vy+1
-
-		do 0
-; Player 2 Control pad do your thing acceleration
-
-		lda p2_dpad_input_raw
-		and #$F
-		asl
-		tax
-
-		; when we're pushing we apply an acceleration
-		; these load 4 bits
-		; Up, Down, Left, Right respectively
-
-		;c=0 already
-		lda :accel_table_x,x
-		adc p2_vx
-		sta p2_vx
-		lda :accel_table_x+1,x
-		adc p2_vx+1
-		sta p2_vx+1
-
-		clc
-		lda :accel_table_y,x
-		adc p2_vy
-		sta p2_vy
-		lda :accel_table_y+1,x
-		adc p2_vy+1
-		sta p2_vy+1
-		fin
+		adc p1_y+1
+		sta p1_y+1
+		lda p1_y+2
+		adc #0
+		sta p1_y+2
 
 		rts
 
@@ -1520,6 +1497,40 @@ MoveFrisbee
 		lsr
 		ror :y_tile			 	; this is now the :y_tile number \o/
 
+:pRowOld = temp2
+:pRowNow = temp2+2
+
+		lda :y_tile
+		jsr GetRowAddr
+		stax :pRowNow
+
+		lda :oldy_tile
+		jsr GetRowAddr
+		stax :pRowOld
+
+		lda :x_tile
+		asl
+		tay
+		lda (:pRowNow),y
+		beq :nothing_to_do
+
+		; We only have one kind of tile, and at the moment we only have
+		; 1 kind of velocity
+		stz p1_vy
+		stz p1_vy+1		; you hit stuff, so slow down
+
+		; up you go big guy - to the top of our tile, in fact into the tile
+		; above us, bye
+		lda p1_y+1
+		and #$F0
+		sta p1_y+1
+		dec p1_y+1
+		bne :y_is_good
+		dec p1_y+2
+:y_is_good
+
+:nothing_to_do
+
 		; restore the io_ctrl page
 		pla
 		sta io_ctrl
@@ -1593,6 +1604,31 @@ no_work
 		rts
 
 
+;------------------------------------------------------------------------------
+;
+; Input A = Row
+; Output AX = pRow
+;
+GetRowAddr
+		tay
+		lda :rowtableH,y
+		tax
+		lda :rowtableL,y
+		rts
+
+:rowtableL
+]v = MAP_ATTR
+		lup 64
+		db <]v
+]v = ]v+128
+		--^
+
+:rowtableH
+]v = MAP_ATTR
+		lup 64
+		db >]v
+]v = ]v+128
+		--^
 
 
 		dum 0
@@ -1603,6 +1639,7 @@ SP_AD_H ds 1
 SP_POS_X ds 2
 SP_POS_Y ds 2
 		dend
+
 
 ;------------------------------------------------------------------------------
 ;
