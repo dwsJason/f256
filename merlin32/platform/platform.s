@@ -829,6 +829,7 @@ MovePlayerControls
 		lda p1_dpad_input_raw
 		and #$F
 		asl
+		asl
 		tax
 
 		; when we're pushing we apply an acceleration
@@ -842,8 +843,8 @@ MovePlayerControls
 		lda :accel_table_x+1,x
 		adc p1_x+1
 		sta p1_x+1
-		lda p1_x+2
-		adc #0
+		lda :accel_table_x+2,x
+		adc p1_x+2
 		sta p1_x+2
 
 		clc
@@ -853,55 +854,55 @@ MovePlayerControls
 		lda :accel_table_y+1,x
 		adc p1_y+1
 		sta p1_y+1
-		lda p1_y+2
-		adc #0
+		lda :accel_table_y+2,x
+		adc p1_y+2
 		sta p1_y+2
 
 		rts
 
 :accel_table_x
 
-		dw $0000     ; nothing
-		dw ACCEL_X   ; right
-		dw -ACCEL_X  ; left
-		dw $0000     ; left+right
+		adrl $0000     ; nothing
+		adrl ACCEL_X   ; right
+		adrl -ACCEL_X  ; left
+		adrl $0000     ; left+right
 
-		dw $0000     ; down
-		dw ACCEL_XY  ; down+right
-		dw -ACCEL_XY ; down+left
-		dw $0000     ; down+left+right
+		adrl $0000     ; down
+		adrl ACCEL_XY  ; down+right
+		adrl -ACCEL_XY ; down+left
+		adrl $0000     ; down+left+right
 
-		dw $0000     ; up
-		dw ACCEL_XY  ; up+right
-		dw -ACCEL_XY ; up+left
-		dw $0000     ; up+left+right
+		adrl $0000     ; up
+		adrl ACCEL_XY  ; up+right
+		adrl -ACCEL_XY ; up+left
+		adrl $0000     ; up+left+right
 
-		dw $0000     ; up+down
-		dw ACCEL_XY  ; up+down+right
-		dw -ACCEL_XY ; up+down+left
-		dw $0000     ; up+down+left+right
+		adrl $0000     ; up+down
+		adrl ACCEL_XY  ; up+down+right
+		adrl -ACCEL_XY ; up+down+left
+		adrl $0000     ; up+down+left+right
 
 :accel_table_y
 
-		dw $0000     ; nothing
-		dw $0000     ; right
-		dw $0000     ; left
-		dw $0000     ; left+right
+		adrl $0000     ; nothing
+		adrl $0000     ; right
+		adrl $0000     ; left
+		adrl $0000     ; left+right
 
-		dw ACCEL_Y   ; down
-		dw ACCEL_XY  ; down+right
-		dw ACCEL_XY  ; down+left
-		dw ACCEL_Y   ; down+left+right
+		adrl ACCEL_Y   ; down
+		adrl ACCEL_XY  ; down+right
+		adrl ACCEL_XY  ; down+left
+		adrl ACCEL_Y   ; down+left+right
 
-		dw -ACCEL_Y  ; up
-		dw -ACCEL_XY ; up+right
-		dw -ACCEL_XY ; up+left
-		dw -ACCEL_Y  ; up+left+right
+		adrl -ACCEL_Y  ; up
+		adrl -ACCEL_XY ; up+right
+		adrl -ACCEL_XY ; up+left
+		adrl -ACCEL_Y  ; up+left+right
 
-		dw $0000     ; up+down
-		dw $0000     ; up+down+right
-		dw $0000     ; up+down+left
-		dw $0000     ; up+down+left+right
+		adrl $0000     ; up+down
+		adrl $0000     ; up+down+right
+		adrl $0000     ; up+down+left
+		adrl $0000     ; up+down+left+right
 
 
 
