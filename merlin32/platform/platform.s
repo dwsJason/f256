@@ -16,6 +16,9 @@ ACCEL_X  = $0030    ; 8.8 fixed point, if max speed is 2.0, then lets spend 16 f
 ACCEL_Y  = $0030
 ACCEL_XY = {ACCEL_X*181}/256  ; SIN of ACCEL_X
 
+GRAVITY = $0029       ; 9.8/60 ; 8.8 FIXED POINT
+
+
 MIN_FRISBEE_VX = $0080
 
 ;NOTE, the largest this can be is 15
@@ -135,7 +138,9 @@ sp_anim_walk ds 1
 SKY_MAP = $10000	; MAP data for Tile backround, for the sky
 BG_MAP  = $14000	; MAP data for Tile background, for the playfield, behind player
 FG_MAP  = $18000	; MAP data for Tile background, for the playfield, in front of player
-AT_MAP  = $1C000    ; MAP attribute data, that I use for collision detection
+AT_MAP  = $0A000    ; MAP attribute data, that I use for collision detection
+
+MAP_ATTR = $A000	; collision buffer \o/ 64x64 tiles (each tile is 2 bytes, $$TODO, Squish in to 1 bytes)
 
 MAP_DATA0 = FG_MAP
 MAP_DATA1 = BG_MAP
@@ -230,7 +235,8 @@ start
 		stax p1_x+1
 		
 		stz p1_y
-		ldax #1024-48-32
+		;ldax #1024-48-32
+		ldax #768
 		stax p1_y+1
 
 		stz p1_vx
@@ -1380,8 +1386,46 @@ FrisbeeLogic
 ;
 MoveFrisbee
 
-; Red Player 1
+:oldx_tile = temp0			; the tile we started in
+:oldy_tile = temp0+2
 
+:x_tile = temp1				; the tile we're somehow in now, due to physics
+:y_tile = temp1+1			; placing us there
+
+		; Tile X = pixel X / 16
+		lda <p1_x+1
+		sta :oldx_tile
+		lda <p1_x+2
+		lsr
+		ror :oldx_tile 		; tiles are 16 x 16 pixels
+		lsr
+		ror :oldx_tile
+		lsr
+		ror :oldx_tile
+		lsr
+		ror :oldx_tile			 	; this is now the :x_tile number \o/
+
+		; Tile Y = pixel y / 16
+		lda <p1_y+1
+		sta :oldy_tile
+		lda <p1_y+2
+		lsr
+		ror :oldy_tile 		; tiles are 16 x 16 pixels
+		lsr
+		ror :oldy_tile
+		lsr
+		ror :oldy_tile
+		lsr
+		ror :oldy_tile			 	; this is now the :y_tile number \o/
+
+; Player Physics
+		lda io_ctrl
+		pha
+
+		stz io_ctrl				; want access to fast math
+
+; Straight up movement
+;  x = x + vx
 		clc
 		lda <p1_x
 		adc <p1_vx
@@ -1389,7 +1433,12 @@ MoveFrisbee
 		lda <p1_x+1
 		adc <p1_vx+1
 		sta <p1_x+1
+		lda <p1_x+2
+		adc #0
+		sta <p1_x+2
 
+; Straight up movement
+; y = y + vy
 		clc
 		lda <p1_y
 		adc <p1_vy
@@ -1397,11 +1446,90 @@ MoveFrisbee
 		lda <p1_y+1
 		adc <p1_vy+1
 		sta <p1_y+1
+		lda <p1_y+2
+		adc #0
+		sta <p1_y+2
 
 ;---------------------------
+; Apply Gravity
+;
+; vy = vy + gravity
+
+		clc
+		lda #GRAVITY
+		adc <p1_vy
+		sta <p1_vy
+		lda #0
+		adc <p1_vy+1
+		sta <p1_vy+1
+
+; Velocity Clamps - player is not allowed to exceed 15 units per frame
+; (which is something like 1050 pixels per second / over 3 screens per second horizontal
+; over 5 screens per second vertical (it sounds fast to me)
+;
+		ldax <p1_vy
+		phx
+		jsr make_ax_positive
+		cpx #15
+		bcc :no_clamp
+
+		ldx #15	; clamped to 15
+		lda #0
+
+		ply
+		bpl :save_clamp_result
+
+		jsr make_ax_negative
+
+:save_clamp_result
+		stax <p1_vy
+
+		bra :clamped
+
+:no_clamp
+		ply 	; we have to fix the stack
+
+:clamped
+
+;------------------------------
+; Do Map Collision, first calcuate the tile we're inside of now
+
+		; Tile X = pixel X / 16
+		lda <p1_x+1
+		sta :x_tile
+		lda <p1_x+2
+		lsr
+		ror :x_tile 		; tiles are 16 x 16 pixels
+		lsr
+		ror :x_tile
+		lsr
+		ror :x_tile
+		lsr
+		ror :x_tile			 	; this is now the :x_tile number \o/
+
+		; Tile Y = pixel y / 16
+		lda <p1_y+1
+		sta :y_tile
+		lda <p1_y+2
+		lsr
+		ror :y_tile 		; tiles are 16 x 16 pixels
+		lsr
+		ror :y_tile
+		lsr
+		ror :y_tile
+		lsr
+		ror :y_tile			 	; this is now the :y_tile number \o/
+
+		; restore the io_ctrl page
+		pla
+		sta io_ctrl
+		rts	 		;; haha, friction is making him drop slow
+
+;---------------------------
+; Only Apply Friction, if the player is in contact with the ground
+
 ; Apply Friction to Red Player 1 X
 
-		stz io_ctrl
 
 		ldax p1_vx
 		jsr :friction
@@ -1413,72 +1541,10 @@ MoveFrisbee
 		jsr :friction
 		stax p1_vy
 
-		rts
-
-		do 0
-		lda #2
+		; restore the io_ctrl page
+		pla
 		sta io_ctrl
 
-
-; Blue Player 2
-		clc
-		lda <p2_x
-		adc <p2_vx
-		sta <p2_x
-		lda <p2_x+1
-		adc <p2_vx+1
-		sta <p2_x+1
-
-		clc
-		lda <p2_y
-		adc <p2_vy
-		sta <p2_y
-		lda <p2_y+1
-		adc <p2_vy+1
-		sta <p2_y+1
-;---------------------------------
-; Apply Blue player friction
-		stz io_ctrl
-
-		ldax p2_vx
-		jsr :friction
-		stax p2_vx
-
-		ldax p2_vy
-		jsr :friction
-		stax p2_vy
-
-		lda #2
-		sta io_ctrl
-
-;---------------------------------
-
-
-; Frisbee
-		clc
-		lda <frisbee_x
-		adc <frisbee_vx
-		sta <frisbee_x
-		lda <frisbee_x+1
-		adc <frisbee_vx+1
-		sta <frisbee_x+1
-
-		; Probably some arena bounds check can happen here, since after we
-		; leave here, we will have lost the carry state, and we haven't
-		; left enough space ni the frisbee coordinate system to help us check later
-frisbee_dy = *
-		clc
-		lda <frisbee_y
-		adc <frisbee_vy
-		sta <frisbee_y
-		lda <frisbee_y+1
-		adc <frisbee_vy+1
-		sta <frisbee_y+1
-
-		; Probably some arena bounds check can happen here, since after we
-		; leave here, we will have lost the carry state, and we haven't
-		; left enough space ni the frisbee coordinate system to help us check later
-		fin
 		rts
 
 :friction
