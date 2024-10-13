@@ -343,7 +343,7 @@ CameraUpdate
 		; for now, put him in the center of the screen
 		sec
 		lda p1_x+1
-		sbc #160+32
+		sbc #160+16
 		sta camera_x
 		lda p1_x+2
 		sbc #0
@@ -351,7 +351,7 @@ CameraUpdate
 
 		sec
 		lda p1_y+1
-		sbc #100+32-48
+		sbc #100+16-48
 		sta camera_y
 		lda p1_y+2
 		sbc #0
@@ -1648,6 +1648,9 @@ DrawSprites
 
 		stz io_ctrl		; edit sprites
 
+:p1x = temp0
+:p1y = temp0+2
+
 ;
 ; If I do something here, I can see my man idling in the middle of the screen "ish"
 ;
@@ -1674,19 +1677,36 @@ P1_SP_POS_Y = VKY_SP0_POS_Y_L+P1_SP_NUM
 		lda #^SPRITE_TILES  ; change this to a ram address, so we can set bit 1 for hflip
 		sta P1_SP_AD_H
 
-		sec
+		; Sprite Hot Spot Adjustment
+		clc
 		lda p1_x+1
+		adc #16
+		sta :p1x
+		lda p1_x+2
+		adc #0
+		sta :p1x+1
+
+		clc
+		lda p1_y+1
+		adc #1
+		sta :p1y
+		lda p1_y+2
+		adc #0
+		sta :p1y+1
+
+		sec
+		lda :p1x
 		sbc camera_x
 		sta P1_SP_POS_X
-		lda p1_x+2
+		lda :p1x+1
 		sbc camera_x+1
 		sta P1_SP_POS_X+1
 
 		sec
-		lda p1_y+1
+		lda :p1y
 		sbc camera_y
 		sta P1_SP_POS_Y
-		lda p1_y+2
+		lda :p1y+1
 		sbc camera_y+1
 		sta P1_SP_POS_Y+1
 
