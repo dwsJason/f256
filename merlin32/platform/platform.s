@@ -88,6 +88,7 @@ anim_index ds 1
 anim_timer ds 2
 anim_speed ds 2
 anim_sprite_frame ds 1
+anim_hflip ds 1
 
 ;-------------------------------
 
@@ -243,6 +244,7 @@ start
 		stz p1_vx+1
 		stz p1_vy
 		stz p1_vy+1
+		stz anim_hflip
 
 		ldax #anim_def_idle
 		;ldax #anim_def_walk
@@ -828,6 +830,7 @@ MovePlayerControls
 
 		lda p1_dpad_input_raw
 		and #$F
+		tay
 		asl
 		asl
 		tax
@@ -858,7 +861,22 @@ MovePlayerControls
 		adc p1_y+2
 		sta p1_y+2
 
+		tya
+		and #$3
+		tax
+
+		lda :hflip_table,x
+		bmi :nope
+		sta anim_hflip
+:nope
 		rts
+
+:hflip_table
+		db -1
+		db 0 ; player is right
+		db 1 ; plater is left
+		db -1
+
 
 :accel_table_x
 
@@ -1675,6 +1693,7 @@ P1_SP_POS_Y = VKY_SP0_POS_Y_L+P1_SP_NUM
 		sta P1_SP_AD_M
 
 		lda #^SPRITE_TILES  ; change this to a ram address, so we can set bit 1 for hflip
+		ora anim_hflip
 		sta P1_SP_AD_H
 
 		; Sprite Hot Spot Adjustment
