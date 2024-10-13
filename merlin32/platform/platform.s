@@ -88,7 +88,7 @@ anim_index ds 1
 anim_timer ds 2
 anim_speed ds 2
 anim_sprite_frame ds 1
-anim_hflip ds 1
+anim_hflip ds 
 
 ;-------------------------------
 
@@ -345,7 +345,7 @@ CameraUpdate
 		; for now, put him in the center of the screen
 		sec
 		lda p1_x+1
-		sbc #160+16
+		sbc #160-8
 		sta camera_x
 		lda p1_x+2
 		sbc #0
@@ -353,7 +353,7 @@ CameraUpdate
 
 		sec
 		lda p1_y+1
-		sbc #100+16-48
+		sbc #160-16
 		sta camera_y
 		lda p1_y+2
 		sbc #0
@@ -372,7 +372,7 @@ CameraUpdate
 		cmp #>{1008-320}
 		bcc :check_that_y
 		bne :over
-
+		; when it's equal, check the low bits
 		lda camera_x
 		cmp #<{1008-320}
 		bcc :check_that_y
@@ -395,11 +395,12 @@ CameraUpdate
 
 		cmp #>{1008-200}
 		bcc :we_done
-
+		bne :clampy
+		; when it's equal, we can check the low bits
 		lda camera_y
 		cmp #<{1008-200}
 		bcc :we_done
-
+:clampy
 		ldax #1008-200
 		sta camera_y
 :we_done
@@ -2211,24 +2212,17 @@ WaitVBLPoll
 		lda $1
 		pha
 		stz $1
-;LINE_NO = 241*2
 LINE_NO = 201*2
         lda #<LINE_NO
         ldx #>LINE_NO
 :waitforlineAX		
 ]wait
         cpx $D01B
-        beq ]wait
-]wait
-        cmp $D01A
-        beq ]wait
+        bne ]wait
 
-]wait
-        cpx $D01B
-        bne ]wait
-]wait
         cmp $D01A
         bne ]wait
+
 		pla 
 		sta $1
         rts
