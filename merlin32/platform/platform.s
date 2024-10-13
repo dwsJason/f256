@@ -12,8 +12,8 @@ PLAYER_FRICTION = $00E0   ; 8.8 here
 
 ; Player Acceleration constants
 
-ACCEL_X  = $0030    ; 8.8 fixed point, if max speed is 2.0, then lets spend 16 frames getting there
-ACCEL_Y  = $0030
+ACCEL_X  = $100 ;$0030    ; 8.8 fixed point, if max speed is 2.0, then lets spend 16 frames getting there
+ACCEL_Y  = $300 ;$0030
 ACCEL_XY = {ACCEL_X*181}/256  ; SIN of ACCEL_X
 
 GRAVITY = $0029       ; 9.8/60 ; 8.8 FIXED POINT
@@ -371,11 +371,12 @@ CameraUpdate
 		; if camerax > (1024-320), then camerax must be 1024-320
 		cmp #>{1008-320}
 		bcc :check_that_y
+		bne :over
 
 		lda camera_x
 		cmp #<{1008-320}
 		bcc :check_that_y
-
+:over
 		ldax #1008-320
 		stax camera_x
 
