@@ -5,6 +5,7 @@
 ; ifdef for debug vs release
 ; set to 1 for final release!
 RELEASE = 1
+KEYBOARD_ONLY = 1
 
 ; Player physics tuning
 
@@ -88,7 +89,7 @@ anim_index ds 1
 anim_timer ds 2
 anim_speed ds 2
 anim_sprite_frame ds 1
-anim_hflip ds 
+anim_hflip ds 1
 
 ;-------------------------------
 
@@ -166,7 +167,6 @@ TILE_DATA7 = SKY_CHAR
 ; This will copy the color table into memory, then set the video registers
 ; to display the bitmap
 ;
-
 start
 		php
 		sei
@@ -259,12 +259,18 @@ start
 
 VIRQ = $FFFE
 
-]main_loop
+		stz <jiffy
+		jsr QueueTickTimer
 
+]main_loop
 		jsr kernel_NextEvent
-		bcs :no_events
+		bcs ]main_loop
+
 		jsr DoKernelEvent
-:no_events
+		bcc ]main_loop
+
+		; c=1, we did the timer event - VBlank Ran, now run the game logic
+
 		;
 		; Do Game Logic
 		;
@@ -304,11 +310,13 @@ VIRQ = $FFFE
 		sta io_ctrl
 ;------------------------------------------------------------------------------
 
-		inc <jiffy  ; since we don't have IRQ doing this
-		jsr WaitVBLPoll
+		bra ]main_loop
 
-		jsr CameraBlit
-		jsr DrawSprites
+		;inc <jiffy  ; since we don't have IRQ doing this
+		;jsr WaitVBLPoll
+
+		;jsr CameraBlit
+		;jsr DrawSprites
 
 		bra ]main_loop
 
@@ -1982,6 +1990,32 @@ FRISB_SP_POS_Y = VKY_SP0_POS_Y_L+FRISB_SP_NUM
 ;------------------------------------------------------------------------------
 ;
 DoKernelEvent
+		lda event_data+kernel_event_t
+		cmp #kernel_event_timer_EXPIRED
+		bne :not_timer
+
+		lda event_data+kernel_event_timer_t_cookie+3
+		cmp #$EA
+		bne :not_timer
+
+		inc <jiffy
+		jsr QueueTickTimer
+
+; VBlank Stuff
+
+		jsr CameraBlit
+		jsr DrawSprites
+
+		sec
+		rts
+
+:not_timer
+
+		jsr :check_stuff
+		clc
+		rts
+
+:check_stuff
 
 		do 0    ; for debugging the kernel events
 		ldx #0
@@ -2022,7 +2056,6 @@ DoKernelEvent
 		beq DoKeyDown
 		cmp #kernel_event_key_RELEASED
 		beq DoKeyUp
-
 		rts
 
 		; Player 1 throw keys
@@ -2190,6 +2223,21 @@ DoKeyDown
 
 		rts
 
+
+;------------------------------------------------------------------------------
+; Used for kernel timers
+QueueTickTimer
+		lda #kernel_args_timer_QUERY.kernel_args_timer_FRAMES
+		sta kernel_args_timer_units
+		jsr kernel_Clock_SetTimer
+
+		inc
+		stz kernel_args_timer_units    ; frames
+		sta kernel_args_timer_absolute ; 1
+
+		lda #$EA
+		sta kernel_args_timer_cookie
+		jmp kernel_Clock_SetTimer
 
 
 ;------------------------------------------------------------------------------
