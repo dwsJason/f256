@@ -5,7 +5,7 @@
 ; ifdef for debug vs release
 ; set to 1 for final release!
 RELEASE = 1
-KEYBOARD_ONLY = 1
+KEYBOARD_ONLY = 0   ; need this for IDE
 
 ; Player physics tuning
 
@@ -951,11 +951,21 @@ ReadHardware
 		ldax p1_dpad_input_raw
 		stax :prev_input
 
-		;ldax $D884
+		do KEYBOARD_ONLY
+		lda #$FF
+		else
 		lda $D885
+		fin
+
 		and p1_keyboard_raw+1
 		tax
+
+		do KEYBOARD_ONLY
+		lda #$FF
+		else
 		lda $D884
+		fin
+
 		and p1_keyboard_raw
 
 		stax :inv_input
