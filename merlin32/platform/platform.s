@@ -1568,6 +1568,20 @@ MoveFrisbee
 		lsr
 		ror :y_tile			 	; this is now the :y_tile number \o/
 
+; If we're in the same tile as before, and we're not on the ground, then it's
+; like there's no collision
+
+		lda p1_is_falling
+		beq :not_falling1
+
+		lda :y_tile
+		cmp :oldy_tile
+
+
+
+
+:not_falling1
+
 :pRowOld = temp2
 :pRowNow = temp2+2
 
