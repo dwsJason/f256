@@ -13,9 +13,10 @@ PLAYER_FRICTION = $00E0   ; 8.8 here
 
 ; Player Acceleration constants
 
-ACCEL_X  = $100 ;$0030    ; 8.8 fixed point, if max speed is 2.0, then lets spend 16 frames getting there
-ACCEL_Y  = $300 ;$0030
-ACCEL_XY = {ACCEL_X*181}/256  ; SIN of ACCEL_X
+ACCEL_X  = $0030 	;$0030    ; 8.8 fixed point, if max speed is 2.0, then lets spend 16 frames getting there
+ACCEL_Y  = $0030
+
+JUMP_VEL = $0800
 
 GRAVITY = $0029       ; 9.8/60 ; 8.8 FIXED POINT
 
@@ -83,6 +84,9 @@ p1_x ds 3
 p1_y ds 3
 p1_vx ds 2
 p1_vy ds 2
+
+p1_is_falling  ds 1
+p1_is_grounded ds 1
 
 pAnim ds 2 ; pointer to the current animation sequence 
 anim_index ds 1
@@ -245,6 +249,9 @@ start
 		stz p1_vy
 		stz p1_vy+1
 		stz anim_hflip
+
+		lda #1
+		sta p1_is_falling
 
 		ldax #anim_def_idle
 		;ldax #anim_def_walk
@@ -849,28 +856,34 @@ MovePlayerControls
 		; these load 4 bits
 		; Up, Down, Left, Right respectively
 
+		lda p1_is_falling
+		bne :on_ground
+
+		; These accelerations do not apply, unless we are on the ground
+
 		;c=0 already
 		lda :accel_table_x,x
-		adc p1_x
-		sta p1_x
+		adc p1_vx
+		sta p1_vx
 		lda :accel_table_x+1,x
-		adc p1_x+1
-		sta p1_x+1
-		lda :accel_table_x+2,x
-		adc p1_x+2
-		sta p1_x+2
+		adc p1_vx+1
+		sta p1_vx+1
+		;lda :accel_table_x+2,x
+		;adc p1_x+2
+		;sta p1_x+2
 
 		clc
 		lda :accel_table_y,x
-		adc p1_y
-		sta p1_y
+		adc p1_vy
+		sta p1_vy
 		lda :accel_table_y+1,x
-		adc p1_y+1
-		sta p1_y+1
-		lda :accel_table_y+2,x
-		adc p1_y+2
-		sta p1_y+2
+		adc p1_vy+1
+		sta p1_vy+1
+		;lda :accel_table_y+2,x
+		;adc p1_y+2
+		;sta p1_y+2
 
+:on_ground
 		tya
 		and #$3
 		tax
@@ -896,18 +909,18 @@ MovePlayerControls
 		adrl $0000     ; left+right
 
 		adrl $0000     ; down
-		adrl ACCEL_XY  ; down+right
-		adrl -ACCEL_XY ; down+left
+		adrl ACCEL_X   ; down+right
+		adrl -ACCEL_X  ; down+left
 		adrl $0000     ; down+left+right
 
 		adrl $0000     ; up
-		adrl ACCEL_XY  ; up+right
-		adrl -ACCEL_XY ; up+left
+		adrl ACCEL_X   ; up+right
+		adrl -ACCEL_X  ; up+left
 		adrl $0000     ; up+left+right
 
 		adrl $0000     ; up+down
-		adrl ACCEL_XY  ; up+down+right
-		adrl -ACCEL_XY ; up+down+left
+		adrl ACCEL_X   ; up+down+right
+		adrl -ACCEL_X  ; up+down+left
 		adrl $0000     ; up+down+left+right
 
 :accel_table_y
@@ -918,13 +931,13 @@ MovePlayerControls
 		adrl $0000     ; left+right
 
 		adrl ACCEL_Y   ; down
-		adrl ACCEL_XY  ; down+right
-		adrl ACCEL_XY  ; down+left
+		adrl ACCEL_Y   ; down+right
+		adrl ACCEL_Y   ; down+left
 		adrl ACCEL_Y   ; down+left+right
 
 		adrl -ACCEL_Y  ; up
-		adrl -ACCEL_XY ; up+right
-		adrl -ACCEL_XY ; up+left
+		adrl -ACCEL_Y  ; up+right
+		adrl -ACCEL_Y  ; up+left
 		adrl -ACCEL_Y  ; up+left+right
 
 		adrl $0000     ; up+down
@@ -1408,6 +1421,25 @@ MoveFrisbee
 :x_tile = temp1				; the tile we're somehow in now, due to physics
 :y_tile = temp1+1			; placing us there
 
+:p1_vx_ext = temp1+2
+:p1_vy_ext = temp1+3
+
+; sign extension for vx and vy, for math below
+		stz <:p1_vx_ext
+		stz <:p1_vy_ext
+
+		ldx #-1
+
+		lda <p1_vx+1
+		bpl :vx_pos
+		stx <:p1_vx_ext
+:vx_pos
+		lda <p1_vy+1
+		bpl :vy_pos
+		stx <:p1_vy_ext
+:vy_pos
+; end sign extension
+
 		; Tile X = pixel X / 16
 		lda <p1_x+1
 		sta :oldx_tile
@@ -1450,7 +1482,7 @@ MoveFrisbee
 		adc <p1_vx+1
 		sta <p1_x+1
 		lda <p1_x+2
-		adc #0
+		adc <:p1_vx_ext
 		sta <p1_x+2
 
 ; Straight up movement
@@ -1463,7 +1495,7 @@ MoveFrisbee
 		adc <p1_vy+1
 		sta <p1_y+1
 		lda <p1_y+2
-		adc #0
+		adc <:p1_vy_ext
 		sta <p1_y+2
 
 ;---------------------------
@@ -1556,7 +1588,8 @@ MoveFrisbee
 		; We only have one kind of tile, and at the moment we only have
 		; 1 kind of velocity
 		stz p1_vy
-		stz p1_vy+1		; you hit stuff, so slow down
+		stz p1_vy+1		   ; you hit stuff, so slow down
+		stz p1_is_falling  ; you're also not falling
 
 		; up you go big guy - to the top of our tile, in fact into the tile
 		; above us, bye
@@ -1569,6 +1602,16 @@ MoveFrisbee
 :y_is_good
 
 :nothing_to_do
+
+		lda p1_is_falling
+		bne :isfalling
+
+		; player is on the ground, he needs friction
+		ldax p1_vx
+		jsr :friction
+		stax p1_vx
+
+:isfalling
 
 		; restore the io_ctrl page
 		pla
