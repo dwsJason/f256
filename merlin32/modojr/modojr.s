@@ -921,8 +921,8 @@ UpdateMarker
 		ldx <mod_pattern_index
 		stx |:current
 
-		;lda #$F1        ; white on red
-		lda #$C1         ; green on red - FON_OVLY doesn't work
+		lda #$F1        ; white on red
+		;lda #$C1         ; green on red - FON_OVLY doesn't work
 		sta <:color
 
 		jsr :draw_color
@@ -1194,8 +1194,8 @@ init320x240_video
 		;lda #%110       ; text in 40 column when it's enabled
 		;lda #6
 		;lda #1 ; clock_70
-		lda #0
-		;lda #%10000   ; Font Overlay Mode - BG color can be on top
+		;lda #0
+		lda #%10000   ; Font Overlay Mode - BG color can be on top
 		sta VKY_MSTR_CTRL_1
 
 		; layer stuff - take from Jr manual

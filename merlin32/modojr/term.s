@@ -166,6 +166,7 @@ TermClearTextBuffer
 		lda #3
 		sta io_ctrl         ; swap in the color memory
 		lda $C000			; get current color attribute
+		and #$F0
 		jsr	:clear
 
 		lda #2
