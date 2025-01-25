@@ -87,7 +87,7 @@ sfx_waves_end
 
 cdata_end
 
-		do 0
+		do 1
 		org $0
 		adr mod_data_start
 		adr mod_data_end-mod_data_start ; 72144      ;mod_end-mod_start  ; labels only work here, if data below is less than 64K
@@ -95,7 +95,7 @@ cdata_end
 		org $28000
 mod_data_start
 mod_song
-;		putbin data/dru.mod
+		putbin data/dru.mod
 ;		putbin data/el_gondo.mod
 ;		putbin data/tomsdine.mod
 ;		putbin data/savage.mod
@@ -129,7 +129,7 @@ mod_song
 ;       putbin mods/DRU.MOD
 ;       putbin mods/EL_GONDO.MOD
 ;       putbin mods/GILLIGAN.MOD
-       putbin mods/hymn_to_aurora.mod
+;       putbin mods/hymn_to_aurora.mod
 ;       putbin mods/knulla-kuk.mod
 ;       putbin mods/moby_-_dragonsfunk.mod
 ;       putbin mods/MOD.Majortom
