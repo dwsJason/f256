@@ -145,7 +145,7 @@ start
 
 		jsr mmu_unlock
 
-		jsr HasGoodHardware
+;		jsr HasGoodHardware
 ;		bcc :HardwareGood
 ;		rts
 ;:HardwareGood
