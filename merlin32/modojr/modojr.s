@@ -1327,6 +1327,43 @@ LoadSong
 
 		lda #1  	    ; open the first arg
 		jsr get_arg
+;------------------------------------------------------------------------------
+; Add Support for device in Argument
+
+		; default drive 0
+		stz file_open_drive
+
+:pArg = temp0
+		; we have a chance here to change the drive
+		sta :pArg
+		stx :pArg+1
+
+		ldy #1
+		lda (:pArg),y
+		cmp #':'
+		bne :no_device_passed_in
+
+		; OMG there's a device!
+		; if it's valid, maybe it can overide the device 0
+
+		lda (:pArg)
+
+		inc <:pArg
+		inc <:pArg 		; fuck you if we need to wrap a page
+
+		sec
+		sbc #'0'
+		cmp #10
+		bcs :no_device_passed_in ; fucked up, so just use device 0
+
+		sta file_open_drive
+
+:no_device_passed_in
+		lda :pArg
+		ldx :pArg+1
+
+
+;------------------------------------------------------------------------------
 
 		jsr fopen
 		bcc :opened
