@@ -32,15 +32,17 @@ main_code_end
 		org $070000
 
 image2_start
-pic0    putbin data\CAT.LBM
-pic1    putbin data\CAT2.LBM
-pic2    putbin data\CRATE.LBM
-pic3    putbin data\CRATE2.LBM
-pic4    putbin data\CUBES.LBM
-pic5    putbin data\DRIP.LBM
-pic6    putbin data\FRED.LBM
+pic0    ;putbin data\CAT.LBM
+		putbin data\PixelMapTest.lbm
+pic1    ;putbin data\CAT2.LBM
+pic2    ;putbin data\CRATE.LBM
+pic3    ;putbin data\CRATE2.LBM
+pic4    ;putbin data\CUBES.LBM
+pic5    ;putbin data\DRIP.LBM
+pic6    ;putbin data\FRED.LBM
 image2_end
 
+		do 0
 		org $0
 		adr image3_start
 		adr image3_end-image3_start  ; labels only work here, if data below is less than 64K
@@ -65,6 +67,7 @@ pic13   putbin data\SNAIL.LBM
 pic14   putbin data\SNOWB.LBM
 pic15   putbin data\SON.LBM
 image4_end
+		fin
 
 ; Launch Address
 		adr start
