@@ -22,8 +22,9 @@ temp7 ds 4
 
 line_color ds 1
 line_x0 ds 2
-line_y0 ds 1
 line_x1 ds 2
+
+line_y0 ds 1
 line_y1 ds 1
 
 target_x0 ds 2
@@ -42,7 +43,10 @@ PIXEL_DATA = $40000
 DMA_CLEAR_ADDY = PIXEL_DATA
 DMA_CLEAR_LEN  = 320*240
 
-start
+start  	mx %11
+		sei
+		clc
+		xce
 
 ; This will copy the color table into memory, then set the video registers
 ; to display the bitmap
@@ -109,6 +113,9 @@ start
 		bra ]loop
 		fin
 
+
+		stz line_x1+1
+		stz line_x0+1
 
 
 		lda #2
@@ -471,9 +478,49 @@ DmaClear
 ;------------------------------------------------------------------------------
 plot_line
 ;		jmp plot_line_16x8y
-		jmp plot_line_8x8y
+;		jmp plot_line_8x8y
+
+		jmp plot_line_hw
 
 
+		rts
+
+;------------------------------------------------------------------------------
+plot_line_hw
+		stz io_ctrl
+
+		; Hardware Accelerated Line
+		lda <line_color
+		sta LINE_COLOR
+
+		rep #$10
+
+		ldx <line_x0
+		ldy <line_x1
+
+		;ldx #10
+		stx |LINE_X0
+		;ldx #300
+		sty |LINE_X1
+
+		ldx <line_y0  ; grabs both y0 and y1
+
+		;ldx #$8080
+		stx |LINE_Y0  ; sets both
+
+		lda #3
+		sta |LINE_CTRL
+
+]wait	lda |LINE_CTRL	; wait for line to be queued into FIFO
+		bpl ]wait
+
+		lda #1  	   	
+		sta |LINE_CTRL  ; keep FIFO running
+
+		sep #$30
+
+		lda #2
+		sta io_ctrl
 		rts
 
 ;------------------------------------------------------------------------------
