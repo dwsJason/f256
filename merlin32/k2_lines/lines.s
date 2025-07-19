@@ -39,7 +39,13 @@ cursor_y ds 2
 
 	dend
 
-PIXEL_DATA = $40000
+;K
+;PIXEL_DATA = $40000
+;K2 with 2MB of RAM (NOTE My SOFTWARE LINE DRAW WONT WORK WITH THIS)
+; 2 pixel buffers from $5A800 -> $7FFFF
+PIXEL_DATA  = $6D400  ; Top of 512k
+PIXEL_DATA2 = $5A800  ; 
+
 DMA_CLEAR_ADDY = PIXEL_DATA
 DMA_CLEAR_LEN  = 320*240
 
@@ -79,43 +85,67 @@ start  	mx %11
 
 		stz io_ctrl
 
-		lda #$12
-		sta |VKY_SEEDL
 		lda #$34
+		sta |VKY_SEEDL
+		lda #$FF
 		sta |VKY_SEEDH
 		lda #3
 		sta |VKY_RND_CTRL
+		nop
+		nop
 		lda #1
 		sta |VKY_RND_CTRL
+
+;------------------------------------------------------------------------------
+
+		stz line_x1+1
+		stz line_x0+1
+
+		lda #15
+		sta line_color
 
 ;------------------------------------------------------------------------------
 
 		do 0 ; random lines
 		lda #$B
 		sta line_color
+
 ]loop
 		lda |VKY_RNDL
 		sta <line_x0
+		lda |VKY_RNDH
+		sta <line_x1
+
+
 		lda |VKY_RNDL
+		and #$7f
+		sta <line_y0
+		lda |VKY_RNDH
+		and #$3f
+		adc <line_y0
+		sta <line_y0
+		lda |VKY_RNDL
+		and #$1f
+		adc <line_y0
 		sta <line_y0
 
-		lda |VKY_RNDL
-		sta <line_x1
-		lda |VKY_RNDL
+		lda |VKY_RNDH
+		and #$7f
 		sta <line_y1
 
-		lda |VKY_RNDL
+		lda line_color
+		inc
 		and #$F
 		sta line_color
 
 		jsr plot_line
 
+		stz io_ctrl
+
 		bra ]loop
 		fin
 
 
-		stz line_x1+1
-		stz line_x0+1
 
 
 		lda #2
@@ -230,8 +260,9 @@ wow_loop
 
 		bra ]loop
 
+:done	
 
-:done	bra :done
+		bra :done
 
 :txt	asc ' !"#$%&'27'()*+,-./',0D
 		asc '0123456789:;<=>?',0D
@@ -508,7 +539,7 @@ plot_line_hw
 		;ldx #$8080
 		stx |LINE_Y0  ; sets both
 
-		lda #3
+		lda #3    ; 2 works for loading
 		sta |LINE_CTRL
 
 ]wait	lda |LINE_CTRL	; wait for line to be queued into FIFO
@@ -827,28 +858,18 @@ text_plot_too
 ;------------------------------------------------------------------------------
 
 WaitVBLPoll
-		lda $1
-		pha
-		stz $1
-LINE_NO = 241*2
-        lda #<LINE_NO
-        ldx #>LINE_NO
-:waitforlineAX		
-]wait
-        cpx $D01B
-        beq ]wait
-]wait
-        cmp $D01A
-        beq ]wait
+		php
+		sei
+		rep #$30
 
+LINE_NO = 241*2
+        lda #LINE_NO
 ]wait
-        cpx $D01B
-        bne ]wait
-]wait
-        cmp $D01A
-        bne ]wait
-		pla 
-		sta $1
+		cmp $D01A
+		bne ]wait
+
+		plp
+		mx %11
         rts
 
 ;------------------------------------------------------------------------------
