@@ -1,0 +1,28 @@
+SRAM Decoding with new MMU System : {3'b000, MMU_Reg2_Bit_Results[1:0] , MMU_Entry[5:0], CPU_Registered_Addy_i[12:0] };
+
+always @ ( * ) begin 
+    casex ( { MMU_CTRL_REG_0000[1:0], CPU_Addy_i[15:13]} )
+    5'b00_000: begin MMU_Reg2_Bit_Results <= MMU_CTRL_REG_0002[1:0]; end 
+    5'b00_001: begin MMU_Reg2_Bit_Results <= MMU_CTRL_REG_0002[3:2]; end
+    5'b00_010: begin MMU_Reg2_Bit_Results <= MMU_CTRL_REG_0002[5:4]; end
+    5'b00_011: begin MMU_Reg2_Bit_Results <= MMU_CTRL_REG_0002[7:6]; end
+    5'b00_100: begin MMU_Reg2_Bit_Results <= MMU_CTRL_REG_0003[1:0]; end 
+    5'b00_101: begin MMU_Reg2_Bit_Results <= MMU_CTRL_REG_0003[3:2]; end
+    5'b00_110: begin MMU_Reg2_Bit_Results <= MMU_CTRL_REG_0003[5:4]; end
+    5'b00_111: begin MMU_Reg2_Bit_Results <= MMU_CTRL_REG_0003[7:6]; end
+    5'b01_xxx: begin MMU_Reg2_Bit_Results <= 2'b00; end
+    5'b10_xxx: begin MMU_Reg2_Bit_Results <= 2'b00; end
+    5'b11_xxx: begin MMU_Reg2_Bit_Results <= 2'b00; end
+    endcase
+end
+
+To Compose the SRAM Address Only the bit[5:0] are used in the MMU Output Value (for the selected slot), then the new bit on Register $0002 + $0003 are added depending again on the slot #. But this will work only with the Page 0.
+
+So Basically the SRAM Address will be, let's say we used slot #1 and we want to access SRAM 512K Bank 1.
+So the Value for the $0007 (CPU Mem: $2000 - $3FFF (when page 0 is selected) would be $01
+but then value for $0002 would be $04
+And that would give you access to : $08_2000 in absolute address
+
+So bit[9:8] of $0002 or ($0003) + MMU Bit[5:0] + CPU Addy [12:0]
+
+

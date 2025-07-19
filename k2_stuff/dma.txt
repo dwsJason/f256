@@ -1,0 +1,15 @@
+/*
+; DMA Controller $AF0400 - $AF04FF
+VDMA_CONTROL_REG        = $AF0400
+; Bit Field Definition
+VDMA_CTRL_Enable     [0]= $01
+VDMA_CTRL_1D_2D      [1]= $02     ; 0 - 1D (Linear) Transfer , 1 - 2D (Block) Transfer
+VDMA_CTRL_TRF_Fill   [2]= $04     ; 0 - Transfer Src -> Dst, 1 - Fill Destination with "Byte2Write"
+VDMA_CTRL_Int_Enable [3]= $08     ; Set to 1 to Enable the Generation of Interrupt when the Transfer is over.
+NOT USED             [4]= $10     ; Reserved
+NOT USED             [5]= $20     ; Reserved
+SixteenBit_Enable    [6]= $40     ; Set to 1 to Do a 16bits Transfer *** (Even TO Even Address Only)
+VDMA_CTRL_Start_TRF  [7]= $80     ; Set to 1 To Begin Process, Need to Cleared before, you can start another
+*/
+
+

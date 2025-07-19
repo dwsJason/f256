@@ -1,0 +1,52 @@
+ixed Point Math  @ $DE00
+
+ New Float Block Register Definitions 
+
+Base Address: $DE80
+
+$DE80: Control Register0
+Bit[0] = MUXA Ctrl -> 1'b0 = User Input0, 1'b1 = Converted User Input0 (Fixed [20:12] -> Float 32bits)
+Bit[1] = MUXB Ctrl -> 1'b0 = User Input1, 1'b1 = Converted User Input1 (Fixed [20:12] -> Float 32bits)
+Bit[2] = Not Used
+Bit[3] = Addition Block TValid**
+Bit[5:4] = MUX C Ctrl
+2'b00: Output of MUXA
+2'b01: Output of MUXB
+2'b10: Mutiplier Output
+2'b11: Divier Output
+Bit[7:6] = Mux D Ctrl
+2'b00: Output of MUXA
+2'b01: Output of MUXB
+2'b10: Multiplier Output
+2'b11: Divider Output
+
+$DE81: Control Register1
+Bit[1:0]: MUXE Ctrl
+2'b00: Multiplier Output
+2'b01: Divider Output
+2'b10: Adder Output
+2'b11: Float Value of 0 (0x3F80_0000)
+
+$DE82: Control Register2
+Bit[0]: Converter 0 TValid
+Bit[1]:  Input0 TValid
+Bit[2]: Converter 1 TValid
+Bit[3]: Input1 TValid
+
+$DE83: Not Used
+//Write
+$DE87:$DE84: Not Used (Write Only)
+$DE8B:$DE88 : USER Input0 (Little Endian) (Write Only)
+$DE8F:$DE8C: USER Input 1 (Little Endina) (Write Only)
+
+// Read
+$DE80: Control Register 0
+$DE81: Control Register 1
+$DE82: Control Register 2
+$DE83: Control Register 3
+$DE84: Status Register 0 (to be detailed Later)
+$DE85: Status Register 1  (to be detailed Later)
+$DE86: Status Register 2  (to be detailed Later)
+$DE87: Status Register 3  (to be detailed Later)
+$DE8B:$DE88: FLOAT OUTPUT
+$DE8F:$DE8C: CONVERTED OUTPUT [20:12] Format S+19.12
