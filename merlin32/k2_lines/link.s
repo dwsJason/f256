@@ -13,6 +13,7 @@
 
 		put ..\k2\f256k2.asm
 		put ..\k2\f256_dma.asm
+		put ..\k2\f256_fpu.asm
 		put ..\k2\f256_irq.asm
 		put ..\k2\f256_line.asm
 		put ..\k2\f256_rtc.asm
