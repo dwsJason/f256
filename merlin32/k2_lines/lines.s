@@ -37,14 +37,20 @@ target_y1 ds 1
 cursor_x ds 2
 cursor_y ds 2
 
+display_buffer ds 2
+
 	dend
 
 ;K
 ;PIXEL_DATA = $40000
 ;K2 with 2MB of RAM (NOTE My SOFTWARE LINE DRAW WONT WORK WITH THIS)
 ; 2 pixel buffers from $5A800 -> $7FFFF
-PIXEL_DATA  = $6D400  ; Top of 512k
-PIXEL_DATA2 = $5A800  ; 
+;PIXEL_DATA  = $6D400  ; Top of 512k
+;PIXEL_DATA2 = $5A800  ; 
+
+PIXEL_DATA  = $1ED400  ; Top of 2MB
+PIXEL_DATA2 = $1DA800  ; 
+
 
 DMA_CLEAR_ADDY = PIXEL_DATA
 DMA_CLEAR_LEN  = 320*240
@@ -76,8 +82,18 @@ start  	mx %11
 
 ;------------------------------------------------------------------------------
 
+		jsr WaitVBLPoll
 		lda #2  	; Fill Color
-		jsr DmaClear
+		jsr DmaClearPixelData
+
+		jsr WaitVBLPoll
+		lda #2
+		jsr DmaClearPixelData2
+
+; Pump Swap Chain
+
+		stz display_buffer
+		jsr SwapChain
 
 ;------------------------------------------------------------------------------
 ;
@@ -151,7 +167,8 @@ start  	mx %11
 		lda #2
 		sta io_ctrl
 
-wow_loop
+wow_loop mx %11
+		sep #$30
 
 ]x = 0
 ]y = 0
@@ -230,10 +247,10 @@ wow_loop
 		ldy #150+]y 
 		jsr text_plot_too
 
-		;lda line_color
-		;inc
-		;and #$F
-		;sta line_color
+		lda line_color
+		inc
+		and #$F
+		sta line_color
 
 		;jmp wow_loop
 
@@ -260,7 +277,11 @@ wow_loop
 
 		bra ]loop
 
-:done	
+:done
+		plx
+
+		jsr SwapChain
+		brl wow_loop
 
 		bra :done
 
@@ -414,8 +435,8 @@ init320x240
 		; bitmap disables
 		lda #1
 		stz VKY_BM0_CTRL  ; enable
-		sta VKY_BM1_CTRL  ; disable
-		stz $D110  ; disable
+		sta VKY_BM1_CTRL  ; enable
+		stz VKY_BM2_CTRL  ; disable
 
 		; set address of image, since image uncompressed, we just display it
 		; where we loaded it.
@@ -438,6 +459,78 @@ init320x240
 		plp
 
 		rts
+
+;------------------------------------------------------------------------------
+
+SwapChain mx %11
+		php
+		sep #$30
+		lda io_ctrl
+		pha
+		stz io_ctrl
+		rep #$30
+
+		; Step 1, wait for line draw hardware to finish
+]wait_fifo
+		lda |LINE_FIFO_LO
+		and #$FFF
+		bne ]wait_fifo
+
+		lda #LINE_CTRL_FIFO_RESET
+		tsb LINE_CTRL
+		trb LINE_CTRL
+
+		jsr WaitVBLPoll
+
+		lda <display_buffer
+		inc
+		and #1
+		sta <display_buffer
+		
+		beq :show0_draw1
+		;show1_draw0
+
+		lda #<PIXEL_DATA2
+		sta VKY_BM1_ADDR_L
+		lda #>PIXEL_DATA2
+		sta VKY_BM1_ADDR_L+1
+
+		lda #<PIXEL_DATA
+		sta VKY_BM0_ADDR_L
+		lda #>PIXEL_DATA
+		sta VKY_BM0_ADDR_L+1
+
+		sep #$30
+		lda #2
+		jsr DmaClearPixelData
+		bra :done
+
+:show0_draw1 mx %00
+
+		lda #<PIXEL_DATA
+		sta VKY_BM1_ADDR_L
+		lda #>PIXEL_DATA
+		sta VKY_BM1_ADDR_L+1
+
+		lda #<PIXEL_DATA2
+		sta VKY_BM0_ADDR_L
+		lda #>PIXEL_DATA2
+		sta VKY_BM0_ADDR_L+1
+
+		sep #$30
+		lda #2
+		jsr DmaClearPixelData2
+
+:done
+		sep #$30
+		pla
+		sta io_ctrl
+
+		plp
+		mx %11
+		rts
+
+
 ;------------------------------------------------------------------------------
 
 txt_title asc 'K2 Vectors'
@@ -455,7 +548,7 @@ txt_too asc ') to ('
 ;
 ; Clear 320x240 buffer PIXEL_DATA with A
 ;
-DmaClear
+DmaClearPixelData
 		php
 		sei
 
@@ -470,10 +563,13 @@ DmaClear
 
 		stz io_ctrl
 
-		ldx #DMA_CTRL_ENABLE+DMA_CTRL_FILL
+		ldx #DMA_CTRL_ENABLE.DMA_CTRL_FILL.DMA_CTRL_16BITS
 		stx |DMA_CTRL
 
 		sta |DMA_FILL_VAL
+		sta |DMA_FILL_VAL+1
+		sta |DMA_FILL_VAL+2
+		sta |DMA_FILL_VAL+3
 
 		lda #<]addr
 		sta |DMA_DST_ADDR
@@ -505,6 +601,64 @@ DmaClear
 		plp
 
 		rts
+
+;------------------------------------------------------------------------------
+
+
+DmaClearPixelData2
+		php
+		sei
+
+;]size = {320*240}
+]size = DMA_CLEAR_LEN
+;]addr = PIXEL_DATA
+]addr = PIXEL_DATA2
+
+
+		ldy io_ctrl
+		phy
+
+		stz io_ctrl
+
+		ldx #DMA_CTRL_ENABLE.DMA_CTRL_FILL.DMA_CTRL_16BITS
+		stx |DMA_CTRL
+
+		sta |DMA_FILL_VAL
+		sta |DMA_FILL_VAL+1
+		sta |DMA_FILL_VAL+2
+		sta |DMA_FILL_VAL+3
+
+		lda #<]addr
+		sta |DMA_DST_ADDR
+		lda #>]addr
+		sta |DMA_DST_ADDR+1
+		lda #^]addr
+		sta |DMA_DST_ADDR+2
+
+
+		lda #<]size
+		sta |DMA_COUNT
+		lda #>]size
+		sta |DMA_COUNT+1
+		lda #^]size
+		sta |DMA_COUNT+2
+
+		lda #DMA_CTRL_START
+		tsb |DMA_CTRL
+
+]busy
+		lda |DMA_STATUS
+		bmi ]busy
+
+		stz |DMA_CTRL
+
+		pla
+		sta io_ctrl
+
+		plp
+
+		rts
+
 
 ;------------------------------------------------------------------------------
 plot_line
@@ -860,6 +1014,12 @@ text_plot_too
 WaitVBLPoll
 		php
 		sei
+		sep #$30
+		pha
+		lda io_ctrl
+		stz io_ctrl
+
+		pha
 		rep #$30
 
 LINE_NO = 241*2
@@ -867,6 +1027,11 @@ LINE_NO = 241*2
 ]wait
 		cmp $D01A
 		bne ]wait
+
+		sep #$30
+		pla
+		sta io_ctrl
+		pla
 
 		plp
 		mx %11
