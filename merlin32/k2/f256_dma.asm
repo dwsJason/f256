@@ -8,6 +8,7 @@ DMA_CTRL_INT_EN = $08           ; Enable DMA interrupts
 DMA_CTRL_FILL = $04             ; DMA is a fill operation (otherwise DMA is a copy)
 DMA_CTRL_2D = $02               ; DMA is 2D operation (otherwise it is 1D)
 DMA_CTRL_ENABLE = $01           ; DMA engine is enabled
+DMA_CTRL_16BITS = $40			; DMA 2x in 1 clock
 
 DMA_STATUS = $DF01              ; DMA status register (Read Only)
 DMA_STAT_BUSY = $80             ; DMA engine is busy with an operation
