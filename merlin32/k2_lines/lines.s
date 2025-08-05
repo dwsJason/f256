@@ -506,7 +506,7 @@ SwapChain mx %11
 		sta VKY_BM0_ADDR_L+1
 
 		sep #$30
-		lda #3
+		lda #2
 		jsr DmaClearPixelData
 		bra :done
 
