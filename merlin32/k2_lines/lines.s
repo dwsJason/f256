@@ -47,6 +47,10 @@ max_y ds 2
 min_x ds 2
 max_x ds 2
 
+math_input0 ds 4
+math_input1 ds 4
+math_output ds 4
+
 	dend
 
 ;K
@@ -154,7 +158,10 @@ start  	mx %11
 		;lda #$001B   ; fix point inputs, multiplier output
 		;lda #$01F3   ; set for fixed point and divide
 		;lda #$00A3
-		lda #$0003
+		lda #$0003    ; 2 fixed point input, output multiply
+
+		lda #$01C3    ; 2 fixed point input, output divide
+
 		sta |FP_MATH_CTRL0
 
 		lda #$1000
@@ -170,10 +177,10 @@ start  	mx %11
 		lda #$A
 		sta |FP_MATH_CTRL2
 
-		nop
-		nop
-		nop
-		nop
+		nop 	; 4  (14 clock latency on divide)
+		nop 	; 8
+		nop 	; 10
+		nop     ; 12
 
 ;]wait
 ;		lda $DE84
@@ -205,7 +212,7 @@ start  	mx %11
 		fin
 
 ; min max test
-		do 1
+		do 0
 
 		lda #2
 		sta <io_ctrl
@@ -979,9 +986,23 @@ plot_line_hw
 
 ; Does the line intersect the top of our rectangle (Y Axis = 0)
 
+		lda min_y
+		bpl :no_top_intersect 
+
+		; yes, it looks like we intersect the top, calculate new x,y position
+		; for the line end
+
+
+
 ; Do we interesect the bottom (Y Axis = 239)
 
+:no_top_intersect
+		lda max_y
+		cmp #240
+		bcc :no_bottom_intersect
+
 ; Do we intersect the left (X Axis = 0)
+:no_bottom_intersect
 
 ; Do we intersect the right (X Axis = 319)
 
@@ -998,6 +1019,56 @@ plot_line_hw
 		sta io_ctrl
 		rts
 
+;------------------------------------------------------------------------------
+fpu_set_mult_mode mx %00
+
+		stz |FP_MATH_CTRL2
+		lda #$3
+		sta |FP_MATH_CTRL0  ; use fixed point inputs, do multiply output
+
+		lda #$A
+		sta |FP_MATH_CTRL2  ; tell FPU inputs are good
+
+		rts
+
+;------------------------------------------------------------------------------
+fpu_set_div_mode mx %00
+
+		stz |FP_MATH_CTRL2
+
+		lda #$01C3
+		sta |FP_MATH_CTRL0  ; use fixed point inputs, do divider output
+
+		lda #$A
+		sta |FP_MATH_CTRL2  ; tell FPU inputs are good
+
+		rts
+
+;------------------------------------------------------------------------------
+;
+;
+
+fixed_mult mx %00
+
+		lda math_input0
+		sta FP_MATH_INPUT0_LL
+		lda math_input0+2
+		sta FP_MATH_INPUT0_HL
+
+		lda math_input1
+		sta FP_MATH_INPUT1_LL
+		lda math_input1+2
+		sta FP_MATH_INPUT1_HL  ; (clock 25mhz, 6 clock latency on result)
+
+		nop					   ; (4 clock)
+
+		lda |FP_MATH_OUTPUT_FIXED_LL  ; opcode decipher is 2 more clock
+		sta math_output
+
+		lda |FP_MATH_OUTPUT_FIXED_HL
+		sta math_output+2
+
+		rts
 
 ;------------------------------------------------------------------------------
 ; x and y are inputs
