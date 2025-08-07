@@ -180,7 +180,6 @@ text_table
 		adrl section_start1
 		adrl section_start2
 		adrl section_start3
-		adrl 0
 ; we've cleared this with DMA
 ;		adrl section_start4
 ; we've cleared this with DMA
@@ -195,25 +194,28 @@ text_table
 		adrl section_startD
 		adrl section_startE
 		adrl section_startF
-		;adrl section_start10
-		;adrl section_start11
-		;adrl section_start12
-		;adrl section_start13
-		;adrl section_start14
-		;adrl section_start15
-		;adrl section_start16
-		;adrl section_start17
-		;adrl section_start18
-		;adrl section_start19
-		;adrl section_start1A
-		;adrl section_start1B
-		;adrl section_start1C
-		;adrl section_start1D
-		;adrl section_start1E
-		;adrl section_start1F
+		adrl section_start10
+
+		adrl section_start11
+		adrl section_start12
+		adrl section_start13
+		adrl section_start14
+		adrl section_start15
+		adrl section_start16
+		adrl section_start17
+		adrl section_start18
+		adrl section_start19
+		adrl section_start1A
+		adrl section_start1B
+		adrl section_start1C
+		adrl section_start1D
+		adrl section_start1E
+		adrl section_start1F
 		;adrl 0
 
-		;adrl section_startF4
+		adrl section_startF4
+		adrl 0
+
 		adrl section_startF5
 		;adrl section_startF6
 		;adrl section_startF7
