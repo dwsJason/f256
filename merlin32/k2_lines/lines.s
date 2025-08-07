@@ -42,6 +42,11 @@ line_y ds 2
 
 display_buffer ds 2
 
+min_y ds 2
+max_y ds 2
+min_x ds 2
+max_x ds 2
+
 	dend
 
 ;K
@@ -199,6 +204,55 @@ start  	mx %11
 		jsr TermCR
 		fin
 
+; min max test
+		do 1
+
+		lda #2
+		sta <io_ctrl
+
+		rep #$30
+
+		ldx #$1234
+		ldy #$5678
+		jsr minmax_test
+
+		ldx #$5678
+		ldy #$1234
+		jsr minmax_test
+
+		ldx #0
+		ldy #100
+		jsr minmax_test
+
+		ldx #20
+		ldy #100
+		jsr minmax_test
+
+		ldx #100
+		ldy #20
+		jsr minmax_test
+
+		ldx #-100
+		ldy #100
+		jsr minmax_test
+
+		ldx #100
+		ldy #-100
+		jsr minmax_test
+
+		ldx #-1
+		ldy #-10
+		jsr minmax_test
+
+		ldx #-10
+		ldy #-1
+		jsr minmax_test
+
+		sep #$30
+
+]w bra ]w
+
+		fin
 
 
 
@@ -627,6 +681,61 @@ SwapChain mx %11
 
 ;------------------------------------------------------------------------------
 
+minmax_test mx %00
+
+		stx <temp0
+		sty <temp0+2
+
+		sep #$30
+		lda <temp0
+		ldx <temp0+1
+		jsr TermPrintAXH
+
+		lda #' '
+		jsr TermCOUT
+
+		lda <temp0+2
+		ldx <temp0+3
+		jsr TermPrintAXH
+
+		lda #' '
+		jsr TermCOUT
+
+		lda #'='
+		jsr TermCOUT
+
+		lda #' '
+		jsr TermCOUT
+
+		rep #$30
+
+		ldx <temp0
+		ldy <temp0+2
+		jsr signed_minmax
+
+		stx <temp0
+		sty <temp0+2
+
+		sep #$30
+		lda <temp0
+		ldx <temp0+1
+		jsr TermPrintAXH
+
+		lda #' '
+		jsr TermCOUT
+
+		lda <temp0+2
+		ldx <temp0+3
+		jsr TermPrintAXH
+		jsr TermCR
+		rep #$30
+
+		rts
+		mx %11
+
+
+;------------------------------------------------------------------------------
+
 txt_title asc 'K2 Vectors'
 		db 13,0
 
@@ -642,7 +751,7 @@ txt_too asc ') to ('
 ;
 ; Clear 320x240 buffer PIXEL_DATA with A
 ;
-DmaClearPixelData
+DmaClearPixelData mx %11
 		php
 		sei
 
@@ -808,6 +917,81 @@ plot_line_hw
 ; if a line needs clipped then we just don't draw it
 :clips	mx %10
 
+		rep #$30
+
+		; check the easiest cases
+
+		; if x0 < 0 and x1 < 0 -- full clip
+
+		lda line_x0
+		bpl :next_check1
+		lda line_x1
+		bmi :full_clip
+
+		; if x0 >= 320 and x1 >= 320 -- full clip
+:next_check1
+		lda line_x0
+		cmp #320
+		bcc :next_check2
+		lda line_x1
+		cmp #320
+		bcs :full_clip
+
+		; if y0 < 0 and y1 < 0 -- full clip
+:next_check2
+		lda line_y0
+		bpl :next_check3
+
+		lda line_y1
+		bmi :full_clip
+
+		; if y0 > 240 and y1 > 240  -- full clip
+:next_check3
+		lda line_y0
+		cmp #240
+		bcc :next_check4
+		lda line_y1
+		cmp #240
+		bcs :full_clip
+
+:next_check4
+
+		; Convert points into min/max
+;------------------------------------------------------------------------------
+		ldx line_x0
+		ldy line_x1
+
+		jsr signed_minmax
+
+		stx min_x
+		sty max_x
+;------------------------------------------------------------------------------
+		ldx line_y0
+		ldy line_y1
+
+		jsr signed_minmax
+
+		stx min_y
+		sty max_y
+;------------------------------------------------------------------------------
+
+; the line could be visible (at this point, it might still be invisible)
+
+; Does the line intersect the top of our rectangle (Y Axis = 0)
+
+; Do we interesect the bottom (Y Axis = 239)
+
+; Do we intersect the left (X Axis = 0)
+
+; Do we intersect the right (X Axis = 319)
+
+
+
+
+
+
+:full_clip
+
 		sep #$30
 
 		lda #2
@@ -816,8 +1000,51 @@ plot_line_hw
 
 
 ;------------------------------------------------------------------------------
+; x and y are inputs
+;
+; output, min in x
+;         max in y
+;
+signed_minmax mx %00
+		txa
+		bmi :negative_x
 
-text_plot_too
+		tya
+		bmi :negative_y
+:samesign
+		phx
+		cmp 1,s
+		bcs :pop_done
+
+:pop_swap
+		tyx
+		ply
+		rts
+
+:negative_y
+		txy
+		tax
+		rts
+
+:negative_x
+		tya
+		bmi :samesign
+		rts
+
+:pop_done
+		pla
+:done
+		rts
+
+;
+; Port this for a generic algorithm
+;
+; https://gist.github.com/TimSC/47203a0f5f15293d2099507ba5da44e6#file-linelineintersect-cpp-L21
+;
+
+;------------------------------------------------------------------------------
+
+text_plot_too mx %11
 		lda <line_x1
 		sta <line_x0
 
