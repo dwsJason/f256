@@ -24,14 +24,14 @@ line_color ds 1
 line_x0 ds 2
 line_x1 ds 2
 
-line_y0 ds 1
-line_y1 ds 1
+line_y0 ds 2
+line_y1 ds 2
 
 target_x0 ds 2
-target_y0 ds 1
+target_y0 ds 2
 
 target_x1 ds 2
-target_y1 ds 1
+target_y1 ds 2
 
 
 cursor_x ds 2
@@ -125,6 +125,87 @@ start  	mx %11
 
 ;------------------------------------------------------------------------------
 
+		do 1
+		stz io_ctrl
+
+		ldx #0
+		txy
+		jsr TermSetXY
+
+		lda #1
+		stz <temp0
+		stz <temp0+1
+		sta <temp0+2
+		stz <temp0+3
+		stz <temp1
+		stz <temp1+1
+		sta <temp1+2
+		stz <temp1+3
+
+		rep #$30
+
+		stz |FP_MATH_CTRL2
+
+		;lda #$001B   ; fix point inputs, multiplier output
+		;lda #$01F3   ; set for fixed point and divide
+		;lda #$00A3
+		lda #$0003
+		sta |FP_MATH_CTRL0
+
+		lda #$1000
+		ldx #$0000
+		sta |FP_MATH_INPUT0_LL
+		stx |FP_MATH_INPUT0_HL
+
+		lda #$0800
+		ldx #$0000
+		sta |FP_MATH_INPUT1_LL
+		stx |FP_MATH_INPUT1_HL
+
+		lda #$A
+		sta |FP_MATH_CTRL2
+
+		nop
+		nop
+		nop
+		nop
+
+;]wait
+;		lda $DE84
+;		and #$10
+;		beq ]wait
+
+
+		lda |FP_MATH_OUTPUT_FIXED_LL
+		ldx |FP_MATH_OUTPUT_FIXED_HL
+
+		;lda #$5678
+		;ldx #$1234
+
+		sta <temp3
+		stx <temp3+2
+
+		sep #$30
+
+		lda #2
+		sta <io_ctrl
+
+		lda <temp3+2
+		ldx <temp3+3
+		jsr TermPrintAXH
+		lda <temp3
+		ldx <temp3+1
+		jsr TermPrintAXH
+		jsr TermCR
+		fin
+
+
+
+
+
+
+;------------------------------------------------------------------------------
+
 		do 0 ; random lines
 		lda #$B
 		sta line_color
@@ -166,6 +247,14 @@ start  	mx %11
 
 		lda #2
 		sta io_ctrl
+
+		rep #$30
+		stz line_x0
+		stz line_x1
+		stz line_y0
+		stz line_y1
+		rep #$30
+
 
 		stz line_y
 		stz line_y+1
@@ -667,15 +756,6 @@ DmaClearPixelData2
 
 ;------------------------------------------------------------------------------
 plot_line
-;		jmp plot_line_16x8y
-;		jmp plot_line_8x8y
-
-		jmp plot_line_hw
-
-
-		rts
-
-;------------------------------------------------------------------------------
 plot_line_hw
 		stz io_ctrl
 
@@ -686,17 +766,29 @@ plot_line_hw
 		rep #$10
 
 		ldx <line_x0
+		cpx #320
+		bcs :clips
 		ldy <line_x1
+		cpy #320
+		bcs :clips
 
 		;ldx #10
 		stx |LINE_X0
 		;ldx #300
 		sty |LINE_X1
 
-		ldx <line_y0  ; grabs both y0 and y1
+	    ; we need to support 16 bit for the y also
+		ldx <line_y0
+		cpx #240
+		bcs :clips
+		ldx <line_y1
+		cpx #240
+		bcs :clips
 
-		;ldx #$8080
-		stx |LINE_Y0  ; sets both
+		lda <line_y0  ; grabs both y0 and y1
+		sta |LINE_Y0
+		lda <line_y1
+		sta |LINE_Y1
 
 		lda #3    ; 2 works for loading
 		sta |LINE_CTRL
@@ -713,250 +805,15 @@ plot_line_hw
 		sta io_ctrl
 		rts
 
-;------------------------------------------------------------------------------
-;
-; no real regard given to performance, just make it work
-;
-plot_line_16x8y
+; if a line needs clipped then we just don't draw it
+:clips	mx %10
+
+		sep #$30
+
+		lda #2
+		sta io_ctrl
 		rts
 
-
-
-;------------------------------------------------------------------------------
-;
-; no real regard given to performance, just make it work
-;
-plot_line_8x8y
-
-:x0 = temp0
-:y0 = temp0+2
-:x1 = temp1
-:y1 = temp1+2
-:dx = temp2
-:dy = temp2+1
-:sx = temp3
-:sy = temp3+1
-
-:err  = temp4
-:err2 = temp4+2
-
-:temp0 = temp5
-
-;----- copy inputs
-		ldx <line_x0
-		ldy <line_y0
-		stx <:x0
-		sty <:y0
-
-		ldx <line_x1
-		ldy <line_y1
-		stx <:x1
-		sty <:y1
-
-;----- calulate dx + sx (delta x, and step x)
-; dx = abs(x1 - x0)
-; sx = x0 < x1 ? 1: -1  ; I'm doing 1 or 0
-		cpx <:x0
-		bcs :x_good
-
-		sec
-		lda <:x0
-		sbc <:x1
-
-		stz <:sx  ; indicate negative step
-		bra :st_dx
-:x_good
-		lda #1
-		sta <:sx  ; positive step
-		txa
-		sbc <:x0
-:st_dx	sta <:dx
-
-;----- calculate dy + sy (delta y, and step y)
-; dy = -abs(y1 - y0)      ; I'm keeping this positive
-; sy = y0 < y1 ? 1 : -1   ; I'm doing 1 or 0
-:now_y
-		cpy <:y0
-		bcs :y_good
-
-		sec
-		lda <:y0
-		sbc <:y1
-
-		stz <:sy ; indicate negative step
-		bra :st_dy
-:y_good
-		lda #1
-		sta <:sy ; positive step
-		tya
-		sbc <:y0
-:st_dy  sta <:dy
-
-;----- calculate initial error
-; error = dx + dy
-		sec
-		lda <:dx
-		sbc <:dy
-		sta <:err
-		lda #0		; both dx and dy are only 8 bit, for now
-		sbc #0
-		sta <:err+1
-]loop
-		jsr PlotXY
-
-; if x0==x1 && y0==y1 - done
-		lda <:x0
-		eor <:x1
-		bne :go_go
-
-		lda <:y0
-		eor <:y1
-		beq :done_done
-:go_go
-;----- calc e2
-		lda <:err
-		asl
-		sta <:err2
-		lda <:err+1
-		rol
-		sta <:err2+1
-; if e2 >= (-dy)   (in original code dy is always negative)
-;               (in our code dy is always positive)
-		bpl :e2_ge_dy ; when error is positive, it's always greater=
-
-		; if e2 is negative - 
-		eor #$FF
-		sta <:temp0+1
-
-		lda <:err2
-		eor #$FF
-		inc
-		sta <:temp0
-		bne :kk
-		inc <:temp0+1
-:kk
-		; temp0 is now a positive version of e2
-		; now check to see if e2 <= dy
-
-		lda <:temp0+1
-		bne :next_thing
-
-		lda <:temp0
-		cmp <:dy
-		bcc :e2_ge_dy
-		beq :e2_ge_dy
-		bcs :next_thing
-:e2_ge_dy
-		; if x0 == x1 break, break the if?
-		lda <:x0
-		eor <:x1
-		beq :next_thing
-		; error = error + dy
-		sec
-		lda <:err
-		sbc <:dy
-		sta <:err
-		lda <:err+1
-		sbc #0
-		sta <:err+1
-		; x0 = x0 + sx
-		lda <:sx
-		beq :dec_x
-		inc <:x0
-		bra :next_thing
-:dec_x
-		dec <:x0
-
-:next_thing
-; if e2 <= dx
-		lda <:err2+1
-		bmi :kk2	  ; if e2 negative, it's automatically smaller
-		bne ]loop     ; dx can be 255 at the biggest, so err2+1 has to be 0
-					  ; for e2 to be <= dx
-		lda <:dx
-		cmp <:err2
-		bcc ]loop
-
-:kk2
-		; if y0 == y1 break
-		lda <:y0
-		eor <:y1
-		beq ]loop
-		; error = error + dx
-		clc
-		lda <:err
-		adc <:dx
-		sta <:err
-		lda <:err+1
-		adc #0
-		sta <:err+1
-		; y0 = y0 + sy
-		lda <:sy
-		beq :dec_y
-		inc <:y0
-		bra ]loop
-:dec_y
-		dec <:y0
-		bra ]loop
-
-:done_done
-		rts
-
-;------------------------------------------------------------------------------
-;
-; Version requires $6000 WRITE_BLOCK, so quicker detection of wrap
-;
-PlotXY
-		ldx <:y0
-		clc
-		lda |:block_low_320,x   ; low byte of address in our mapped block
-		adc <:x0
-		sta |:p+1				; modify the store code, with abs address
-
-		ldy |:block_num,x
-
-		lda |:block_hi_320,x
-		adc #0  				; Or adc x0+1 for 16-bit
-		bpl :good_to_go 		; this check depends on block ending at 7FFF
-
-		iny
-
-		lda #>WRITE_BLOCK
-
-:good_to_go
-		sty <mmu3
-		sta |:p+2
-		lda line_color
-:p		sta |WRITE_BLOCK
-
-		rts
-
-
-; I'm going to change this out to be an mmu+block + offset address
-; simulating what the bitmap coordinate math block does
-
-
-
-:block_low_320
-]var = PIXEL_DATA
-		lup 256
-		db <]var
-]var = ]var + 320
-		--^
-
-:block_hi_320
-]var = PIXEL_DATA
-		lup 256
-		db >{{]var&$1FFF}+WRITE_BLOCK}
-]var = ]var + 320
-		--^
-
-:block_num
-]var = PIXEL_DATA
-		lup 256
-		db {]var/$2000}
-]var = ]var + 320
-		--^
 
 ;------------------------------------------------------------------------------
 

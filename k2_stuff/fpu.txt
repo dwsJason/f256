@@ -1,4 +1,4 @@
-ixed Point Math  @ $DE00
+Fixed Point Math  @ $DE00
 
  New Float Block Register Definitions 
 
@@ -50,3 +50,83 @@ $DE86: Status Register 2  (to be detailed Later)
 $DE87: Status Register 3  (to be detailed Later)
 $DE8B:$DE88: FLOAT OUTPUT
 $DE8F:$DE8C: CONVERTED OUTPUT [20:12] Format S+19.12
+
+
+always @ (*)
+begin
+    case(CPU_A_i[3:0])
+        4'b0000: CPU_D_o = FP_MATH_CTRL0;
+        4'b0001: CPU_D_o = FP_MATH_CTRL1;
+        4'b0010: CPU_D_o = FP_MATH_CTRL2;
+        4'b0011: CPU_D_o = FP_MATH_CTRL3;
+        4'b0100: CPU_D_o = { 3'b000, FP_Mult_Output_Tvalid, FP_Mult_Status_zero, FP_Mult_Status_underflow, FP_Mult_Status_overflow, FP_Mult_Status_NaN};
+        4'b0101: CPU_D_o = { 2'b00, FP_Div_Output_Tvalid, FP_Div_Status_DivideByZero, FP_Div_Status_zero, FP_Div_Status_underflow, FP_Div_Status_overflow, FP_Div_Status_NaN};
+        4'b0110: CPU_D_o = { 3'b000, FP_AddSub_Output_Tvalid,  FP_Add_Status_zero, FP_Add_Status_underflow, FP_Add_Status_overflow, FP_Add_Status_NaN};
+        4'b0111: CPU_D_o = { 4'b0000, FP_FP2INT_Output_Tvalid, FP_Converter_Status_underflow, FP_Converter_Status_overflow, FP_Converter_Status_NaN};
+        4'b1000: CPU_D_o = FP_ADD_SUB_OUTPUT_MUX[7:0];
+        4'b1001: CPU_D_o = FP_ADD_SUB_OUTPUT_MUX[15:8];
+        4'b1010: CPU_D_o = FP_ADD_SUB_OUTPUT_MUX[23:16];
+        4'b1011: CPU_D_o = FP_ADD_SUB_OUTPUT_MUX[31:24];
+        4'b1100: CPU_D_o = Fixed_Converter_Output[7:0];
+        4'b1101: CPU_D_o = Fixed_Converter_Output[15:8];
+        4'b1110: CPU_D_o = Fixed_Converter_Output[23:16];
+        4'b1111: CPU_D_o = Fixed_Converter_Output[31:24];
+        default: CPU_D_o = 8'hFF;
+    endcase
+end
+@dwsJason here is an example of what I talked to you about:
+// 6 Clock Latency
+Converter_20I12F_2_FP Conv_20I12F_2_FP0 (
+  .aclk( CPU_Clk_i ),                                  // input wire aclk
+  .s_axis_a_tvalid( FP_MATH_CTRL2[0] ),            // input wire s_axis_a_tvalid
+  .s_axis_a_tdata( UserInput0 ),              // input wire [31 : 0] s_axis_a_tdata
+  .m_axis_result_tvalid( Converter_Output_A_tvalid),  // output wire m_axis_result_tvalid
+  .m_axis_result_tdata( Converter_Output_A )    // output wire [31 : 0] m_axis_result_tdata
+);
+look at the at 
+s_axis_a_tvalid( FP_MATH_CTRL2[0] )
+This is the Enable, then it comes out 6 clocks (25Mhz Clock) later @ 
+m_axis_result_tvalid
+Then this m_axis_result_tvalid is being carried over to another block
+So here is the a bigger block:
+// 6 Clock Latency
+Converter_20I12F_2_FP Conv_20I12F_2_FP0 (
+  .aclk( CPU_Clk_i ),                                  // input wire aclk
+  .s_axis_a_tvalid( FP_MATH_CTRL2[0] ),            // input wire s_axis_a_tvalid
+  .s_axis_a_tdata( UserInput0 ),              // input wire [31 : 0] s_axis_a_tdata
+  .m_axis_result_tvalid( Converter_Output_A_tvalid),  // output wire m_axis_result_tvalid
+  .m_axis_result_tdata( Converter_Output_A )    // output wire [31 : 0] m_axis_result_tdata
+);
+
+assign     Converter0_Output_MUX           = FP_MATH_CTRL0[0] ? Converter_Output_A         : UserInput0;    
+assign  Converter0_Output_MUX_Tvalid    = FP_MATH_CTRL0[0] ? Converter_Output_A_tvalid  : FP_MATH_CTRL2[1];
+
+// 6 Clock Latency
+Converter_20I12F_2_FP Conv_20I12F_2_FP1 (
+  .aclk( CPU_Clk_i ),                                  // input wire aclk
+  .s_axis_a_tvalid( FP_MATH_CTRL2[2] ),            // input wire s_axis_a_tvalid
+  .s_axis_a_tdata( UserInput1 ),              // input wire [31 : 0] s_axis_a_tdata     //Sign, 19.12 Format
+  .m_axis_result_tvalid( Converter_Output_B_tvalid),  // output wire m_axis_result_tvalid
+  .m_axis_result_tdata( Converter_Output_B )    // output wire [31 : 0] m_axis_result_tdata
+);
+
+assign     Converter1_Output_MUX           = FP_MATH_CTRL0[1] ? Converter_Output_B         : UserInput1;        
+assign  Converter1_Output_MUX_Tvalid    = FP_MATH_CTRL0[1] ? Converter_Output_B_tvalid  : FP_MATH_CTRL2[3];
+ 
+The Cyber Mistress — 6:35 PM
+TValid Control Register
+FP_MATH_CTRL2[0] = Converter_20I12F_2_FP Block 0 - TVALID
+FP_MATH_CTRL2[1] = User Input 0 - TVALID
+FP_MATH_CTRL2[2] = Converter_20I12F_2_FP Block 1 - TVALID
+FP_MATH_CTRL2[3] = User Input 1 - TVALID
+ 
+So, bottom line, after you set your User Input 0 and User Input 1 and you have chosen your path for computation, then you need to set the TVALID Flag in Control Register 2 [1] & Control Register 2 [2]...
+
+This is will let the FP block that the data is valid and that very bit will be used to carry around the validity of the results.
+Then you just have to wait for the Status Register TValid bit of the block you want to know when the output is valid, So to make it really efficient then you could either keep it 1 and then count the number of clocks (or instructions) you have to wait to get a valid Tvalid and then when you know, it is always the same, you don't have to poll the TValid you just know...
+Each Block have latency, so having different route of calculation will make it tricky to know all the different combination
+The Cyber Mistress — 6:42 PM
+For example... (Clock = 25Mhz )
+The Forward Conversion has 6 Clock Latency
+The multiply has 6 Clock Latency
+The Division has 14 Clock Latency
