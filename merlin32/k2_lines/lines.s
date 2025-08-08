@@ -1071,6 +1071,35 @@ fixed_mult mx %00
 		rts
 
 ;------------------------------------------------------------------------------
+
+
+fixed_div mx %00
+
+		lda math_input0
+		sta FP_MATH_INPUT0_LL
+		lda math_input0+2
+		sta FP_MATH_INPUT0_HL
+
+		lda math_input1
+		sta FP_MATH_INPUT1_LL
+		lda math_input1+2
+		sta FP_MATH_INPUT1_HL  ; (clock 25mhz, 14 clock latency on result)
+
+		nop					   ; (4 clock)
+		nop 	; 8
+		nop 	; 10
+		nop     ; 12
+
+		lda |FP_MATH_OUTPUT_FIXED_LL  ; opcode decipher is 2 more clock
+		sta math_output
+
+		lda |FP_MATH_OUTPUT_FIXED_HL
+		sta math_output+2
+
+		rts
+
+
+;------------------------------------------------------------------------------
 ; x and y are inputs
 ;
 ; output, min in x
