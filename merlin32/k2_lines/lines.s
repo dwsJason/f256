@@ -327,11 +327,16 @@ start  	mx %11
 
 		jsr fpu_set_mult_mode
 
+		rep #$30
+
+		stz <math_angle
+
+
 wow_loop mx %11
 
 		rep #$30
 
-		stz <math_angle
+		;stz <math_angle
 
 		lda #160
 		sta line_x
@@ -352,7 +357,7 @@ wow_loop mx %11
 
 		; x = cos(angle) * 100.0 + 160.0
 
-		PushFixed 100
+		PushFixed 160
 		pei math_cos+2
 		pei math_cos
 
@@ -365,7 +370,7 @@ wow_loop mx %11
 		sta line_x1
 
 		; y = sin(angle) * 100.0 + 120.0
-		PushFixed 100
+		PushFixed 120
 		pei math_sin+2
 		pei math_sin
 
@@ -384,12 +389,12 @@ wow_loop mx %11
 ; increment angle
 		clc
 		lda math_angle
-		adc #32 	; has to be evenly dividable by 4096
+		adc #5 	; has to be evenly dividable by 4096
 		and #$FFF
 		sta math_angle
 		beq :circle_done
 
-		jmp ]loop
+		;jmp ]loop
 
 :circle_done
 
