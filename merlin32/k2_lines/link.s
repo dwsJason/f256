@@ -39,6 +39,7 @@
 		org $300
 main_code_start
 		put lines.s
+		put mathblock.s
 		put term.s
 		put mmu.s
 		put colors.s
