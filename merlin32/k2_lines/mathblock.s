@@ -72,9 +72,35 @@ PullInt mac
 ;                fixed point result
 ;
 
-FixedMultiply mx %00
+FixedMultiplyC mx %00
+
 		rts
 
+FixedMultiply mac
+		stz |FP_MATH_CTRL2
+		lda #$0003    ; 2 fixed point input, output multiply
+		sta |FP_MATH_CTRL0
+
+		pla
+		sta FP_MATH_INPUT1_LL
+		pla
+		sta FP_MATH_INPUT1_HL
+
+		pla
+		sta FP_MATH_INPUT0_LL
+		pla
+		sta FP_MATH_INPUT0_HL
+
+		lda #$A
+		sta |FP_MATH_CTRL2
+
+		nop
+
+		lda FP_MATH_OUTPUT_FIXED_LL
+		ldx FP_MATH_OUTPUT_FIXED_HL
+		phx
+		pha
+		<<<
 
 ;------------------------------------------------------------------------------
 ; Take 2 fixed point numbers on the stack
@@ -87,6 +113,27 @@ FixedMultiply mx %00
 ;                fixed point result
 ;
 
-FixedAdd mx %00
+; 1,3,5,7
+
+FixedAddC mx %00
+		plx 	 ; return address off the stack
+		clc 	 ; c=0
+		pla
+		adc 3,s
+		sta 3,s
+		pla
+		adc 3,s
+		sta 3,s
+		phx
 		rts
+
+FixedAdd mac
+		clc 	 ; c=0
+		pla
+		adc 3,s
+		sta 3,s
+		pla
+		adc 3,s
+		sta 3,s
+		<<<
 

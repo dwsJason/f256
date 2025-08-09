@@ -164,17 +164,17 @@ start  	mx %11
 		;lda #$00A3
 		lda #$0003    ; 2 fixed point input, output multiply
 
-		lda #$01C3    ; 2 fixed point input, output divide
+		;lda #$01C3    ; 2 fixed point input, output divide
 
 		sta |FP_MATH_CTRL0
 
-		lda #$1000
-		ldx #$0000
+		lda #$F000
+		ldx #$FFFF
 		sta |FP_MATH_INPUT0_LL
 		stx |FP_MATH_INPUT0_HL
 
-		lda #$0800
-		ldx #$0000
+		lda #$F000
+		ldx #$FFFF
 		sta |FP_MATH_INPUT1_LL
 		stx |FP_MATH_INPUT1_HL
 
@@ -325,6 +325,8 @@ start  	mx %11
 		stz line_x
 		stz line_x+1
 
+		jsr fpu_set_mult_mode
+
 wow_loop mx %11
 
 		rep #$30
@@ -341,6 +343,10 @@ wow_loop mx %11
 ; Draw a Circle
 
 ]loop
+		sep #$30
+		stz io_ctrl
+		rep #$30
+
 		lda math_angle
 		jsr get_sincos
 
@@ -350,10 +356,10 @@ wow_loop mx %11
 		pei math_cos+2
 		pei math_cos
 
-		jsr FixedMultiply
+		FixedMultiply
 
 		PushFixed 160
-		jsr FixedAdd
+		FixedAdd
 
 		PullInt
 		sta line_x1
@@ -363,10 +369,10 @@ wow_loop mx %11
 		pei math_sin+2
 		pei math_sin
 
-		jsr FixedMultiply
+		FixedMultiply
 
 		PushFixed 120
-		jsr FixedAdd
+		FixedAdd
 
 		PullInt
 		sta line_y1
@@ -383,9 +389,15 @@ wow_loop mx %11
 		sta math_angle
 		beq :circle_done
 
-		bra ]loop
+		jmp ]loop
 
 :circle_done
+
+		stz line_x1+1
+		stz line_x0+1
+
+		lda #15
+		sta line_color
 
 		sep #$30
 		;jsr weird_circle
