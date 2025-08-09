@@ -384,7 +384,7 @@ wow_loop mx %11
 ; increment angle
 		clc
 		lda math_angle
-		adc #128 	; has to be evenly dividable by 4096
+		adc #32 	; has to be evenly dividable by 4096
 		and #$FFF
 		sta math_angle
 		beq :circle_done
@@ -1510,7 +1510,7 @@ get_sincos mx %00
 		lda |cos_table,x
 		sta math_cos
 		bpl :done
-		dec math_cos
+		dec math_cos+2
 :done
 		rts
 
@@ -2034,8 +2034,6 @@ cos_table
 	dw $ff6a,$ff70,$ff76,$ff7d,$ff83,$ff89,$ff8f,$ff96
 	dw $ff9c,$ffa2,$ffa9,$ffaf,$ffb5,$ffbb,$ffc2,$ffc8
 	dw $ffce,$ffd5,$ffdb,$ffe1,$ffe7,$ffee,$fff4,$fffa
-; extra values for cos
-
 	dw $0000,$0006,$000c,$0012,$0019,$001f,$0025,$002b
 	dw $0032,$0038,$003e,$0045,$004b,$0051,$0057,$005e
 	dw $0064,$006a,$0071,$0077,$007d,$0083,$008a,$0090
@@ -2164,6 +2162,4 @@ cos_table
 	dw $0ffd,$0ffd,$0ffd,$0ffd,$0ffe,$0ffe,$0ffe,$0ffe
 	dw $0ffe,$0ffe,$0fff,$0fff,$0fff,$0fff,$0fff,$0fff
 	dw $0fff,$0fff,$0fff,$0fff,$0fff,$0fff,$0fff,$0fff
-
-;------------------------------------------------------------------------------
 
