@@ -76,6 +76,11 @@ start  	mx %11
 		clc
 		xce
 
+		rep #$30
+		lda #$1FF
+		tcs
+		sep #$30
+
 ; This will copy the color table into memory, then set the video registers
 ; to display the bitmap
 
@@ -346,7 +351,6 @@ wow_loop mx %11
 		sta line_y0
 
 ; Draw a Circle
-
 ]loop
 		sep #$30
 		stz io_ctrl
@@ -355,7 +359,7 @@ wow_loop mx %11
 		lda math_angle
 		jsr get_sincos
 
-		; x = cos(angle) * 100.0 + 160.0
+		; x = cos(angle) * 160.0 + 160.0
 
 		PushFixed 160
 		pei math_cos+2
@@ -369,10 +373,10 @@ wow_loop mx %11
 		PullInt
 		sta line_x1
 
-		; y = sin(angle) * 100.0 + 120.0
-		PushFixed 120
+		; y = sin(angle) * 120.0 + 120.0
 		pei math_sin+2
 		pei math_sin
+		PushFixed 120
 
 		FixedMultiply
 
@@ -389,7 +393,8 @@ wow_loop mx %11
 ; increment angle
 		clc
 		lda math_angle
-		adc #5 	; has to be evenly dividable by 4096
+		;adc #5 	; has to be evenly dividable by 4096
+		adc #68 	; has to be evenly dividable by 4096
 		and #$FFF
 		sta math_angle
 		beq :circle_done
@@ -397,6 +402,93 @@ wow_loop mx %11
 		;jmp ]loop
 
 :circle_done
+
+;------------------------------------------------------------------------------
+
+		sep #$30
+		stz io_ctrl
+		rep #$30
+
+BASELINE = 160
+;MAXSCALE = 239-BASELINE
+MAXSCALE = 20
+
+		; Draw a Sine Wave
+
+		stz line_x0
+		pei math_sin+2
+		pei math_sin
+		PushFixed MAXSCALE
+
+		FixedMultiply
+
+		PushFixed BASELINE
+	    FixedAdd
+		PullInt
+		sta line_y0
+
+		pei math_angle
+
+		clc
+		lda math_angle
+		adc #204
+		and #$FFF
+		sta math_angle
+		jsr get_sincos
+
+
+		; for (int x = 0; x < 320; x+=4)
+]sineloop
+		sep #$30
+		stz io_ctrl
+		rep #$30
+
+		clc
+		lda line_x0
+		adc #4
+		sta line_x1
+		cmp #320
+		beq :go319
+		bcs :sine_done
+		bra :not319
+:go319
+		lda #319
+		sta line_x1
+:not319
+		pei math_sin+2
+		pei math_sin
+		PushFixed MAXSCALE
+
+		FixedMultiply
+
+		PushFixed BASELINE
+	    FixedAdd
+
+		PullInt
+		sta line_y1
+
+		sep #$30
+		jsr plot_line
+		rep #$31
+
+		lda line_x1
+		sta line_x0
+		lda line_y1
+		sta line_y0
+
+		lda math_angle
+		adc #204
+		and #$FFF
+		sta math_angle
+		jsr get_sincos
+
+		jmp ]sineloop
+
+:sine_done
+		pla
+		sta math_angle
+;------------------------------------------------------------------------------
+
 
 		stz line_x1+1
 		stz line_x0+1
