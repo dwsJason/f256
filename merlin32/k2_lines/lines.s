@@ -58,7 +58,8 @@ math_cos   ds 4
 	dend
 
 	dum $A000
-y_positions ds 320*2
+line_y_positions ds 320*2
+line_angles 	 ds 320*2
 	dend
 
 ;K
@@ -483,7 +484,11 @@ STEP = 102
 		asl
 		tax
 		lda line_y0
-		sta y_positions,x
+		sta line_y_positions,x
+
+		lda math_angle
+		sta line_angles,x
+
 		; y positions
 
 		lda line_x1
@@ -518,6 +523,9 @@ STEP = 102
 ; Wavey Test
 		do 1
 		rep #$30
+
+		pei math_angle
+
 		lda #16
 		sta <cursor_x
 
@@ -527,10 +535,13 @@ STEP = 102
 		lda <cursor_x
 		asl
 		tay
-		lda y_positions,y
+		lda line_y_positions,y
 		sec
 		sbc #12
 		sta <cursor_y
+
+		lda line_angles,y
+		sta	math_angle
 
 		lda :txt,x
 		and #$FF
@@ -538,15 +549,15 @@ STEP = 102
 		inx
 
 		phx
-		sep #$30
-		jsr vectorCOUT2
-		rep #$30
+		jsr vectorCOUT3
 		plx
 
 		bra ]loop
 
 :done
 		plx
+		pla
+		sta math_angle
 
 		sep #$30
 
@@ -601,9 +612,90 @@ STEP = 102
 		db 0
 		fin
 
+
+;------------------------------------------------------------------------------
+;
+; px = x * cos - y * sin
+; py = x * sin + y * cos
+;
+
+vectorCOUT3 mx %00
+:pGlyph = temp6   ; seems like line doesn't use this
+		and #$ff
+		sec
+		sbc #32
+		asl
+		tax
+		lda vector_font,x
+		sta :pGlyph
+
+		jsr get_sincos
+
+		ldy #0
+]lp 	lda (:pGlyph),y
+		and #$FF
+		beq :done
+
+		phy
+		pha
+
+		and #$F
+		asl
+		tax
+;--------------------
+		;pei math_cos+2
+		;pei math_cos
+		;lda vfont_points_x2,x
+		;pha
+		;pea 0
+		;FixedMultiply
+
+
+		clc
+		lda vfont_points_x2,x
+		adc cursor_x
+		sta line_x0
+		clc
+		lda vfont_points_y2,x
+		adc cursor_y
+		sta line_y0
+
+		pla
+		and #$F0
+		lsr
+		lsr
+		lsr
+		tax
+
+		clc
+		lda vfont_points_x2,x
+		adc cursor_x
+		sta line_x1
+		clc
+		lda vfont_points_y2,x
+		adc cursor_y
+		sta line_y1
+
+		sep #$30
+		jsr plot_line
+		rep #$30
+
+		ply
+		iny
+		bra ]lp
+
+:done
+		; fall through to cursor step
+:vcursor_step
+		clc
+		lda <cursor_x
+		adc #16			; width, although these could kern
+		sta <cursor_x
+		rts
+
 ;------------------------------------------------------------------------------
 
-vectorCOUT2
+vectorCOUT2 mx %00
 :pGlyph = temp6   ; seems like line doesn't use this
 		rep #$30
 		and #$ff
