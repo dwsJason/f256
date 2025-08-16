@@ -57,6 +57,10 @@ math_cos   ds 4
 
 	dend
 
+	dum $A000
+y_positions ds 320*2
+	dend
+
 ;K
 ;PIXEL_DATA = $40000
 ;K2 with 2MB of RAM (NOTE My SOFTWARE LINE DRAW WONT WORK WITH THIS)
@@ -340,13 +344,15 @@ start  	mx %11
 wow_loop mx %11
 
 		rep #$30
-
+CTR_X  = 292
+CTR_Y  = 32
+RADIUS = 20
 		;stz <math_angle
 
-		lda #160
+		lda #CTR_X
 		sta line_x
 		sta line_x0
-		lda #120
+		lda #CTR_Y
 		sta line_y
 		sta line_y0
 
@@ -361,26 +367,26 @@ wow_loop mx %11
 
 		; x = cos(angle) * 160.0 + 160.0
 
-		PushFixed 160
+		PushFixed RADIUS
 		pei math_cos+2
 		pei math_cos
 
 		FixedMultiply
 
-		PushFixed 160
+		PushFixed CTR_X
 		FixedAdd
 
 		PullInt
 		sta line_x1
 
 		; y = sin(angle) * 120.0 + 120.0
+		PushFixed RADIUS
 		pei math_sin+2
 		pei math_sin
-		PushFixed 120
 
 		FixedMultiply
 
-		PushFixed 120
+		PushFixed CTR_Y
 		FixedAdd
 
 		PullInt
@@ -394,7 +400,7 @@ wow_loop mx %11
 		clc
 		lda math_angle
 		;adc #5 	; has to be evenly dividable by 4096
-		adc #68 	; has to be evenly dividable by 4096
+		adc #34 	; has to be evenly dividable by 4096
 		and #$FFF
 		sta math_angle
 		beq :circle_done
@@ -412,6 +418,7 @@ wow_loop mx %11
 BASELINE = 160
 ;MAXSCALE = 239-BASELINE
 MAXSCALE = 20
+STEP = 102
 
 		; Draw a Sine Wave
 
@@ -431,7 +438,7 @@ MAXSCALE = 20
 
 		clc
 		lda math_angle
-		adc #204
+		adc #STEP
 		and #$FFF
 		sta math_angle
 		jsr get_sincos
@@ -449,8 +456,8 @@ MAXSCALE = 20
 		sta line_x1
 		cmp #320
 		beq :go319
-		bcs :sine_done
-		bra :not319
+		bcc :not319
+		jmp :sine_done
 :go319
 		lda #319
 		sta line_x1
@@ -471,13 +478,21 @@ MAXSCALE = 20
 		jsr plot_line
 		rep #$31
 
+		; record off the y positions
+		lda line_x0
+		asl
+		tax
+		lda line_y0
+		sta y_positions,x
+		; y positions
+
 		lda line_x1
 		sta line_x0
 		lda line_y1
 		sta line_y0
 
 		lda math_angle
-		adc #204
+		adc #STEP
 		and #$FFF
 		sta math_angle
 		jsr get_sincos
@@ -500,8 +515,54 @@ MAXSCALE = 20
 		;jsr weird_circle
 		sep #$30
 
-; Glyphy Test
+; Wavey Test
+		do 1
+		rep #$30
+		lda #16
+		sta <cursor_x
 
+		ldx #0
+		phx
+]loop
+		lda <cursor_x
+		asl
+		tay
+		lda y_positions,y
+		sec
+		sbc #12
+		sta <cursor_y
+
+		lda :txt,x
+		and #$FF
+		beq :done
+		inx
+
+		phx
+		sep #$30
+		jsr vectorCOUT2
+		rep #$30
+		plx
+
+		bra ]loop
+
+:done
+		plx
+
+		sep #$30
+
+		jsr SwapChain
+		brl wow_loop
+
+		bra :done
+
+:txt	asc 'F256K REALTIME MATH'
+		db 0
+		fin
+
+
+
+; Glyphy Test
+		do 0
 		lda #8
 		sta <cursor_x
 		asl
@@ -538,13 +599,82 @@ MAXSCALE = 20
 		asc '`abcdefghijklmno'0D
 		asc 'pqrstuvwxyz{|}~'0D
 		db 0
+		fin
 
 ;------------------------------------------------------------------------------
+
+vectorCOUT2
+:pGlyph = temp6   ; seems like line doesn't use this
+		rep #$30
+		and #$ff
+		sec
+		sbc #32
+		asl
+		tax
+		lda vector_font,x
+		sta :pGlyph
+
+		ldy #0
+]lp 	lda (:pGlyph),y
+		and #$FF
+		beq :done
+
+		phy
+		pha
+
+		and #$F
+		asl
+		tax
+
+		clc
+		lda vfont_points_x2,x
+		adc cursor_x
+		sta line_x0
+		clc
+		lda vfont_points_y2,x
+		adc cursor_y
+		sta line_y0
+
+		pla
+		and #$F0
+		lsr
+		lsr
+		lsr
+		tax
+
+		clc
+		lda vfont_points_x2,x
+		adc cursor_x
+		sta line_x1
+		clc
+		lda vfont_points_y2,x
+		adc cursor_y
+		sta line_y1
+
+		sep #$30
+		jsr plot_line
+		rep #$30
+
+		ply
+		iny
+		bra ]lp
+
+:done
+		; fall through to cursor step
+:vcursor_step
+		rep #$31
+		lda <cursor_x
+		adc #16			; width, although these could kern
+		sta <cursor_x
+		sep #$30
+		rts
+;------------------------------------------------------------------------------
+
 
 vectorCOUT
 :pGlyph = temp6   ; seems like line doesn't use this
 		cmp #13
-		beq vlinef
+		beq :vlinef
 
 		sec
 		sbc #32
@@ -599,14 +729,14 @@ vectorCOUT
 
 :done
 		; fall through to cursor step
-vcursor_step
+:vcursor_step
 		clc
 		lda <cursor_x
 		adc #14			; width, although these could kern
 		sta <cursor_x
 		cmp #240
 		bcc :ok
-vlinef	clc
+:vlinef	clc
 		lda #8
 		sta <cursor_x
 		lda <cursor_y
@@ -634,7 +764,22 @@ vfont_points_y
 		db 0,0,0
 		db 5,5,5
 		db 7,7,7
-		
+
+vfont_points_x2
+		dw 0
+		dw -5,0,5
+		dw -5,0,5
+		dw -5,0,5
+		dw -5,0,5
+		dw -5,0,5
+
+vfont_points_y2
+		dw 0
+		dw -7,-7,-7
+		dw -5,-5,-5
+		dw 0,0,0
+		dw 5,5,5
+		dw 7,7,7
 
 ;------------------------------------------------------------------------------
 
@@ -2259,4 +2404,3 @@ cos_table
 	dw $0ffd,$0ffd,$0ffd,$0ffd,$0ffe,$0ffe,$0ffe,$0ffe
 	dw $0ffe,$0ffe,$0fff,$0fff,$0fff,$0fff,$0fff,$0fff
 	dw $0fff,$0fff,$0fff,$0fff,$0fff,$0fff,$0fff,$0fff
-
