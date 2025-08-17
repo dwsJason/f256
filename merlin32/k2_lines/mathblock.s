@@ -76,6 +76,36 @@ FixedMultiplyC mx %00
 
 		rts
 
+FixedDivide mac
+		stz |FP_MATH_CTRL2
+		lda #$01C3    ; 2 fixed point input, output divide
+		sta |FP_MATH_CTRL0
+
+		pla
+		sta FP_MATH_INPUT1_LL
+		pla
+		sta FP_MATH_INPUT1_HL
+
+		pla
+		sta FP_MATH_INPUT0_LL
+		pla
+		sta FP_MATH_INPUT0_HL
+
+		lda #$A
+		sta |FP_MATH_CTRL2
+
+		nop 	; 4  (14 clock latency on divide)
+		nop 	; 8
+		nop 	; 10
+		nop     ; 12
+
+		lda FP_MATH_OUTPUT_FIXED_HL
+		pha
+		lda FP_MATH_OUTPUT_FIXED_LL
+		pha
+
+		<<<
+
 FixedMultiply mac
 		stz |FP_MATH_CTRL2
 		lda #$0003    ; 2 fixed point input, output multiply
@@ -96,9 +126,9 @@ FixedMultiply mac
 
 		nop
 
+		lda FP_MATH_OUTPUT_FIXED_HL
+		pha
 		lda FP_MATH_OUTPUT_FIXED_LL
-		ldx FP_MATH_OUTPUT_FIXED_HL
-		phx
 		pha
 		<<<
 
@@ -137,3 +167,172 @@ FixedAdd mac
 		sta 3,s
 		<<<
 
+FixedSub mac
+		sec
+		pla
+		sbc 3,s
+		sta 3,s
+		pla
+		sbc 3,s
+		sta 3,s
+		<<<
+
+atan2 mac
+		pla
+		sta math_abs_x
+		pla
+		sta math_abs_x+2	; pull x off the stack
+		sta math_x+2
+		bpl @xok			; value is positive
+		lda math_abs_x  	; since negative negate the number
+		eor #$FFFF
+		inc
+		sta math_abs_x  	; low negated
+		bne @xok2   		; branch if no wrap on the high
+		lda math_abs_x+2
+		eor #$ffff
+		inc 		   		; add one because low went to zero
+		bra @stx2
+@xok2
+		lda math_abs_x+2
+		eor #$ffff
+@stx2	sta math_abs_x+2
+
+@xok
+
+		pla
+		sta math_abs_y
+		pla
+		sta math_abs_y+2	; pull y off the stack
+		sta math_y+2
+		bpl @yok			; value is positive
+		lda math_abs_y  	; negative, so need to negate, to make it positive
+		eor #$FFFF
+		inc
+		sta math_abs_y
+		bne @yok2
+		lda math_abs_y+2
+		eor #$ffff
+		inc
+		bra @sty2
+@yok2
+		lda math_abs_y+2
+		eor #$ffff
+@sty2	sta math_abs_y+2
+
+@yok
+		stz math_atan2_swap 			; no swap
+
+		cmp math_abs_x+2
+		bcc @no_swap			; y < x - no swap
+		bne @swap
+		; check the low part
+
+		lda math_abs_y
+		cmp math_abs_x
+		bcc @no_swap
+		beq @no_swap
+@swap
+		; y > x, so swap  - we only deal with slopes that are <= 1, so that
+		; we don't have to deal with infinity / large values
+		inc math_atan2_swap			; flag to mark swapped, for octant cleanup
+
+		pei math_abs_x+2
+		pei math_abs_x
+		pei math_abs_y+2
+		pei math_abs_y
+		pla
+		sta math_abs_x
+		pla
+		sta math_abs_x+2
+		pla
+		sta math_abs_y
+		pla
+		sta math_abs_y+2
+@no_swap
+
+		pei math_abs_y+2
+		pei math_abs_y
+		pei math_abs_x+2
+		pei math_abs_x
+
+		FixedDivide
+		pea 512  		; PI=2048, so this is 1/4 PI, also this is times 16
+		pea 0
+
+		FixedMultiply
+		pla
+
+		; at this point angle is on the stack, but need to do octant fixup
+
+		lda math_atan2_swap
+		beq @no_swap2
+
+		sec
+		lda #1024
+		sbc 1,s
+		sta 1,s
+
+@no_swap2
+
+		lda	math_x+2
+		bpl @xispos
+
+		lda #2048
+		sec
+		sbc 1,s
+		sta 1,s
+
+@xispos
+		lda math_y+2
+		bpl @yispos
+
+		pla
+		eor #$FFFF
+		inc
+		pha
+
+@yispos
+
+		<<<
+
+; Assume fixed-point representation, e.g., Q16.16
+; Angle in brads (binary radians), where 0x4000 brads = PI
+;int32_t fixed_point_atan2(int32_t y, int32_t x) {
+;    int32_t abs_y = abs(y);
+;    int32_t abs_x = abs(x);
+;    int32_t angle;
+;    bool swap_flag = false;
+;
+;    // Determine if swap is needed for first octant reduction
+;    if (abs_y > abs_x) {
+;        swap_flag = true;
+;        int32_t temp = abs_x;
+;        abs_x = abs_y;
+;        abs_y = temp;
+;    }
+;
+;    // Calculate ratio (abs_y / abs_x) - careful with fixed-point division
+;    // This will be the argument for the atan lookup/calculation
+;    int32_t ratio = fixed_point_divide(abs_y, abs_x);
+;
+;    // Calculate base angle in first octant (e.g., using lookup table with interpolation)
+;    angle = fixed_point_atan_first_octant(ratio); 
+;
+;    // Apply octant corrections
+;    if (swap_flag) {
+;        angle = FIXED_POINT_PI_HALF - angle; // Equivalent to pi/2 - angle
+;    }
+;
+;    if (x < 0) {
+;        angle = FIXED_POINT_PI - angle; // Equivalent to pi - angle
+;    }
+;    if (y < 0) {
+;        angle = -angle; // Equivalent to negating the angle
+;    }
+;
+;    // Normalize angle to [0, 2*PI) or [-PI, PI) range if desired
+;    // ...
+;
+;    return angle;
+;}

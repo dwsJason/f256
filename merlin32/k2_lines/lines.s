@@ -55,6 +55,12 @@ math_angle ds 2
 math_sin   ds 4
 math_cos   ds 4
 
+math_x ds 4
+math_y ds 4
+math_abs_x ds 4
+math_abs_y ds 4
+math_atan2_swap ds 2
+math_atan2_angle ds 2
 	dend
 
 	dum $A000
@@ -540,7 +546,21 @@ STEP = 102
 		sbc #12
 		sta <cursor_y
 
-		lda line_angles,y
+;		lda line_angles,y
+
+		; dy
+		sec
+		lda line_y_positions+8,y
+		sbc line_y_positions,y
+		pha
+		pea 0
+
+		; dx
+		pea 4
+		pea 0
+
+		atan2
+		pla
 		sta	math_angle
 
 		lda :txt,x
@@ -552,7 +572,7 @@ STEP = 102
 		jsr vectorCOUT3
 		plx
 
-		bra ]loop
+		jmp ]loop
 
 :done
 		plx
@@ -566,7 +586,7 @@ STEP = 102
 
 		bra :done
 
-:txt	asc 'F256K REALTIME MATH'
+:txt	asc 'F256K2REALTIME MATH'
 		db 0
 		fin
 
@@ -629,12 +649,15 @@ vectorCOUT3 mx %00
 		lda vector_font,x
 		sta :pGlyph
 
+		lda math_angle
 		jsr get_sincos
 
 		ldy #0
 ]lp 	lda (:pGlyph),y
 		and #$FF
-		beq :done
+		bne :go
+		jmp :done
+:go
 
 		phy
 		pha
@@ -643,22 +666,52 @@ vectorCOUT3 mx %00
 		asl
 		tax
 ;--------------------
-		;pei math_cos+2
-		;pei math_cos
-		;lda vfont_points_x2,x
-		;pha
-		;pea 0
-		;FixedMultiply
+; rotated X
+		pei math_sin+2
+		pei math_sin
+		lda vfont_points_y2,x
+		pha
+		pea 0
+		FixedMultiply
 
-
-		clc
+		pei math_cos+2
+		pei math_cos
 		lda vfont_points_x2,x
+		pha
+		pea 0
+		FixedMultiply
+
+		FixedSub
+
+		pla
+		pla
+		clc
 		adc cursor_x
 		sta line_x0
-		clc
+; rotated Y
+		pei math_sin+2
+		pei math_sin
+		lda vfont_points_x2,x
+		pha
+		pea 0
+		FixedMultiply
+
+		pei math_cos+2
+		pei math_cos
 		lda vfont_points_y2,x
+		pha
+		pea 0
+		FixedMultiply
+
+		FixedAdd
+
+		pla
+		pla
+		clc
 		adc cursor_y
 		sta line_y0
+
+;----------------------------
 
 		pla
 		and #$F0
@@ -667,22 +720,60 @@ vectorCOUT3 mx %00
 		lsr
 		tax
 
-		clc
+;----------------------------
+; rotated X
+		pei math_sin+2
+		pei math_sin
+		lda vfont_points_y2,x
+		pha
+		pea 0
+		FixedMultiply
+
+		pei math_cos+2
+		pei math_cos
 		lda vfont_points_x2,x
+		pha
+		pea 0
+		FixedMultiply
+
+		FixedSub
+
+		pla
+		pla
+		clc
 		adc cursor_x
 		sta line_x1
-		clc
+; rotated Y
+		pei math_sin+2
+		pei math_sin
+		lda vfont_points_x2,x
+		pha
+		pea 0
+		FixedMultiply
+
+		pei math_cos+2
+		pei math_cos
 		lda vfont_points_y2,x
+		pha
+		pea 0
+		FixedMultiply
+
+		FixedAdd
+
+		pla
+		pla
+		clc
 		adc cursor_y
 		sta line_y1
 
 		sep #$30
 		jsr plot_line
+		stz io_ctrl
 		rep #$30
 
 		ply
 		iny
-		bra ]lp
+		jmp ]lp
 
 :done
 		; fall through to cursor step
@@ -2496,3 +2587,519 @@ cos_table
 	dw $0ffd,$0ffd,$0ffd,$0ffd,$0ffe,$0ffe,$0ffe,$0ffe
 	dw $0ffe,$0ffe,$0fff,$0fff,$0fff,$0fff,$0fff,$0fff
 	dw $0fff,$0fff,$0fff,$0fff,$0fff,$0fff,$0fff,$0fff
+	do 0
+tan_table
+	dw $0000,$0006,$000c,$0012,$0019,$001f,$0025,$002b
+	dw $0032,$0038,$003e,$0045,$004b,$0051,$0057,$005e
+	dw $0064,$006a,$0071,$0077,$007d,$0083,$008a,$0090
+	dw $0096,$009d,$00a3,$00a9,$00b0,$00b6,$00bc,$00c2
+	dw $00c9,$00cf,$00d5,$00dc,$00e2,$00e8,$00ef,$00f5
+	dw $00fb,$0101,$0108,$010e,$0114,$011b,$0121,$0127
+	dw $012e,$0134,$013a,$0141,$0147,$014d,$0154,$015a
+	dw $0160,$0167,$016d,$0173,$017a,$0180,$0186,$018d
+	dw $0193,$0199,$01a0,$01a6,$01ac,$01b3,$01b9,$01bf
+	dw $01c6,$01cc,$01d2,$01d9,$01df,$01e6,$01ec,$01f2
+	dw $01f9,$01ff,$0205,$020c,$0212,$0219,$021f,$0225
+	dw $022c,$0232,$0239,$023f,$0245,$024c,$0252,$0259
+	dw $025f,$0266,$026c,$0272,$0279,$027f,$0286,$028c
+	dw $0293,$0299,$029f,$02a6,$02ac,$02b3,$02b9,$02c0
+	dw $02c6,$02cd,$02d3,$02da,$02e0,$02e7,$02ed,$02f4
+	dw $02fa,$0301,$0307,$030e,$0314,$031b,$0321,$0328
+	dw $032e,$0335,$033b,$0342,$0348,$034f,$0356,$035c
+	dw $0363,$0369,$0370,$0376,$037d,$0384,$038a,$0391
+	dw $0397,$039e,$03a4,$03ab,$03b2,$03b8,$03bf,$03c6
+	dw $03cc,$03d3,$03da,$03e0,$03e7,$03ed,$03f4,$03fb
+	dw $0401,$0408,$040f,$0416,$041c,$0423,$042a,$0430
+	dw $0437,$043e,$0445,$044b,$0452,$0459,$045f,$0466
+	dw $046d,$0474,$047b,$0481,$0488,$048f,$0496,$049d
+	dw $04a3,$04aa,$04b1,$04b8,$04bf,$04c5,$04cc,$04d3
+	dw $04da,$04e1,$04e8,$04ef,$04f6,$04fc,$0503,$050a
+	dw $0511,$0518,$051f,$0526,$052d,$0534,$053b,$0542
+	dw $0549,$0550,$0557,$055e,$0565,$056c,$0573,$057a
+	dw $0581,$0588,$058f,$0596,$059d,$05a4,$05ab,$05b2
+	dw $05b9,$05c0,$05c7,$05ce,$05d5,$05dd,$05e4,$05eb
+	dw $05f2,$05f9,$0600,$0608,$060f,$0616,$061d,$0624
+	dw $062c,$0633,$063a,$0641,$0648,$0650,$0657,$065e
+	dw $0666,$066d,$0674,$067b,$0683,$068a,$0691,$0699
+	dw $06a0,$06a7,$06af,$06b6,$06be,$06c5,$06cc,$06d4
+	dw $06db,$06e3,$06ea,$06f2,$06f9,$0701,$0708,$0710
+	dw $0717,$071f,$0726,$072e,$0735,$073d,$0744,$074c
+	dw $0754,$075b,$0763,$076a,$0772,$077a,$0781,$0789
+	dw $0791,$0798,$07a0,$07a8,$07b0,$07b7,$07bf,$07c7
+	dw $07cf,$07d6,$07de,$07e6,$07ee,$07f6,$07fe,$0805
+	dw $080d,$0815,$081d,$0825,$082d,$0835,$083d,$0845
+	dw $084d,$0855,$085d,$0865,$086d,$0875,$087d,$0885
+	dw $088d,$0895,$089d,$08a5,$08ad,$08b5,$08be,$08c6
+	dw $08ce,$08d6,$08de,$08e7,$08ef,$08f7,$08ff,$0908
+	dw $0910,$0918,$0920,$0929,$0931,$093a,$0942,$094a
+	dw $0953,$095b,$0964,$096c,$0975,$097d,$0985,$098e
+	dw $0997,$099f,$09a8,$09b0,$09b9,$09c1,$09ca,$09d3
+	dw $09db,$09e4,$09ed,$09f5,$09fe,$0a07,$0a10,$0a18
+	dw $0a21,$0a2a,$0a33,$0a3c,$0a45,$0a4d,$0a56,$0a5f
+	dw $0a68,$0a71,$0a7a,$0a83,$0a8c,$0a95,$0a9e,$0aa7
+	dw $0ab0,$0ab9,$0ac3,$0acc,$0ad5,$0ade,$0ae7,$0af0
+	dw $0afa,$0b03,$0b0c,$0b15,$0b1f,$0b28,$0b31,$0b3b
+	dw $0b44,$0b4e,$0b57,$0b61,$0b6a,$0b73,$0b7d,$0b87
+	dw $0b90,$0b9a,$0ba3,$0bad,$0bb7,$0bc0,$0bca,$0bd4
+	dw $0bdd,$0be7,$0bf1,$0bfb,$0c04,$0c0e,$0c18,$0c22
+	dw $0c2c,$0c36,$0c40,$0c4a,$0c54,$0c5e,$0c68,$0c72
+	dw $0c7c,$0c86,$0c90,$0c9a,$0ca5,$0caf,$0cb9,$0cc3
+	dw $0cce,$0cd8,$0ce2,$0ced,$0cf7,$0d02,$0d0c,$0d16
+	dw $0d21,$0d2c,$0d36,$0d41,$0d4b,$0d56,$0d61,$0d6b
+	dw $0d76,$0d81,$0d8b,$0d96,$0da1,$0dac,$0db7,$0dc2
+	dw $0dcd,$0dd8,$0de3,$0dee,$0df9,$0e04,$0e0f,$0e1a
+	dw $0e25,$0e31,$0e3c,$0e47,$0e52,$0e5e,$0e69,$0e74
+	dw $0e80,$0e8b,$0e97,$0ea2,$0eae,$0eba,$0ec5,$0ed1
+	dw $0edc,$0ee8,$0ef4,$0f00,$0f0c,$0f17,$0f23,$0f2f
+	dw $0f3b,$0f47,$0f53,$0f5f,$0f6b,$0f78,$0f84,$0f90
+	dw $0f9c,$0fa8,$0fb5,$0fc1,$0fce,$0fda,$0fe6,$0ff3
+	dw $1000,$100c,$1019,$1025,$1032,$103f,$104c,$1058
+	dw $1065,$1072,$107f,$108c,$1099,$10a6,$10b3,$10c0
+	dw $10ce,$10db,$10e8,$10f6,$1103,$1110,$111e,$112b
+	dw $1139,$1146,$1154,$1162,$116f,$117d,$118b,$1199
+	dw $11a7,$11b5,$11c3,$11d1,$11df,$11ed,$11fb,$1209
+	dw $1218,$1226,$1234,$1243,$1251,$1260,$126f,$127d
+	dw $128c,$129b,$12a9,$12b8,$12c7,$12d6,$12e5,$12f4
+	dw $1303,$1313,$1322,$1331,$1341,$1350,$135f,$136f
+	dw $137e,$138e,$139e,$13ae,$13bd,$13cd,$13dd,$13ed
+	dw $13fd,$140d,$141e,$142e,$143e,$144f,$145f,$146f
+	dw $1480,$1491,$14a1,$14b2,$14c3,$14d4,$14e5,$14f6
+	dw $1507,$1518,$1529,$153b,$154c,$155e,$156f,$1581
+	dw $1592,$15a4,$15b6,$15c8,$15da,$15ec,$15fe,$1610
+	dw $1622,$1635,$1647,$165a,$166c,$167f,$1692,$16a4
+	dw $16b7,$16ca,$16dd,$16f1,$1704,$1717,$172b,$173e
+	dw $1752,$1765,$1779,$178d,$17a1,$17b5,$17c9,$17dd
+	dw $17f2,$1806,$181a,$182f,$1844,$1859,$186d,$1882
+	dw $1898,$18ad,$18c2,$18d7,$18ed,$1902,$1918,$192e
+	dw $1944,$195a,$1970,$1986,$199c,$19b3,$19c9,$19e0
+	dw $19f7,$1a0e,$1a25,$1a3c,$1a53,$1a6a,$1a82,$1a9a
+	dw $1ab1,$1ac9,$1ae1,$1af9,$1b11,$1b2a,$1b42,$1b5b
+	dw $1b73,$1b8c,$1ba5,$1bbe,$1bd8,$1bf1,$1c0b,$1c24
+	dw $1c3e,$1c58,$1c72,$1c8c,$1ca7,$1cc1,$1cdc,$1cf6
+	dw $1d11,$1d2d,$1d48,$1d63,$1d7f,$1d9a,$1db6,$1dd2
+	dw $1def,$1e0b,$1e27,$1e44,$1e61,$1e7e,$1e9b,$1eb9
+	dw $1ed6,$1ef4,$1f12,$1f30,$1f4e,$1f6c,$1f8b,$1faa
+	dw $1fc9,$1fe8,$2007,$2027,$2047,$2067,$2087,$20a7
+	dw $20c8,$20e8,$2109,$212b,$214c,$216e,$218f,$21b2
+	dw $21d4,$21f6,$2219,$223c,$225f,$2282,$22a6,$22ca
+	dw $22ee,$2312,$2337,$235c,$2381,$23a6,$23cc,$23f2
+	dw $2418,$243e,$2465,$248c,$24b3,$24db,$2502,$252a
+	dw $2553,$257b,$25a4,$25cd,$25f7,$2621,$264b,$2675
+	dw $26a0,$26cb,$26f7,$2722,$274e,$277b,$27a7,$27d4
+	dw $2802,$2830,$285e,$288c,$28bb,$28ea,$291a,$294a
+	dw $297a,$29ab,$29dc,$2a0d,$2a3f,$2a71,$2aa4,$2ad7
+	dw $2b0b,$2b3f,$2b73,$2ba8,$2bdd,$2c13,$2c49,$2c80
+	dw $2cb7,$2cef,$2d27,$2d5f,$2d98,$2dd2,$2e0c,$2e47
+	dw $2e82,$2ebd,$2efa,$2f36,$2f74,$2fb1,$2ff0,$302f
+	dw $306e,$30ae,$30ef,$3131,$3173,$31b5,$31f8,$323c
+	dw $3281,$32c6,$330c,$3353,$339a,$33e2,$342b,$3474
+	dw $34be,$3509,$3555,$35a1,$35ef,$363d,$368c,$36db
+	dw $372c,$377d,$37d0,$3823,$3877,$38cc,$3922,$3979
+	dw $39d1,$3a29,$3a83,$3ade,$3b3a,$3b97,$3bf5,$3c54
+	dw $3cb4,$3d15,$3d78,$3ddb,$3e40,$3ea6,$3f0d,$3f76
+	dw $3fe0,$404b,$40b7,$4125,$4194,$4205,$4277,$42ea
+	dw $435f,$43d5,$444d,$44c7,$4542,$45bf,$463e,$46be
+	dw $4740,$47c4,$4849,$48d1,$495a,$49e5,$4a73,$4b02
+	dw $4b93,$4c27,$4cbd,$4d55,$4def,$4e8b,$4f2a,$4fcc
+	dw $506f,$5116,$51bf,$526a,$5319,$53ca,$547e,$5535
+	dw $55ef,$56ac,$576c,$5830,$58f7,$59c1,$5a8f,$5b60
+	dw $5c35,$5d0e,$5deb,$5ecc,$5fb1,$609a,$6187,$6279
+	dw $6370,$646b,$656c,$6671,$677c,$688b,$69a1,$6abc
+	dw $6bdc,$6d03,$6e30,$6f64,$709e,$71df,$7327,$7477
+	dw $75ce,$772d,$7894,$7a03,$7b7b,$7cfc,$7e87,$801b
+	dw $81b9,$8362,$8515,$86d4,$889e,$8a75,$8c58,$8e48
+	dw $9046,$9253,$946e,$9699,$98d4,$9b20,$9d7e,$9fef
+	dw $a273,$a50b,$a7b9,$aa7d,$ad59,$b04d,$b35c,$b685
+	dw $b9cc,$bd31,$c0b6,$c45d,$c828,$cc19,$d032,$d476
+	dw $d8e8,$dd89,$e25f,$e76b,$ecb1,$f237,$f7ff,$fe10
+	dw $046e,$0b20,$122c,$1999,$2170,$29b9,$327f,$3bcd
+	dw $45b0,$5035,$5b6f,$676e,$7448,$8216,$90f4,$a102
+	dw $b267,$c54e,$d9ed,$f083,$095b,$24d0,$4351,$656a
+	dw $8bc5,$b73d,$e8ea,$223a,$6519,$b420,$12f4,$86db
+	dw $17bb,$d1ff,$ca59,$260a,$2f92,$94ca,$5f3b,$bea3
+	dw $0000,$41f5,$a0eb,$6b47,$d077,$d9fc,$35ab,$2e04
+	dw $e847,$7927,$ed0d,$4be1,$9ae8,$ddc7,$1717,$48c4
+	dw $743c,$9a97,$bcaf,$db31,$f6a6,$0f7d,$2613,$3ab2
+	dw $4d99,$5efe,$6f0c,$7dea,$8bb8,$9892,$a492,$afcb
+	dw $ba51,$c433,$cd81,$d647,$de90,$e667,$edd4,$f4e0
+	dw $fb92,$01f0,$0801,$0dc9,$134f,$1896,$1da2,$2277
+	dw $2718,$2b8a,$2fce,$33e7,$37d8,$3ba3,$3f4a,$42cf
+	dw $4634,$497b,$4ca5,$4fb3,$52a7,$5583,$5847,$5af5
+	dw $5d8d,$6011,$6282,$64e0,$672c,$6967,$6b92,$6dad
+	dw $6fba,$71b8,$73a8,$758b,$7762,$792c,$7aeb,$7c9e
+	dw $7e47,$7fe5,$8179,$8304,$8485,$85fd,$876c,$88d3
+	dw $8a32,$8b89,$8cd9,$8e21,$8f62,$909c,$91d0,$92fd
+	dw $9424,$9544,$965f,$9775,$9884,$998f,$9a94,$9b95
+	dw $9c90,$9d87,$9e79,$9f66,$a04f,$a134,$a215,$a2f2
+	dw $a3cb,$a4a0,$a571,$a63f,$a709,$a7d0,$a894,$a954
+	dw $aa11,$aacb,$ab82,$ac36,$ace7,$ad96,$ae41,$aeea
+	dw $af91,$b034,$b0d6,$b175,$b211,$b2ab,$b343,$b3d9
+	dw $b46d,$b4fe,$b58d,$b61b,$b6a6,$b72f,$b7b7,$b83c
+	dw $b8c0,$b942,$b9c2,$ba41,$babe,$bb39,$bbb3,$bc2b
+	dw $bca1,$bd16,$bd89,$bdfb,$be6c,$bedb,$bf49,$bfb5
+	dw $c020,$c08a,$c0f3,$c15a,$c1c0,$c225,$c288,$c2eb
+	dw $c34c,$c3ac,$c40b,$c469,$c4c6,$c522,$c57d,$c5d7
+	dw $c62f,$c687,$c6de,$c734,$c789,$c7dd,$c830,$c883
+	dw $c8d4,$c925,$c974,$c9c3,$ca11,$ca5f,$caab,$caf7
+	dw $cb42,$cb8c,$cbd5,$cc1e,$cc66,$ccad,$ccf4,$cd3a
+	dw $cd7f,$cdc4,$ce08,$ce4b,$ce8d,$cecf,$cf11,$cf52
+	dw $cf92,$cfd1,$d010,$d04f,$d08d,$d0ca,$d106,$d143
+	dw $d17e,$d1b9,$d1f4,$d22e,$d268,$d2a1,$d2d9,$d311
+	dw $d349,$d380,$d3b7,$d3ed,$d423,$d458,$d48d,$d4c1
+	dw $d4f5,$d529,$d55c,$d58f,$d5c1,$d5f3,$d624,$d655
+	dw $d686,$d6b6,$d6e6,$d716,$d745,$d774,$d7a2,$d7d0
+	dw $d7fe,$d82c,$d859,$d885,$d8b2,$d8de,$d909,$d935
+	dw $d960,$d98b,$d9b5,$d9df,$da09,$da33,$da5c,$da85
+	dw $daad,$dad6,$dafe,$db25,$db4d,$db74,$db9b,$dbc2
+	dw $dbe8,$dc0e,$dc34,$dc5a,$dc7f,$dca4,$dcc9,$dcee
+	dw $dd12,$dd36,$dd5a,$dd7e,$dda1,$ddc4,$dde7,$de0a
+	dw $de2c,$de4e,$de71,$de92,$deb4,$ded5,$def7,$df18
+	dw $df38,$df59,$df79,$df99,$dfb9,$dfd9,$dff9,$e018
+	dw $e037,$e056,$e075,$e094,$e0b2,$e0d0,$e0ee,$e10c
+	dw $e12a,$e147,$e165,$e182,$e19f,$e1bc,$e1d9,$e1f5
+	dw $e211,$e22e,$e24a,$e266,$e281,$e29d,$e2b8,$e2d3
+	dw $e2ef,$e30a,$e324,$e33f,$e359,$e374,$e38e,$e3a8
+	dw $e3c2,$e3dc,$e3f5,$e40f,$e428,$e442,$e45b,$e474
+	dw $e48d,$e4a5,$e4be,$e4d6,$e4ef,$e507,$e51f,$e537
+	dw $e54f,$e566,$e57e,$e596,$e5ad,$e5c4,$e5db,$e5f2
+	dw $e609,$e620,$e637,$e64d,$e664,$e67a,$e690,$e6a6
+	dw $e6bc,$e6d2,$e6e8,$e6fe,$e713,$e729,$e73e,$e753
+	dw $e768,$e77e,$e793,$e7a7,$e7bc,$e7d1,$e7e6,$e7fa
+	dw $e80e,$e823,$e837,$e84b,$e85f,$e873,$e887,$e89b
+	dw $e8ae,$e8c2,$e8d5,$e8e9,$e8fc,$e90f,$e923,$e936
+	dw $e949,$e95c,$e96e,$e981,$e994,$e9a6,$e9b9,$e9cb
+	dw $e9de,$e9f0,$ea02,$ea14,$ea26,$ea38,$ea4a,$ea5c
+	dw $ea6e,$ea7f,$ea91,$eaa2,$eab4,$eac5,$ead7,$eae8
+	dw $eaf9,$eb0a,$eb1b,$eb2c,$eb3d,$eb4e,$eb5f,$eb6f
+	dw $eb80,$eb91,$eba1,$ebb1,$ebc2,$ebd2,$ebe2,$ebf3
+	dw $ec03,$ec13,$ec23,$ec33,$ec43,$ec52,$ec62,$ec72
+	dw $ec82,$ec91,$eca1,$ecb0,$ecbf,$eccf,$ecde,$eced
+	dw $ecfd,$ed0c,$ed1b,$ed2a,$ed39,$ed48,$ed57,$ed65
+	dw $ed74,$ed83,$ed91,$eda0,$edaf,$edbd,$edcc,$edda
+	dw $ede8,$edf7,$ee05,$ee13,$ee21,$ee2f,$ee3d,$ee4b
+	dw $ee59,$ee67,$ee75,$ee83,$ee91,$ee9e,$eeac,$eeba
+	dw $eec7,$eed5,$eee2,$eef0,$eefd,$ef0b,$ef18,$ef25
+	dw $ef32,$ef40,$ef4d,$ef5a,$ef67,$ef74,$ef81,$ef8e
+	dw $ef9b,$efa8,$efb4,$efc1,$efce,$efdb,$efe7,$eff4
+	dw $f000,$f00d,$f01a,$f026,$f032,$f03f,$f04b,$f058
+	dw $f064,$f070,$f07c,$f088,$f095,$f0a1,$f0ad,$f0b9
+	dw $f0c5,$f0d1,$f0dd,$f0e9,$f0f4,$f100,$f10c,$f118
+	dw $f124,$f12f,$f13b,$f146,$f152,$f15e,$f169,$f175
+	dw $f180,$f18c,$f197,$f1a2,$f1ae,$f1b9,$f1c4,$f1cf
+	dw $f1db,$f1e6,$f1f1,$f1fc,$f207,$f212,$f21d,$f228
+	dw $f233,$f23e,$f249,$f254,$f25f,$f26a,$f275,$f27f
+	dw $f28a,$f295,$f29f,$f2aa,$f2b5,$f2bf,$f2ca,$f2d4
+	dw $f2df,$f2ea,$f2f4,$f2fe,$f309,$f313,$f31e,$f328
+	dw $f332,$f33d,$f347,$f351,$f35b,$f366,$f370,$f37a
+	dw $f384,$f38e,$f398,$f3a2,$f3ac,$f3b6,$f3c0,$f3ca
+	dw $f3d4,$f3de,$f3e8,$f3f2,$f3fc,$f405,$f40f,$f419
+	dw $f423,$f42c,$f436,$f440,$f449,$f453,$f45d,$f466
+	dw $f470,$f479,$f483,$f48d,$f496,$f49f,$f4a9,$f4b2
+	dw $f4bc,$f4c5,$f4cf,$f4d8,$f4e1,$f4eb,$f4f4,$f4fd
+	dw $f506,$f510,$f519,$f522,$f52b,$f534,$f53d,$f547
+	dw $f550,$f559,$f562,$f56b,$f574,$f57d,$f586,$f58f
+	dw $f598,$f5a1,$f5aa,$f5b3,$f5bb,$f5c4,$f5cd,$f5d6
+	dw $f5df,$f5e8,$f5f0,$f5f9,$f602,$f60b,$f613,$f61c
+	dw $f625,$f62d,$f636,$f63f,$f647,$f650,$f658,$f661
+	dw $f669,$f672,$f67b,$f683,$f68b,$f694,$f69c,$f6a5
+	dw $f6ad,$f6b6,$f6be,$f6c6,$f6cf,$f6d7,$f6e0,$f6e8
+	dw $f6f0,$f6f8,$f701,$f709,$f711,$f719,$f722,$f72a
+	dw $f732,$f73a,$f742,$f74b,$f753,$f75b,$f763,$f76b
+	dw $f773,$f77b,$f783,$f78b,$f793,$f79b,$f7a3,$f7ab
+	dw $f7b3,$f7bb,$f7c3,$f7cb,$f7d3,$f7db,$f7e3,$f7eb
+	dw $f7f3,$f7fb,$f802,$f80a,$f812,$f81a,$f822,$f82a
+	dw $f831,$f839,$f841,$f849,$f850,$f858,$f860,$f868
+	dw $f86f,$f877,$f87f,$f886,$f88e,$f896,$f89d,$f8a5
+	dw $f8ac,$f8b4,$f8bc,$f8c3,$f8cb,$f8d2,$f8da,$f8e1
+	dw $f8e9,$f8f0,$f8f8,$f8ff,$f907,$f90e,$f916,$f91d
+	dw $f925,$f92c,$f934,$f93b,$f942,$f94a,$f951,$f959
+	dw $f960,$f967,$f96f,$f976,$f97d,$f985,$f98c,$f993
+	dw $f99a,$f9a2,$f9a9,$f9b0,$f9b8,$f9bf,$f9c6,$f9cd
+	dw $f9d4,$f9dc,$f9e3,$f9ea,$f9f1,$f9f8,$fa00,$fa07
+	dw $fa0e,$fa15,$fa1c,$fa23,$fa2b,$fa32,$fa39,$fa40
+	dw $fa47,$fa4e,$fa55,$fa5c,$fa63,$fa6a,$fa71,$fa78
+	dw $fa7f,$fa86,$fa8d,$fa94,$fa9b,$faa2,$faa9,$fab0
+	dw $fab7,$fabe,$fac5,$facc,$fad3,$fada,$fae1,$fae8
+	dw $faef,$faf6,$fafd,$fb04,$fb0a,$fb11,$fb18,$fb1f
+	dw $fb26,$fb2d,$fb34,$fb3b,$fb41,$fb48,$fb4f,$fb56
+	dw $fb5d,$fb63,$fb6a,$fb71,$fb78,$fb7f,$fb85,$fb8c
+	dw $fb93,$fb9a,$fba1,$fba7,$fbae,$fbb5,$fbbb,$fbc2
+	dw $fbc9,$fbd0,$fbd6,$fbdd,$fbe4,$fbea,$fbf1,$fbf8
+	dw $fbff,$fc05,$fc0c,$fc13,$fc19,$fc20,$fc26,$fc2d
+	dw $fc34,$fc3a,$fc41,$fc48,$fc4e,$fc55,$fc5c,$fc62
+	dw $fc69,$fc6f,$fc76,$fc7c,$fc83,$fc8a,$fc90,$fc97
+	dw $fc9d,$fca4,$fcaa,$fcb1,$fcb8,$fcbe,$fcc5,$fccb
+	dw $fcd2,$fcd8,$fcdf,$fce5,$fcec,$fcf2,$fcf9,$fcff
+	dw $fd06,$fd0c,$fd13,$fd19,$fd20,$fd26,$fd2d,$fd33
+	dw $fd3a,$fd40,$fd47,$fd4d,$fd54,$fd5a,$fd61,$fd67
+	dw $fd6d,$fd74,$fd7a,$fd81,$fd87,$fd8e,$fd94,$fd9a
+	dw $fda1,$fda7,$fdae,$fdb4,$fdbb,$fdc1,$fdc7,$fdce
+	dw $fdd4,$fddb,$fde1,$fde7,$fdee,$fdf4,$fdfb,$fe01
+	dw $fe07,$fe0e,$fe14,$fe1a,$fe21,$fe27,$fe2e,$fe34
+	dw $fe3a,$fe41,$fe47,$fe4d,$fe54,$fe5a,$fe60,$fe67
+	dw $fe6d,$fe73,$fe7a,$fe80,$fe86,$fe8d,$fe93,$fe99
+	dw $fea0,$fea6,$feac,$feb3,$feb9,$febf,$fec6,$fecc
+	dw $fed2,$fed9,$fedf,$fee5,$feec,$fef2,$fef8,$feff
+	dw $ff05,$ff0b,$ff11,$ff18,$ff1e,$ff24,$ff2b,$ff31
+	dw $ff37,$ff3e,$ff44,$ff4a,$ff50,$ff57,$ff5d,$ff63
+	dw $ff6a,$ff70,$ff76,$ff7d,$ff83,$ff89,$ff8f,$ff96
+	dw $ff9c,$ffa2,$ffa9,$ffaf,$ffb5,$ffbb,$ffc2,$ffc8
+	dw $ffce,$ffd5,$ffdb,$ffe1,$ffe7,$ffee,$fff4,$fffa
+	dw $0000,$0006,$000c,$0012,$0019,$001f,$0025,$002b
+	dw $0032,$0038,$003e,$0045,$004b,$0051,$0057,$005e
+	dw $0064,$006a,$0071,$0077,$007d,$0083,$008a,$0090
+	dw $0096,$009d,$00a3,$00a9,$00b0,$00b6,$00bc,$00c2
+	dw $00c9,$00cf,$00d5,$00dc,$00e2,$00e8,$00ef,$00f5
+	dw $00fb,$0101,$0108,$010e,$0114,$011b,$0121,$0127
+	dw $012e,$0134,$013a,$0141,$0147,$014d,$0154,$015a
+	dw $0160,$0167,$016d,$0173,$017a,$0180,$0186,$018d
+	dw $0193,$0199,$01a0,$01a6,$01ac,$01b3,$01b9,$01bf
+	dw $01c6,$01cc,$01d2,$01d9,$01df,$01e6,$01ec,$01f2
+	dw $01f9,$01ff,$0205,$020c,$0212,$0219,$021f,$0225
+	dw $022c,$0232,$0239,$023f,$0245,$024c,$0252,$0259
+	dw $025f,$0266,$026c,$0272,$0279,$027f,$0286,$028c
+	dw $0293,$0299,$029f,$02a6,$02ac,$02b3,$02b9,$02c0
+	dw $02c6,$02cd,$02d3,$02da,$02e0,$02e7,$02ed,$02f4
+	dw $02fa,$0301,$0307,$030e,$0314,$031b,$0321,$0328
+	dw $032e,$0335,$033b,$0342,$0348,$034f,$0356,$035c
+	dw $0363,$0369,$0370,$0376,$037d,$0384,$038a,$0391
+	dw $0397,$039e,$03a4,$03ab,$03b2,$03b8,$03bf,$03c6
+	dw $03cc,$03d3,$03da,$03e0,$03e7,$03ed,$03f4,$03fb
+	dw $0401,$0408,$040f,$0416,$041c,$0423,$042a,$0430
+	dw $0437,$043e,$0445,$044b,$0452,$0459,$045f,$0466
+	dw $046d,$0474,$047b,$0481,$0488,$048f,$0496,$049d
+	dw $04a3,$04aa,$04b1,$04b8,$04bf,$04c5,$04cc,$04d3
+	dw $04da,$04e1,$04e8,$04ef,$04f6,$04fc,$0503,$050a
+	dw $0511,$0518,$051f,$0526,$052d,$0534,$053b,$0542
+	dw $0549,$0550,$0557,$055e,$0565,$056c,$0573,$057a
+	dw $0581,$0588,$058f,$0596,$059d,$05a4,$05ab,$05b2
+	dw $05b9,$05c0,$05c7,$05ce,$05d5,$05dd,$05e4,$05eb
+	dw $05f2,$05f9,$0600,$0608,$060f,$0616,$061d,$0624
+	dw $062c,$0633,$063a,$0641,$0648,$0650,$0657,$065e
+	dw $0666,$066d,$0674,$067b,$0683,$068a,$0691,$0699
+	dw $06a0,$06a7,$06af,$06b6,$06be,$06c5,$06cc,$06d4
+	dw $06db,$06e3,$06ea,$06f2,$06f9,$0701,$0708,$0710
+	dw $0717,$071f,$0726,$072e,$0735,$073d,$0744,$074c
+	dw $0754,$075b,$0763,$076a,$0772,$077a,$0781,$0789
+	dw $0791,$0798,$07a0,$07a8,$07b0,$07b7,$07bf,$07c7
+	dw $07cf,$07d6,$07de,$07e6,$07ee,$07f6,$07fe,$0805
+	dw $080d,$0815,$081d,$0825,$082d,$0835,$083d,$0845
+	dw $084d,$0855,$085d,$0865,$086d,$0875,$087d,$0885
+	dw $088d,$0895,$089d,$08a5,$08ad,$08b5,$08be,$08c6
+	dw $08ce,$08d6,$08de,$08e7,$08ef,$08f7,$08ff,$0908
+	dw $0910,$0918,$0920,$0929,$0931,$093a,$0942,$094a
+	dw $0953,$095b,$0964,$096c,$0975,$097d,$0985,$098e
+	dw $0997,$099f,$09a8,$09b0,$09b9,$09c1,$09ca,$09d3
+	dw $09db,$09e4,$09ed,$09f5,$09fe,$0a07,$0a10,$0a18
+	dw $0a21,$0a2a,$0a33,$0a3c,$0a45,$0a4d,$0a56,$0a5f
+	dw $0a68,$0a71,$0a7a,$0a83,$0a8c,$0a95,$0a9e,$0aa7
+	dw $0ab0,$0ab9,$0ac3,$0acc,$0ad5,$0ade,$0ae7,$0af0
+	dw $0afa,$0b03,$0b0c,$0b15,$0b1f,$0b28,$0b31,$0b3b
+	dw $0b44,$0b4e,$0b57,$0b61,$0b6a,$0b73,$0b7d,$0b87
+	dw $0b90,$0b9a,$0ba3,$0bad,$0bb7,$0bc0,$0bca,$0bd4
+	dw $0bdd,$0be7,$0bf1,$0bfb,$0c04,$0c0e,$0c18,$0c22
+	dw $0c2c,$0c36,$0c40,$0c4a,$0c54,$0c5e,$0c68,$0c72
+	dw $0c7c,$0c86,$0c90,$0c9a,$0ca5,$0caf,$0cb9,$0cc3
+	dw $0cce,$0cd8,$0ce2,$0ced,$0cf7,$0d02,$0d0c,$0d16
+	dw $0d21,$0d2c,$0d36,$0d41,$0d4b,$0d56,$0d61,$0d6b
+	dw $0d76,$0d81,$0d8c,$0d96,$0da1,$0dac,$0db7,$0dc2
+	dw $0dcd,$0dd8,$0de3,$0dee,$0df9,$0e04,$0e0f,$0e1a
+	dw $0e25,$0e31,$0e3c,$0e47,$0e52,$0e5e,$0e69,$0e74
+	dw $0e80,$0e8b,$0e97,$0ea2,$0eae,$0eba,$0ec5,$0ed1
+	dw $0edc,$0ee8,$0ef4,$0f00,$0f0c,$0f17,$0f23,$0f2f
+	dw $0f3b,$0f47,$0f53,$0f5f,$0f6b,$0f78,$0f84,$0f90
+	dw $0f9c,$0fa8,$0fb5,$0fc1,$0fce,$0fda,$0fe6,$0ff3
+	dw $1000,$100c,$1019,$1025,$1032,$103f,$104c,$1058
+	dw $1065,$1072,$107f,$108c,$1099,$10a6,$10b3,$10c0
+	dw $10ce,$10db,$10e8,$10f6,$1103,$1110,$111e,$112b
+	dw $1139,$1146,$1154,$1162,$116f,$117d,$118b,$1199
+	dw $11a7,$11b5,$11c3,$11d1,$11df,$11ed,$11fb,$1209
+	dw $1218,$1226,$1234,$1243,$1251,$1260,$126f,$127d
+	dw $128c,$129b,$12a9,$12b8,$12c7,$12d6,$12e5,$12f4
+	dw $1303,$1313,$1322,$1331,$1341,$1350,$135f,$136f
+	dw $137e,$138e,$139e,$13ae,$13bd,$13cd,$13dd,$13ed
+	dw $13fd,$140d,$141e,$142e,$143e,$144f,$145f,$146f
+	dw $1480,$1491,$14a1,$14b2,$14c3,$14d4,$14e5,$14f6
+	dw $1507,$1518,$1529,$153b,$154c,$155e,$156f,$1581
+	dw $1592,$15a4,$15b6,$15c8,$15da,$15ec,$15fe,$1610
+	dw $1622,$1635,$1647,$165a,$166c,$167f,$1692,$16a4
+	dw $16b7,$16ca,$16dd,$16f1,$1704,$1717,$172b,$173e
+	dw $1752,$1765,$1779,$178d,$17a1,$17b5,$17c9,$17dd
+	dw $17f2,$1806,$181b,$182f,$1844,$1859,$186d,$1882
+	dw $1898,$18ad,$18c2,$18d7,$18ed,$1902,$1918,$192e
+	dw $1944,$195a,$1970,$1986,$199c,$19b3,$19c9,$19e0
+	dw $19f7,$1a0e,$1a25,$1a3c,$1a53,$1a6a,$1a82,$1a9a
+	dw $1ab1,$1ac9,$1ae1,$1af9,$1b11,$1b2a,$1b42,$1b5b
+	dw $1b73,$1b8c,$1ba5,$1bbe,$1bd8,$1bf1,$1c0b,$1c24
+	dw $1c3e,$1c58,$1c72,$1c8c,$1ca7,$1cc1,$1cdc,$1cf6
+	dw $1d11,$1d2d,$1d48,$1d63,$1d7f,$1d9a,$1db6,$1dd2
+	dw $1def,$1e0b,$1e27,$1e44,$1e61,$1e7e,$1e9b,$1eb9
+	dw $1ed6,$1ef4,$1f12,$1f30,$1f4e,$1f6c,$1f8b,$1faa
+	dw $1fc9,$1fe8,$2007,$2027,$2047,$2067,$2087,$20a7
+	dw $20c8,$20e9,$2109,$212b,$214c,$216e,$218f,$21b2
+	dw $21d4,$21f6,$2219,$223c,$225f,$2282,$22a6,$22ca
+	dw $22ee,$2312,$2337,$235c,$2381,$23a6,$23cc,$23f2
+	dw $2418,$243e,$2465,$248c,$24b3,$24db,$2502,$252a
+	dw $2553,$257b,$25a4,$25ce,$25f7,$2621,$264b,$2675
+	dw $26a0,$26cb,$26f7,$2722,$274e,$277b,$27a7,$27d4
+	dw $2802,$2830,$285e,$288c,$28bb,$28ea,$291a,$294a
+	dw $297a,$29ab,$29dc,$2a0d,$2a3f,$2a71,$2aa4,$2ad7
+	dw $2b0b,$2b3f,$2b73,$2ba8,$2bdd,$2c13,$2c49,$2c80
+	dw $2cb7,$2cef,$2d27,$2d5f,$2d98,$2dd2,$2e0c,$2e47
+	dw $2e82,$2ebd,$2efa,$2f36,$2f74,$2fb1,$2ff0,$302f
+	dw $306e,$30ae,$30ef,$3131,$3173,$31b5,$31f8,$323c
+	dw $3281,$32c6,$330c,$3353,$339a,$33e2,$342b,$3474
+	dw $34be,$3509,$3555,$35a1,$35ef,$363d,$368c,$36db
+	dw $372c,$377d,$37d0,$3823,$3877,$38cc,$3922,$3979
+	dw $39d1,$3a29,$3a83,$3ade,$3b3a,$3b97,$3bf5,$3c54
+	dw $3cb4,$3d15,$3d78,$3ddb,$3e40,$3ea6,$3f0d,$3f76
+	dw $3fe0,$404b,$40b7,$4125,$4194,$4205,$4277,$42ea
+	dw $435f,$43d5,$444d,$44c7,$4542,$45bf,$463e,$46be
+	dw $4740,$47c4,$4849,$48d1,$495a,$49e5,$4a73,$4b02
+	dw $4b93,$4c27,$4cbd,$4d55,$4def,$4e8b,$4f2a,$4fcc
+	dw $506f,$5116,$51bf,$526a,$5319,$53ca,$547e,$5535
+	dw $55ef,$56ac,$576c,$5830,$58f7,$59c1,$5a8f,$5b60
+	dw $5c35,$5d0e,$5deb,$5ecc,$5fb1,$609a,$6187,$6279
+	dw $6370,$646b,$656c,$6671,$677c,$688b,$69a1,$6abc
+	dw $6bdd,$6d03,$6e31,$6f64,$709e,$71df,$7327,$7477
+	dw $75ce,$772d,$7894,$7a03,$7b7b,$7cfc,$7e87,$801b
+	dw $81b9,$8362,$8515,$86d4,$889e,$8a75,$8c58,$8e48
+	dw $9046,$9253,$946e,$9699,$98d4,$9b21,$9d7e,$9fef
+	dw $a273,$a50b,$a7b9,$aa7d,$ad59,$b04d,$b35c,$b685
+	dw $b9cc,$bd31,$c0b6,$c45d,$c828,$cc19,$d032,$d476
+	dw $d8e8,$dd8a,$e25f,$e76b,$ecb1,$f237,$f7ff,$fe10
+	dw $046e,$0b20,$122c,$1999,$2170,$29b9,$327f,$3bcd
+	dw $45b0,$5036,$5b6f,$676f,$7449,$8216,$90f4,$a102
+	dw $b266,$c54e,$d9ed,$f082,$095a,$24cf,$4351,$6569
+	dw $8bc4,$b73b,$e8e9,$223a,$6519,$b41f,$12f4,$86da
+	dw $17ba,$d1fe,$ca58,$2608,$2f8f,$94c4,$5f2d,$be6c
+	dw $0000,$41be,$a0dd,$6b41,$d074,$d9fa,$35a9,$2e03
+	dw $e846,$7926,$ed0d,$4be1,$9ae8,$ddc6,$1718,$48c5
+	dw $743d,$9a97,$bcb0,$db31,$f6a6,$0f7e,$2613,$3ab2
+	dw $4d9a,$5efe,$6f0c,$7dea,$8bb8,$9892,$a492,$afcb
+	dw $ba51,$c433,$cd81,$d647,$de91,$e667,$edd5,$f4e0
+	dw $fb92,$01f0,$0801,$0dca,$134f,$1896,$1da2,$2277
+	dw $2719,$2b8a,$2fce,$33e7,$37d8,$3ba3,$3f4a,$42cf
+	dw $4634,$497b,$4ca5,$4fb3,$52a7,$5583,$5847,$5af5
+	dw $5d8d,$6011,$6282,$64e0,$672c,$6967,$6b92,$6dad
+	dw $6fba,$71b8,$73a8,$758b,$7762,$792c,$7aeb,$7c9f
+	dw $7e47,$7fe5,$8179,$8304,$8485,$85fd,$876c,$88d3
+	dw $8a32,$8b89,$8cd9,$8e21,$8f62,$909c,$91cf,$92fd
+	dw $9424,$9544,$965f,$9775,$9884,$998f,$9a94,$9b95
+	dw $9c90,$9d87,$9e79,$9f66,$a04f,$a134,$a215,$a2f2
+	dw $a3cb,$a4a0,$a571,$a63f,$a709,$a7d0,$a894,$a954
+	dw $aa11,$aacb,$ab82,$ac36,$ace7,$ad96,$ae41,$aeea
+	dw $af91,$b034,$b0d6,$b175,$b211,$b2ab,$b343,$b3d9
+	dw $b46d,$b4fe,$b58d,$b61b,$b6a6,$b72f,$b7b7,$b83c
+	dw $b8c0,$b942,$b9c2,$ba41,$babe,$bb39,$bbb3,$bc2b
+	dw $bca1,$bd16,$bd89,$bdfb,$be6c,$bedb,$bf49,$bfb5
+	dw $c020,$c08a,$c0f3,$c15a,$c1c0,$c225,$c288,$c2eb
+	dw $c34c,$c3ac,$c40b,$c469,$c4c6,$c522,$c57d,$c5d7
+	dw $c62f,$c687,$c6de,$c734,$c789,$c7dd,$c830,$c883
+	dw $c8d4,$c925,$c974,$c9c3,$ca11,$ca5f,$caab,$caf7
+	dw $cb42,$cb8c,$cbd5,$cc1e,$cc66,$ccad,$ccf4,$cd3a
+	dw $cd7f,$cdc4,$ce08,$ce4b,$ce8d,$cecf,$cf11,$cf52
+	dw $cf92,$cfd1,$d010,$d04f,$d08c,$d0ca,$d106,$d143
+	dw $d17e,$d1b9,$d1f4,$d22e,$d268,$d2a1,$d2d9,$d311
+	dw $d349,$d380,$d3b7,$d3ed,$d423,$d458,$d48d,$d4c1
+	dw $d4f5,$d529,$d55c,$d58f,$d5c1,$d5f3,$d624,$d655
+	dw $d686,$d6b6,$d6e6,$d716,$d745,$d774,$d7a2,$d7d0
+	dw $d7fe,$d82c,$d859,$d885,$d8b2,$d8de,$d909,$d935
+	dw $d960,$d98b,$d9b5,$d9df,$da09,$da33,$da5c,$da85
+	dw $daad,$dad6,$dafe,$db25,$db4d,$db74,$db9b,$dbc2
+	dw $dbe8,$dc0e,$dc34,$dc5a,$dc7f,$dca4,$dcc9,$dcee
+	dw $dd12,$dd36,$dd5a,$dd7e,$dda1,$ddc4,$dde7,$de0a
+	dw $de2c,$de4f,$de71,$de92,$deb4,$ded5,$def7,$df18
+	dw $df38,$df59,$df79,$df99,$dfb9,$dfd9,$dff9,$e018
+	dw $e037,$e056,$e075,$e094,$e0b2,$e0d0,$e0ee,$e10c
+	dw $e12a,$e147,$e165,$e182,$e19f,$e1bc,$e1d9,$e1f5
+	dw $e211,$e22e,$e24a,$e266,$e281,$e29d,$e2b8,$e2d3
+	dw $e2ef,$e30a,$e324,$e33f,$e359,$e374,$e38e,$e3a8
+	dw $e3c2,$e3dc,$e3f5,$e40f,$e428,$e442,$e45b,$e474
+	dw $e48d,$e4a5,$e4be,$e4d6,$e4ef,$e507,$e51f,$e537
+	dw $e54f,$e566,$e57e,$e596,$e5ad,$e5c4,$e5db,$e5f2
+	dw $e609,$e620,$e637,$e64d,$e664,$e67a,$e690,$e6a6
+	dw $e6bc,$e6d2,$e6e8,$e6fe,$e713,$e729,$e73e,$e753
+	dw $e768,$e77e,$e793,$e7a7,$e7bc,$e7d1,$e7e6,$e7fa
+	dw $e80e,$e823,$e837,$e84b,$e85f,$e873,$e887,$e89b
+	dw $e8ae,$e8c2,$e8d5,$e8e9,$e8fc,$e90f,$e923,$e936
+	dw $e949,$e95c,$e96e,$e981,$e994,$e9a6,$e9b9,$e9cb
+	dw $e9de,$e9f0,$ea02,$ea14,$ea26,$ea38,$ea4a,$ea5c
+	dw $ea6e,$ea7f,$ea91,$eaa2,$eab4,$eac5,$ead7,$eae8
+	dw $eaf9,$eb0a,$eb1b,$eb2c,$eb3d,$eb4e,$eb5f,$eb6f
+	dw $eb80,$eb91,$eba1,$ebb1,$ebc2,$ebd2,$ebe2,$ebf3
+	dw $ec03,$ec13,$ec23,$ec33,$ec43,$ec52,$ec62,$ec72
+	dw $ec82,$ec91,$eca1,$ecb0,$ecbf,$eccf,$ecde,$eced
+	dw $ecfd,$ed0c,$ed1b,$ed2a,$ed39,$ed48,$ed57,$ed65
+	dw $ed74,$ed83,$ed91,$eda0,$edaf,$edbd,$edcc,$edda
+	dw $ede8,$edf7,$ee05,$ee13,$ee21,$ee2f,$ee3d,$ee4b
+	dw $ee59,$ee67,$ee75,$ee83,$ee91,$ee9e,$eeac,$eeba
+	dw $eec7,$eed5,$eee2,$eef0,$eefd,$ef0b,$ef18,$ef25
+	dw $ef32,$ef40,$ef4d,$ef5a,$ef67,$ef74,$ef81,$ef8e
+	dw $ef9b,$efa8,$efb4,$efc1,$efce,$efdb,$efe7,$eff4
+	dw $f001,$f00d,$f01a,$f026,$f032,$f03f,$f04b,$f058
+	dw $f064,$f070,$f07c,$f088,$f095,$f0a1,$f0ad,$f0b9
+	dw $f0c5,$f0d1,$f0dd,$f0e9,$f0f4,$f100,$f10c,$f118
+	dw $f124,$f12f,$f13b,$f146,$f152,$f15e,$f169,$f175
+	dw $f180,$f18c,$f197,$f1a2,$f1ae,$f1b9,$f1c4,$f1cf
+	dw $f1db,$f1e6,$f1f1,$f1fc,$f207,$f212,$f21d,$f228
+	dw $f233,$f23e,$f249,$f254,$f25f,$f26a,$f275,$f27f
+	dw $f28a,$f295,$f29f,$f2aa,$f2b5,$f2bf,$f2ca,$f2d4
+	dw $f2df,$f2ea,$f2f4,$f2fe,$f309,$f313,$f31e,$f328
+	dw $f332,$f33d,$f347,$f351,$f35b,$f366,$f370,$f37a
+	dw $f384,$f38e,$f398,$f3a2,$f3ac,$f3b6,$f3c0,$f3ca
+	dw $f3d4,$f3de,$f3e8,$f3f2,$f3fc,$f405,$f40f,$f419
+	dw $f423,$f42c,$f436,$f440,$f449,$f453,$f45d,$f466
+	dw $f470,$f479,$f483,$f48d,$f496,$f49f,$f4a9,$f4b2
+	dw $f4bc,$f4c5,$f4cf,$f4d8,$f4e1,$f4eb,$f4f4,$f4fd
+	dw $f506,$f510,$f519,$f522,$f52b,$f534,$f53d,$f547
+	dw $f550,$f559,$f562,$f56b,$f574,$f57d,$f586,$f58f
+	dw $f598,$f5a1,$f5aa,$f5b3,$f5bb,$f5c4,$f5cd,$f5d6
+	dw $f5df,$f5e8,$f5f0,$f5f9,$f602,$f60b,$f613,$f61c
+	dw $f625,$f62d,$f636,$f63f,$f647,$f650,$f658,$f661
+	dw $f669,$f672,$f67b,$f683,$f68b,$f694,$f69c,$f6a5
+	dw $f6ad,$f6b6,$f6be,$f6c6,$f6cf,$f6d7,$f6e0,$f6e8
+	dw $f6f0,$f6f8,$f701,$f709,$f711,$f719,$f722,$f72a
+	dw $f732,$f73a,$f742,$f74b,$f753,$f75b,$f763,$f76b
+	dw $f773,$f77b,$f783,$f78b,$f793,$f79b,$f7a3,$f7ab
+	dw $f7b3,$f7bb,$f7c3,$f7cb,$f7d3,$f7db,$f7e3,$f7eb
+	dw $f7f3,$f7fb,$f802,$f80a,$f812,$f81a,$f822,$f82a
+	dw $f831,$f839,$f841,$f849,$f850,$f858,$f860,$f868
+	dw $f86f,$f877,$f87f,$f886,$f88e,$f896,$f89d,$f8a5
+	dw $f8ac,$f8b4,$f8bc,$f8c3,$f8cb,$f8d2,$f8da,$f8e1
+	dw $f8e9,$f8f0,$f8f8,$f8ff,$f907,$f90e,$f916,$f91d
+	dw $f925,$f92c,$f934,$f93b,$f942,$f94a,$f951,$f959
+	dw $f960,$f967,$f96f,$f976,$f97d,$f985,$f98c,$f993
+	dw $f99a,$f9a2,$f9a9,$f9b0,$f9b8,$f9bf,$f9c6,$f9cd
+	dw $f9d4,$f9dc,$f9e3,$f9ea,$f9f1,$f9f8,$fa00,$fa07
+	dw $fa0e,$fa15,$fa1c,$fa23,$fa2b,$fa32,$fa39,$fa40
+	dw $fa47,$fa4e,$fa55,$fa5c,$fa63,$fa6a,$fa71,$fa78
+	dw $fa7f,$fa86,$fa8d,$fa94,$fa9b,$faa2,$faa9,$fab0
+	dw $fab7,$fabe,$fac5,$facc,$fad3,$fada,$fae1,$fae8
+	dw $faef,$faf6,$fafd,$fb04,$fb0a,$fb11,$fb18,$fb1f
+	dw $fb26,$fb2d,$fb34,$fb3b,$fb41,$fb48,$fb4f,$fb56
+	dw $fb5d,$fb63,$fb6a,$fb71,$fb78,$fb7f,$fb85,$fb8c
+	dw $fb93,$fb9a,$fba1,$fba7,$fbae,$fbb5,$fbbb,$fbc2
+	dw $fbc9,$fbd0,$fbd6,$fbdd,$fbe4,$fbea,$fbf1,$fbf8
+	dw $fbff,$fc05,$fc0c,$fc13,$fc19,$fc20,$fc26,$fc2d
+	dw $fc34,$fc3a,$fc41,$fc48,$fc4e,$fc55,$fc5c,$fc62
+	dw $fc69,$fc6f,$fc76,$fc7c,$fc83,$fc8a,$fc90,$fc97
+	dw $fc9d,$fca4,$fcaa,$fcb1,$fcb8,$fcbe,$fcc5,$fccb
+	dw $fcd2,$fcd8,$fcdf,$fce5,$fcec,$fcf2,$fcf9,$fcff
+	dw $fd06,$fd0c,$fd13,$fd19,$fd20,$fd26,$fd2d,$fd33
+	dw $fd3a,$fd40,$fd47,$fd4d,$fd54,$fd5a,$fd61,$fd67
+	dw $fd6d,$fd74,$fd7a,$fd81,$fd87,$fd8e,$fd94,$fd9a
+	dw $fda1,$fda7,$fdae,$fdb4,$fdbb,$fdc1,$fdc7,$fdce
+	dw $fdd4,$fddb,$fde1,$fde7,$fdee,$fdf4,$fdfb,$fe01
+	dw $fe07,$fe0e,$fe14,$fe1a,$fe21,$fe27,$fe2e,$fe34
+	dw $fe3a,$fe41,$fe47,$fe4d,$fe54,$fe5a,$fe60,$fe67
+	dw $fe6d,$fe73,$fe7a,$fe80,$fe86,$fe8d,$fe93,$fe99
+	dw $fea0,$fea6,$feac,$feb3,$feb9,$febf,$fec6,$fecc
+	dw $fed2,$fed9,$fedf,$fee5,$feec,$fef2,$fef8,$feff
+	dw $ff05,$ff0b,$ff11,$ff18,$ff1e,$ff24,$ff2b,$ff31
+	dw $ff37,$ff3e,$ff44,$ff4a,$ff50,$ff57,$ff5d,$ff63
+	dw $ff6a,$ff70,$ff76,$ff7d,$ff83,$ff89,$ff8f,$ff96
+	dw $ff9c,$ffa2,$ffa9,$ffaf,$ffb5,$ffbb,$ffc2,$ffc8
+	dw $ffce,$ffd5,$ffdb,$ffe1,$ffe7,$ffee,$fff4,$fffa
+	fin
+;------------------------------------------------------------------------------
